@@ -1,0 +1,37 @@
+/*
+ * Global styles for the MJ Secure Messaging widget.
+ *
+ * CSS custom properties allow host pages to theme the widget:
+ *   --sm-brand-color: Primary color for buttons and accents (default: #1a73e8)
+ *   --sm-text-color: Main text color (default: #333)
+ *   --sm-text-secondary: Secondary/muted text color (default: #666)
+ *   --sm-bg-color: Background color (default: #fff)
+ *   --sm-header-bg: Header background (default: #f8f9fa)
+ *   --sm-border-color: Border color (default: #e0e0e0)
+ *   --sm-bubble-inbound-bg: Inbound message bubble background (default: #f0f0f0)
+ *   --sm-compose-bg: Compose area background (default: #fff)
+ *   --sm-input-bg: Input field background (default: #fff)
+ *   --sm-hover-bg: Hover state background (default: #f0f0f0)
+ */
+
+:root {
+    --sm-brand-color: #1a73e8;
+    --sm-text-color: #333;
+    --sm-text-secondary: #666;
+    --sm-bg-color: #fff;
+    --sm-header-bg: #f8f9fa;
+    --sm-border-color: #e0e0e0;
+    --sm-bubble-inbound-bg: #f0f0f0;
+    --sm-compose-bg: #fff;
+    --sm-input-bg: #fff;
+    --sm-hover-bg: #f0f0f0;
+}
+
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+}

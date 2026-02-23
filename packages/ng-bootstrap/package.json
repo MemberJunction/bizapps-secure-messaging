@@ -1,0 +1,18 @@
+{
+  "name": "@memberjunction/ng-secure-messaging-bootstrap",
+  "version": "1.0.0",
+  "description": "Client-side bootstrap package for MJ Secure Messaging. Registers Angular components for the MJ Explorer UI.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@memberjunction/core": "^5.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

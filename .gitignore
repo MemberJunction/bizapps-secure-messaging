@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.js.map
+.angular/
+
+# Built bundle in test directory (build artifact)
+test/mj-secure-messaging.js
