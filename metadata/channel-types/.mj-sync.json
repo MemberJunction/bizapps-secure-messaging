@@ -1,0 +1,20 @@
+{
+  "entity": "Channel Types",
+  "filePattern": ".*.json",
+  "pull": {
+    "createNewFileIfNotFound": true,
+    "newFileName": ".channel-types.json",
+    "appendRecordsToExistingFile": true,
+    "updateExistingRecords": true,
+    "preserveFields": [],
+    "excludeFields": [],
+    "ignoreVirtualFields": true,
+    "ignoreNullFields": true,
+    "mergeStrategy": "merge",
+    "backupBeforeUpdate": true,
+    "backupDirectory": ".backups",
+    "externalizeFields": [],
+    "lookupFields": {},
+    "relatedEntities": {}
+  }
+}

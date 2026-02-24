@@ -35,10 +35,18 @@ import { SecureMessagingApiService, ThreadMessage } from '../../services/api.ser
         </div>
     `,
     styles: [`
+        :host {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
         .sm-conversation {
             display: flex;
             flex-direction: column;
-            height: 100%;
+            flex: 1;
+            min-height: 0;
             background: var(--sm-bg-color, #fff);
         }
         .sm-conversation__header {
@@ -80,6 +88,7 @@ import { SecureMessagingApiService, ThreadMessage } from '../../services/api.ser
             padding: 1rem;
             display: flex;
             flex-direction: column;
+            justify-content: flex-end;
         }
         .sm-conversation__loading, .sm-conversation__empty {
             display: flex;

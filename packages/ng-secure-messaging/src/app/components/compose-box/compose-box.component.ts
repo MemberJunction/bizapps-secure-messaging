@@ -24,6 +24,9 @@ import { Component, Output, EventEmitter } from '@angular/core';
         </div>
     `,
     styles: [`
+        :host {
+            flex-shrink: 0;
+        }
         .sm-compose {
             display: flex;
             gap: 0.5rem;

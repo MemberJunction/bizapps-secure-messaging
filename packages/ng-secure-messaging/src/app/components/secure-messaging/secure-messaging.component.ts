@@ -37,7 +37,6 @@ import { AuthService, AuthState } from '../../services/auth.service';
         .sm-container {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             height: 100%;
-            min-height: 400px;
             border: 1px solid var(--sm-border-color, #e0e0e0);
             border-radius: 8px;
             overflow: hidden;

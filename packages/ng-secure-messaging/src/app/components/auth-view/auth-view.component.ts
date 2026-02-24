@@ -29,6 +29,11 @@ import { AuthState } from '../../services/auth.service';
         </div>
     `,
     styles: [`
+        :host {
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
         .sm-auth-view {
             display: flex;
             align-items: center;

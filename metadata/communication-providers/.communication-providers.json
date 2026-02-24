@@ -1,10 +1,9 @@
-{
-  "Entity": "MJ: Communication Providers",
-  "records": [
-    {
+[
+  {
+    "fields": {
       "Name": "Secure Web",
       "Description": "Internal MJ communication provider for the Secure Messaging portal. Messages are stored directly in the MJ database and served to external contacts via the embedded Angular Element widget. No external API calls required.",
       "Status": "Active"
     }
-  ]
-}
+  }
+]

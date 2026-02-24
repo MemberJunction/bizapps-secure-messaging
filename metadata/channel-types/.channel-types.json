@@ -1,16 +1,11 @@
-{
-  "Entity": "Channel Types",
-  "records": [
-    {
+[
+  {
+    "fields": {
       "Name": "Secure Web",
       "Description": "Secure web messaging channel. External contacts access conversations through an embeddable widget authenticated via token-based links. Messages flow through MJ's standard ChannelMessage pipeline for AI processing and approval workflows.",
-      "CommunicationProviderID": {
-        "linkedEntity": "MJ: Communication Providers",
-        "linkedField": "Name",
-        "linkedValue": "Secure Web"
-      },
+      "CommunicationProviderID": "@lookup:MJ: Communication Providers.Name=Secure Web",
       "ActionInheritMode": "Combined",
       "Status": "Active"
     }
-  ]
-}
+  }
+]

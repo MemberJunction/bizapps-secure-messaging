@@ -17,6 +17,10 @@ import { ThreadMessage } from '../../services/api.service';
         </div>
     `,
     styles: [`
+        :host {
+            display: block;
+            flex-shrink: 0;
+        }
         .sm-bubble {
             max-width: 80%;
             padding: 0.75rem 1rem;

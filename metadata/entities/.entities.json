@@ -1,27 +1,26 @@
-{
-  "Entity": "MJ: Entities",
-  "records": [
-    {
+[
+  {
+    "fields": {
       "Name": "Portal Sessions",
       "Description": "Tracks active secure messaging sessions for external contacts. Each session maps a contact to a channel thread and is authenticated via a hashed opaque token.",
-      "SchemaName": "secure_messaging",
-      "BaseTable": "PortalSession",
-      "IncludeInAPI": true,
-      "AllowCreateAPI": true,
-      "AllowUpdateAPI": true,
-      "AllowDeleteAPI": false,
-      "TrackRecordChanges": true
-    },
-    {
-      "Name": "Portal Magic Links",
-      "Description": "Single-use magic links for re-authenticating expired portal sessions. Short-lived, redeems into a fresh session token.",
-      "SchemaName": "secure_messaging",
-      "BaseTable": "PortalMagicLink",
+      "BaseView": "vwPortalSessions",
       "IncludeInAPI": true,
       "AllowCreateAPI": true,
       "AllowUpdateAPI": true,
       "AllowDeleteAPI": false,
       "TrackRecordChanges": true
     }
-  ]
-}
+  },
+  {
+    "fields": {
+      "Name": "Portal Magic Links",
+      "Description": "Single-use magic links for re-authenticating expired portal sessions. Short-lived, redeems into a fresh session token.",
+      "BaseView": "vwPortalMagicLinks",
+      "IncludeInAPI": true,
+      "AllowCreateAPI": true,
+      "AllowUpdateAPI": true,
+      "AllowDeleteAPI": false,
+      "TrackRecordChanges": true
+    }
+  }
+]
