@@ -1,14 +1,12 @@
 # MJ Secure Messaging
 
-A free MemberJunction Open App that adds a **Secure Web** channel type for encrypted, token-based conversations with external contacts through an embeddable widget.
+A free MemberJunction Open App that adds a **Secure Web** channel for encrypted, token-based conversations with external contacts. Installs as a native MJ Explorer application — staff manage messages from a full inbox view inside MJ Explorer, while external contacts interact through an embeddable widget on your website.
 
 ## The Problem
 
 When an MJ-powered AI agent handles customer interactions via email or SMS, sensitive conversations — renewals, document collection, PII exchange — present a security risk. Email content lives on external mail servers, SMS is inherently insecure, and neither provides a controlled audit trail. Organizations need a way to redirect sensitive conversations to a secure, auditable channel where data stays in their own database.
 
 ## How It Works
-
-When the AI agent encounters a sensitive conversation, it redirects the external contact from email/SMS to a secure web portal. The contact clicks a link, lands on the organization's website, and continues the conversation securely — with full AI processing, approval workflows, and audit logging.
 
 ```
 AI agent detects sensitive conversation
@@ -17,6 +15,7 @@ AI agent detects sensitive conversation
   → Contact clicks link → widget validates token
   → Conversation continues securely in the browser
   → Messages flow through MJ's standard AI pipeline
+  → Staff manage and reply from the MJ Explorer inbox
 ```
 
 **Key benefits over email:**
@@ -25,23 +24,20 @@ AI agent detects sensitive conversation
 - No passwords — token-based and magic link authentication
 - Messages flow through MJ's standard ChannelMessage pipeline (AI, approvals, audit)
 
-## Screenshots
+## Executive Inbox (MJ Explorer)
 
-### Default Widget (Generic Branding)
+After installation, **Secure Messages** appears as a first-class application in the MJ Explorer app switcher. Staff see a 3-pane inbox — sidebar navigation, message list, and full message detail with reply — built on MJ's design tokens so it automatically inherits your organization's light/dark theme.
 
-The widget ships with a clean default look that works out of the box:
+![Secure Messages Executive Inbox](docs/images/executive-view.png)
 
-| No Token | Authenticated |
-|----------|---------------|
-| ![Generic portal - no token](docs/images/generic-portal-no-token.png) | ![Generic portal - with token](docs/images/generic-portal-with-token.png) |
-
-### Custom Branding (Izzy Example)
-
-The widget is fully themeable via CSS custom properties and the `brand-color` attribute. Here's the same widget restyled to match Izzy's brand identity — custom header, colors, fonts, and logo:
-
-| No Token | Authenticated |
-|----------|---------------|
-| ![Izzy portal - no token](docs/images/izzy-portal-no-token.png) | ![Izzy portal - with token](docs/images/izzy-portal-with-token.png) |
+**Features:**
+- Unread indicators and badge counts
+- Status badges: NEW, DELIVERED, NEEDS REVIEW, REPLIED
+- Starred messages
+- Search and sort (by date, sender, or status)
+- End-to-end encryption indicator per message
+- Attachment display
+- Inline reply bar
 
 ## Installation
 
@@ -53,17 +49,12 @@ This will:
 1. Create the `secure_messaging` database schema
 2. Run migrations (PortalSession, PortalMagicLink tables)
 3. Register the "Secure Web" channel type and communication provider
-4. Install server and client bootstrap packages
+4. Register the Secure Messages application in MJ Explorer
+5. Install server and client bootstrap packages
 
-## Quick Start
+## Embedding the Contact Widget
 
-### 1. Create a Secure Web Channel
-
-After installation, create a new channel with the "Secure Web" channel type for your organization.
-
-### 2. Embed the Widget
-
-Build the Angular Element and add it to any page on your website:
+For external contacts to initiate and continue secure conversations, embed the Angular Element widget on your website:
 
 ```html
 <script src="mj-secure-messaging.js"></script>
@@ -73,48 +64,34 @@ Build the Angular Element and add it to any page on your website:
 ></mj-secure-messaging>
 ```
 
-### 3. Generate Session Links
+Build the widget bundle:
 
-When your AI agent needs to redirect a conversation to a secure channel, it creates a PortalSession and sends the contact a link:
-
+```bash
+cd packages/ng-secure-messaging
+npm install
+npm run build:bundle
 ```
-https://yoursite.com/secure?token=sm_abc123...
-```
 
-The contact clicks the link, the widget validates the token, and the conversation continues securely.
-
-## Theming
-
-The widget exposes 10 CSS custom properties for full visual control:
+### Widget Theming
 
 ```css
 mj-secure-messaging {
-  --sm-brand-color: #0076B6;      /* Header, buttons, outbound bubbles */
-  --sm-text-color: #333;          /* Primary text */
-  --sm-text-secondary: #666;      /* Secondary/meta text */
-  --sm-bg-color: #fff;            /* Widget background */
-  --sm-header-bg: #F4F4F4;        /* Header bar background */
-  --sm-border-color: #D9D9D9;     /* Borders and dividers */
-  --sm-bubble-inbound-bg: #F4F4F4; /* Inbound message bubble */
-  --sm-compose-bg: #fff;          /* Compose area background */
-  --sm-input-bg: #fff;            /* Text input background */
-  --sm-hover-bg: #eef7fc;         /* Hover states */
+  --sm-brand-color: #0076B6;
+  --sm-text-color: #333;
+  --sm-bg-color: #fff;
+  --sm-header-bg: #F4F4F4;
+  --sm-border-color: #D9D9D9;
+  --sm-bubble-inbound-bg: #F4F4F4;
 }
 ```
 
-The `brand-color` HTML attribute sets the primary accent color (header, buttons, outbound message bubbles).
-
-## Widget API
-
-### Attributes
+### Widget API
 
 | Attribute | Description | Default |
 |-----------|-------------|---------|
 | `api-base-url` | Base URL for the Secure Messaging API | Inferred from current origin |
 | `token` | Session token (or reads from URL `?token=` param) | — |
 | `brand-color` | Hex color for header and buttons | `#1a73e8` |
-
-### Events
 
 | Event | Detail | Description |
 |-------|--------|-------------|
@@ -124,7 +101,7 @@ The `brand-color` HTML attribute sets the primary accent color (header, buttons,
 
 ## REST API
 
-Mounted at `/secure-messaging/api/v1` (configurable).
+Mounted at `/secure-messaging/api/v1`.
 
 **Auth (public):**
 - `POST /auth/validate` — Validate a session token
@@ -147,29 +124,23 @@ Mounted at `/secure-messaging/api/v1` (configurable).
 - **Magic links** (`sm_ml_*`): Single-use re-auth, 15-minute TTL, redeemed into a fresh session token
 - Raw tokens are never stored — only SHA-256 hashes exist in the database
 
-## Building the Widget
-
-```bash
-cd packages/ng-secure-messaging
-npm install
-npm run build:bundle
-```
-
-Output: `dist/mj-secure-messaging.js` — a single JS file you can host anywhere. Works on any website regardless of framework (React, Vue, static HTML, WordPress, etc).
-
 ## Architecture
 
 ```
 mj-secure-messaging/
 ├── mj-app.json                    # Open App manifest
 ├── migrations/                    # Skyway SQL migrations
-├── metadata/                      # Entity, channel type, provider registrations
+├── metadata/
+│   ├── applications/              # Registers Secure Messages in MJ Explorer
+│   ├── entities/                  # PortalSession, PortalMagicLink entities
+│   ├── channel-types/             # Secure Web channel type
+│   └── communication-providers/   # Secure Web provider
 ├── packages/
 │   ├── server/                    # Auth service, REST API, communication provider
 │   ├── server-bootstrap/          # Server startup registration
-│   ├── ng-secure-messaging/       # Angular Element widget
-│   └── ng-bootstrap/              # Client startup registration
-└── test/                          # Demo page and API test scripts
+│   ├── ng-secure-messaging/       # Angular Element widget (external contacts)
+│   └── ng-bootstrap/              # MJ Explorer Executive inbox + app registration
+└── test/                          # Demo page, API test scripts, UI previews
 ```
 
 ## Requirements

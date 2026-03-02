@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Secure Messaging — UX Prototypes</title>
+<style>
+  :root { --brand: #0f172a; --accent: #6366f1; }
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #fff; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 24px; -webkit-font-smoothing: antialiased; }
+  h1 { font-size: 32px; font-weight: 700; letter-spacing: -.04em; margin-bottom: 8px; }
+  p.sub { font-size: 16px; color: #94a3b8; margin-bottom: 48px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; width: 100%; max-width: 1100px; }
+  .card {
+    background: #1e293b; border-radius: 16px; overflow: hidden;
+    border: 2px solid #334155; cursor: pointer;
+    transition: all 200ms ease;
+  }
+  .card:hover { border-color: var(--accent); transform: translateY(-4px); box-shadow: 0 12px 32px rgba(99,102,241,.2); }
+  .card-preview { height: 200px; background: #0f172a; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+  .card-preview iframe { width: 200%; height: 200%; transform: scale(.5); transform-origin: top left; border: none; pointer-events: none; }
+  .card-body { padding: 20px 24px 24px; }
+  .card-body h2 { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+  .card-body p { font-size: 14px; color: #94a3b8; line-height: 1.6; }
+  .card-tag { display: inline-block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; padding: 4px 10px; border-radius: 6px; background: rgba(99,102,241,.15); color: #a5b4fc; margin-bottom: 10px; }
+  a { text-decoration: none; color: inherit; }
+</style>
+</head>
+<body>
+  <h1>Secure Messaging UX</h1>
+  <p class="sub">3 prototype options — click any card to view full screen</p>
+  <div class="grid">
+    <a href="option-a.html" class="card">
+      <div class="card-preview"><iframe src="option-a.html" tabindex="-1"></iframe></div>
+      <div class="card-body">
+        <span class="card-tag">Option A</span>
+        <h2>Focused Thread</h2>
+        <p>Classic messaging layout with sidebar conversation list and focused thread view. Clean, minimal, Apple/Linear inspired. Sidebar collapses to full-screen thread on mobile.</p>
+      </div>
+    </a>
+    <a href="option-b.html" class="card">
+      <div class="card-preview"><iframe src="option-b.html" tabindex="-1"></iframe></div>
+      <div class="card-body">
+        <span class="card-tag">Option B</span>
+        <h2>Inbox Dashboard</h2>
+        <p>Email-style inbox with expandable threads. Filter chips for quick triage. Familiar Gmail/Outlook mental model adapted for secure messaging. Best for high-volume users.</p>
+      </div>
+    </a>
+    <a href="option-c.html" class="card">
+      <div class="card-preview"><iframe src="option-c.html" tabindex="-1"></iframe></div>
+      <div class="card-body">
+        <span class="card-tag">Option C</span>
+        <h2>Conversational Cards</h2>
+        <p>Modern SaaS aesthetic with rail nav, card-based messages, and rounded avatars. Each message is a distinct card with sender context. Typing indicators and rich compose.</p>
+      </div>
+    </a>
+  </div>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "fields": {
+    "Name": "Secure Messages",
+    "Description": "Secure web messaging portal for managing encrypted contact conversations",
+    "Icon": "fa-solid fa-shield-halved",
+    "DefaultForNewUser": false,
+    "Color": "#1a73e8",
+    "DefaultSequence": 500,
+    "Status": "Active",
+    "ClassName": "SecureMessagingApplication",
+    "DefaultNavItems": [
+      {
+        "Label": "Inbox",
+        "Icon": "fa-solid fa-inbox",
+        "ResourceType": "Custom",
+        "DriverClass": "SecureMessagingResource",
+        "isDefault": true
+      }
+    ]
+  },
+  "relatedEntities": {
+    "MJ: Application Entities": []
+  }
+}

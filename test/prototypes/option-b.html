@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Option B — Inbox Dashboard</title>
+<style>
+  :root {
+    --brand: #0f172a;
+    --accent: #6366f1;
+    --accent-light: #eef2ff;
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --text: #0f172a;
+    --text-secondary: #64748b;
+    --border: #e2e8f0;
+    --radius: 10px;
+    --shadow: 0 1px 3px rgba(0,0,0,.06);
+    --transition: 160ms ease;
+  }
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+
+  /* ─── Top Nav ─── */
+  .topnav {
+    height: 56px; background: var(--brand); color: #fff;
+    display: flex; align-items: center; padding: 0 24px; gap: 24px;
+    position: sticky; top: 0; z-index: 50;
+  }
+  .topnav .logo { font-size: 15px; font-weight: 700; letter-spacing: -.02em; display: flex; align-items: center; gap: 10px; }
+  .topnav .logo svg { opacity: .9; }
+  .topnav .nav-search {
+    flex: 1; max-width: 480px;
+    padding: 8px 14px; border-radius: 8px;
+    background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.1);
+    color: #fff; font-size: 13px; outline: none;
+    transition: background var(--transition);
+  }
+  .topnav .nav-search::placeholder { color: rgba(255,255,255,.5); }
+  .topnav .nav-search:focus { background: rgba(255,255,255,.15); }
+  .topnav .nav-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+  .nav-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
+
+  /* ─── Page Layout ─── */
+  .page { max-width: 1200px; margin: 0 auto; padding: 28px 24px; }
+  .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+  .page-header h1 { font-size: 22px; font-weight: 700; letter-spacing: -.03em; }
+  .btn-primary {
+    padding: 10px 20px; border-radius: 8px;
+    background: var(--accent); color: #fff; border: none;
+    font-size: 14px; font-weight: 500; cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+    transition: transform var(--transition), box-shadow var(--transition);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99,102,241,.3); }
+
+  /* ─── Filters ─── */
+  .filters { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+  .filter-chip {
+    padding: 6px 16px; border-radius: 99px;
+    border: 1px solid var(--border); background: var(--surface);
+    font-size: 13px; cursor: pointer; color: var(--text-secondary);
+    transition: all var(--transition);
+  }
+  .filter-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .filter-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .filter-count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; border-radius: 99px; background: rgba(255,255,255,.2); font-size: 11px; font-weight: 600; margin-left: 6px; padding: 0 6px; }
+  .filter-chip:not(.active) .filter-count { background: #f1f5f9; color: var(--text-secondary); }
+
+  /* ─── Message Table ─── */
+  .msg-table { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; }
+  .msg-row {
+    display: grid;
+    grid-template-columns: 44px 1fr 140px 100px 60px;
+    align-items: center; gap: 12px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background var(--transition);
+  }
+  .msg-row:last-child { border-bottom: none; }
+  .msg-row:hover { background: #f8fafc; }
+  .msg-row.unread { background: var(--accent-light); }
+  .msg-row.unread:hover { background: #e0e7ff; }
+  .msg-row.unread .msg-subject { font-weight: 600; }
+
+  .msg-check { width: 18px; height: 18px; border-radius: 4px; border: 2px solid var(--border); cursor: pointer; accent-color: var(--accent); }
+  .msg-main { min-width: 0; }
+  .msg-top { display: flex; align-items: baseline; gap: 10px; }
+  .msg-sender { font-size: 14px; font-weight: 500; white-space: nowrap; }
+  .msg-subject { font-size: 14px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .msg-preview { font-size: 13px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .msg-tags { display: flex; gap: 6px; }
+  .tag {
+    font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500; white-space: nowrap;
+  }
+  .tag-secure { background: #dcfce7; color: #166534; }
+  .tag-file { background: #fef3c7; color: #92400e; }
+  .tag-urgent { background: #fee2e2; color: #991b1b; }
+  .tag-pending { background: #ede9fe; color: #5b21b6; }
+  .msg-date { font-size: 13px; color: var(--text-secondary); text-align: right; }
+  .msg-actions { display: flex; gap: 4px; opacity: 0; transition: opacity var(--transition); }
+  .msg-row:hover .msg-actions { opacity: 1; }
+  .action-dot {
+    width: 28px; height: 28px; border-radius: 6px;
+    border: none; background: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-secondary); font-size: 14px;
+    transition: background var(--transition);
+  }
+  .action-dot:hover { background: #e2e8f0; }
+
+  /* ─── Expanded Thread ─── */
+  .thread-expand {
+    display: none; padding: 0 20px 20px 76px;
+    border-bottom: 1px solid var(--border);
+    background: #fafbfc;
+  }
+  .thread-expand.open { display: block; }
+  .thread-msg {
+    padding: 16px 0; border-bottom: 1px solid #f1f5f9;
+    display: flex; gap: 12px;
+  }
+  .thread-msg:last-child { border-bottom: none; }
+  .thread-msg .t-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; color: #fff; flex-shrink: 0;
+  }
+  .t-avatar.them { background: linear-gradient(135deg, #6366f1, #818cf8); }
+  .t-avatar.us { background: linear-gradient(135deg, #10b981, #34d399); }
+  .t-body { flex: 1; }
+  .t-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+  .t-name { font-size: 13px; font-weight: 600; }
+  .t-time { font-size: 12px; color: var(--text-secondary); }
+  .t-text { font-size: 14px; line-height: 1.7; color: #334155; }
+  .t-attachment {
+    display: inline-flex; align-items: center; gap: 8px;
+    margin-top: 10px; padding: 8px 14px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; font-size: 13px; cursor: pointer;
+    transition: background var(--transition);
+  }
+  .t-attachment:hover { background: #f1f5f9; }
+  .thread-reply {
+    margin-top: 16px; display: flex; gap: 10px; align-items: flex-end;
+  }
+  .thread-reply textarea {
+    flex: 1; padding: 10px 14px; border: 1px solid var(--border);
+    border-radius: 8px; font-size: 14px; resize: none;
+    outline: none; font-family: inherit;
+    transition: border-color var(--transition);
+  }
+  .thread-reply textarea:focus { border-color: var(--accent); }
+  .btn-reply {
+    padding: 10px 18px; border-radius: 8px;
+    background: var(--accent); color: #fff; border: none;
+    font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap;
+  }
+
+  /* ─── Secure Footer ─── */
+  .secure-footer {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 16px; font-size: 12px; color: var(--text-secondary); margin-top: 24px;
+  }
+
+  /* ─── Responsive ─── */
+  @media (max-width: 768px) {
+    .msg-row { grid-template-columns: 1fr; gap: 6px; padding: 14px 16px; }
+    .msg-check, .msg-date, .msg-actions { display: none; }
+    .msg-tags { margin-top: 6px; }
+    .thread-expand { padding-left: 16px; }
+    .filters { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
+  }
+
+  .option-label {
+    position: fixed; bottom: 20px; right: 20px; z-index: 100;
+    background: var(--accent); color: #fff;
+    padding: 10px 20px; border-radius: 99px;
+    font-size: 13px; font-weight: 600; letter-spacing: .03em;
+    box-shadow: 0 4px 12px rgba(99,102,241,.3);
+  }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="logo">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    Secure Messages
+  </div>
+  <input class="nav-search" type="text" placeholder="Search messages, contacts, attachments...">
+  <div class="nav-right">
+    <span style="font-size:13px;opacity:.7">Sarah Mitchell</span>
+    <div class="nav-avatar">SM</div>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <h1>Inbox</h1>
+    <button class="btn-primary">
+      <span style="font-size:18px">+</span> New Message
+    </button>
+  </div>
+
+  <div class="filters">
+    <div class="filter-chip active">All<span class="filter-count">12</span></div>
+    <div class="filter-chip">Unread<span class="filter-count">3</span></div>
+    <div class="filter-chip">Awaiting Reply<span class="filter-count">2</span></div>
+    <div class="filter-chip">Attachments<span class="filter-count">4</span></div>
+    <div class="filter-chip">Archived</div>
+  </div>
+
+  <div class="msg-table">
+    <!-- Row 1 -->
+    <div class="msg-row unread" onclick="toggleThread('t1')">
+      <input type="checkbox" class="msg-check" onclick="event.stopPropagation()">
+      <div class="msg-main">
+        <div class="msg-top">
+          <span class="msg-sender">ICF Member Services</span>
+          <span class="msg-subject">&mdash; Account Verification Required</span>
+        </div>
+        <div class="msg-preview">We need to verify some details before processing your corporate membership upgrade. Could you please confirm your...</div>
+      </div>
+      <div class="msg-tags">
+        <span class="tag tag-secure">Secure</span>
+        <span class="tag tag-pending">Awaiting Reply</span>
+      </div>
+      <div class="msg-date">2 min ago</div>
+      <div class="msg-actions">
+        <button class="action-dot" title="Archive">&#128229;</button>
+        <button class="action-dot" title="More">&#8943;</button>
+      </div>
+    </div>
+    <div class="thread-expand" id="t1">
+      <div class="thread-msg">
+        <div class="t-avatar them">IC</div>
+        <div class="t-body">
+          <div class="t-header"><span class="t-name">ICF Member Services</span><span class="t-time">Today, 10:32 AM</span></div>
+          <div class="t-text">Hi Sarah,<br><br>Thank you for reaching out. To process your corporate membership upgrade, we need to verify a few details securely. Could you please confirm your organization's EIN, the names and emails of your 5 designated representatives, and your preferred billing contact?</div>
+        </div>
+      </div>
+      <div class="thread-msg">
+        <div class="t-avatar us">SM</div>
+        <div class="t-body">
+          <div class="t-header"><span class="t-name">You</span><span class="t-time">Today, 10:48 AM</span></div>
+          <div class="t-text">Hi! Here's our EIN: 84-2947163. Billing contact is sarah@blueridgecreamery.com. Sending the rep list shortly.</div>
+          <div class="t-attachment">&#128196; team-representatives.xlsx <span style="color:var(--text-secondary);font-size:11px;margin-left:4px">24 KB</span></div>
+        </div>
+      </div>
+      <div class="thread-reply">
+        <textarea rows="2" placeholder="Type a reply..."></textarea>
+        <button class="btn-reply">Reply</button>
+      </div>
+    </div>
+
+    <!-- Row 2 -->
+    <div class="msg-row unread" onclick="toggleThread('t2')">
+      <input type="checkbox" class="msg-check" onclick="event.stopPropagation()">
+      <div class="msg-main">
+        <div class="msg-top">
+          <span class="msg-sender">ICF Certifications</span>
+          <span class="msg-subject">&mdash; Membership Renewal Documents</span>
+        </div>
+        <div class="msg-preview">Please find the attached renewal form and updated terms for your corporate membership tier...</div>
+      </div>
+      <div class="msg-tags">
+        <span class="tag tag-secure">Secure</span>
+        <span class="tag tag-file">2 files</span>
+      </div>
+      <div class="msg-date">1 hr ago</div>
+      <div class="msg-actions">
+        <button class="action-dot" title="Archive">&#128229;</button>
+        <button class="action-dot" title="More">&#8943;</button>
+      </div>
+    </div>
+    <div class="thread-expand" id="t2"></div>
+
+    <!-- Row 3 -->
+    <div class="msg-row" onclick="toggleThread('t3')">
+      <input type="checkbox" class="msg-check" onclick="event.stopPropagation()">
+      <div class="msg-main">
+        <div class="msg-top">
+          <span class="msg-sender">Karen Rodriguez</span>
+          <span class="msg-subject">&mdash; CCP Certificate Delivery</span>
+        </div>
+        <div class="msg-preview">Your updated Certified Cheese Professional certificate is ready for download...</div>
+      </div>
+      <div class="msg-tags">
+        <span class="tag tag-file">1 file</span>
+      </div>
+      <div class="msg-date">3 days ago</div>
+      <div class="msg-actions">
+        <button class="action-dot" title="Archive">&#128229;</button>
+        <button class="action-dot" title="More">&#8943;</button>
+      </div>
+    </div>
+    <div class="thread-expand" id="t3"></div>
+
+    <!-- Row 4 -->
+    <div class="msg-row">
+      <input type="checkbox" class="msg-check" onclick="event.stopPropagation()">
+      <div class="msg-main">
+        <div class="msg-top">
+          <span class="msg-sender">ICF Finance</span>
+          <span class="msg-subject">&mdash; Payment Confirmation &middot; $295.00</span>
+        </div>
+        <div class="msg-preview">Your payment has been processed successfully. Receipt attached.</div>
+      </div>
+      <div class="msg-tags">
+        <span class="tag tag-file">1 file</span>
+      </div>
+      <div class="msg-date">1 week ago</div>
+      <div class="msg-actions">
+        <button class="action-dot" title="Archive">&#128229;</button>
+        <button class="action-dot" title="More">&#8943;</button>
+      </div>
+    </div>
+
+    <!-- Row 5 -->
+    <div class="msg-row unread">
+      <input type="checkbox" class="msg-check" onclick="event.stopPropagation()">
+      <div class="msg-main">
+        <div class="msg-top">
+          <span class="msg-sender">ICF Ethics Committee</span>
+          <span class="msg-subject">&mdash; Confidential: Board Review Update</span>
+        </div>
+        <div class="msg-preview">The committee has completed its review. Please find the summary and next steps enclosed...</div>
+      </div>
+      <div class="msg-tags">
+        <span class="tag tag-secure">Secure</span>
+        <span class="tag tag-urgent">Urgent</span>
+      </div>
+      <div class="msg-date">2 weeks ago</div>
+      <div class="msg-actions">
+        <button class="action-dot" title="Archive">&#128229;</button>
+        <button class="action-dot" title="More">&#8943;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="secure-footer">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    All messages are encrypted and stored securely. Only you and the sender can read these messages.
+  </div>
+</div>
+
+<div class="option-label">Option B &mdash; Inbox Dashboard</div>
+
+<script>
+function toggleThread(id) {
+  const el = document.getElementById(id);
+  el.classList.toggle('open');
+}
+document.querySelectorAll('.filter-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+  });
+});
+</script>
+</body>
+</html>

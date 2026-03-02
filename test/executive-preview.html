@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Secure Messages — Executive View (Preview)</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; -webkit-font-smoothing: antialiased; }
+
+/* ── LAYOUT ── */
+.sm-layout { display: flex; height: 100vh; overflow: hidden; background: #f1f5f9; }
+
+/* ── LEFT SIDEBAR ── */
+.sm-sidebar {
+  width: 240px; min-width: 240px;
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  color: #f8fafc; display: flex; flex-direction: column;
+  border-right: 1px solid rgba(255,255,255,0.06);
+}
+.sidebar-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.sidebar-brand { display: flex; align-items: center; gap: 10px; }
+.sidebar-brand i { font-size: 16px; color: #3b82f6; }
+.brand-text { font-size: 14px; font-weight: 600; }
+.sidebar-toggle {
+  width: 28px; height: 28px; border: none; background: rgba(255,255,255,0.06);
+  color: #94a3b8; border-radius: 6px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; font-size: 11px;
+}
+.sidebar-profile {
+  padding: 16px; display: flex; align-items: center; gap: 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.profile-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; flex-shrink: 0; color: #fff;
+}
+.profile-name { font-size: 13px; font-weight: 600; }
+.profile-email { font-size: 11px; color: #94a3b8; }
+.compose-btn {
+  margin: 16px; padding: 11px 0;
+  background: #3b82f6; border: none; border-radius: 10px;
+  color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.sidebar-section { padding: 16px 0 4px; }
+.sidebar-section-label {
+  padding: 0 16px 8px; font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.8px; color: #64748b;
+}
+.sidebar-nav { display: flex; flex-direction: column; gap: 1px; }
+.sidebar-item {
+  display: flex; align-items: center; gap: 12px; padding: 9px 16px;
+  color: #cbd5e1; font-size: 13px; font-weight: 500; cursor: pointer;
+  transition: all 0.15s; position: relative;
+}
+.sidebar-item:hover { background: rgba(255,255,255,0.06); color: #f8fafc; }
+.sidebar-item.active { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.sidebar-item.active i { color: #60a5fa; }
+.sidebar-item i { width: 18px; text-align: center; font-size: 14px; color: #94a3b8; flex-shrink: 0; }
+.sidebar-item .badge {
+  margin-left: auto; background: #3b82f6; color: #fff;
+  font-size: 10px; font-weight: 700; padding: 2px 7px;
+  border-radius: 10px; min-width: 20px; text-align: center;
+}
+.sidebar-spacer { flex: 1; }
+.sidebar-footer {
+  padding: 16px; border-top: 1px solid rgba(255,255,255,0.08);
+  display: flex; align-items: center; gap: 8px; color: #64748b; font-size: 11px;
+}
+.sidebar-footer i { font-size: 12px; color: #22c55e; }
+
+/* ── MIDDLE: MESSAGE LIST ── */
+.sm-message-list {
+  width: 380px; min-width: 380px;
+  background: #ffffff; border-right: 1px solid #e2e8f0;
+  display: flex; flex-direction: column;
+}
+.list-header { padding: 16px; border-bottom: 1px solid #e2e8f0; flex-shrink: 0; }
+.search-box {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 14px; background: #f1f5f9; border-radius: 10px;
+  border: 1px solid transparent;
+}
+.search-box i { color: #94a3b8; font-size: 14px; }
+.search-box input {
+  flex: 1; border: none; background: transparent; outline: none;
+  font-size: 13px; color: #1e293b; font-family: inherit;
+}
+.search-box input::placeholder { color: #94a3b8; }
+.list-sort {
+  display: flex; align-items: center; gap: 4px; padding: 10px 0 0;
+  font-size: 12px; color: #94a3b8;
+}
+.list-sort > span { margin-right: 4px; font-weight: 500; }
+.sort-option {
+  padding: 3px 8px; border: none; background: transparent;
+  border-radius: 4px; cursor: pointer; color: #64748b; font-size: 12px;
+}
+.sort-option.active { color: #3b82f6; font-weight: 600; }
+.sort-sep { color: #e2e8f0; }
+.list-body { flex: 1; overflow-y: auto; }
+.list-body::-webkit-scrollbar { width: 4px; }
+.list-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+/* Message item */
+.msg-item {
+  padding: 14px 16px; border-bottom: 1px solid #f1f5f9;
+  cursor: pointer; transition: all 0.15s; position: relative;
+}
+.msg-item:hover { background: #f8fafc; }
+.msg-item.active { background: #eff6ff; border-left: 3px solid #3b82f6; padding-left: 13px; }
+.msg-item.unread .msg-sender { font-weight: 700; color: #0f172a; }
+.msg-item.unread::before {
+  content: ''; position: absolute; left: 16px; top: 18px;
+  width: 8px; height: 8px; background: #3b82f6; border-radius: 50%;
+}
+.msg-item.unread { padding-left: 32px; }
+.msg-item.active.unread { padding-left: 29px; }
+.msg-row-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; }
+.msg-sender { font-size: 13px; font-weight: 600; color: #1e293b; }
+.msg-time { font-size: 11px; color: #94a3b8; flex-shrink: 0; }
+.msg-subject { font-size: 13px; font-weight: 500; color: #334155; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.msg-preview { font-size: 12px; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 8px; }
+.msg-meta { display: flex; align-items: center; gap: 8px; }
+.status-badge {
+  font-size: 10px; font-weight: 700; padding: 2px 8px;
+  border-radius: 4px; letter-spacing: 0.3px; text-transform: uppercase;
+}
+.status-new { background: #dbeafe; color: #2563eb; }
+.status-escalated { background: #fef3c7; color: #d97706; }
+.status-delivered { background: #d1fae5; color: #059669; }
+.status-system { background: #f1f5f9; color: #64748b; }
+.status-replied { background: #ede9fe; color: #7c3aed; }
+.msg-indicators { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.msg-indicator { display: flex; align-items: center; gap: 3px; font-size: 11px; color: #94a3b8; }
+.msg-star { color: #cbd5e1; font-size: 13px; cursor: pointer; }
+.msg-star.starred { color: #f59e0b; }
+
+/* ── RIGHT: DETAIL PANEL ── */
+.sm-detail-panel { flex: 1; background: #fafbfc; display: flex; flex-direction: column; min-width: 0; }
+.detail-header {
+  padding: 20px 28px; background: #ffffff;
+  border-bottom: 1px solid #e2e8f0; flex-shrink: 0;
+}
+.detail-header-top { display: flex; align-items: flex-start; gap: 16px; }
+.detail-avatar {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 16px; font-weight: 700; flex-shrink: 0;
+}
+.detail-header-info { flex: 1; min-width: 0; }
+.detail-subject { font-size: 18px; font-weight: 700; color: #0f172a; margin-bottom: 4px; line-height: 1.3; }
+.detail-from { font-size: 13px; color: #64748b; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.detail-from strong { color: #1e293b; font-weight: 600; }
+.detail-from .status-badge { font-size: 9px; padding: 1px 6px; }
+.detail-date { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+.detail-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.detail-action-btn {
+  width: 36px; height: 36px; border: none; background: transparent;
+  color: #94a3b8; border-radius: 8px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; font-size: 15px;
+}
+.detail-action-btn:hover { background: #f1f5f9; color: #475569; }
+.security-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 28px; background: #f0fdf4;
+  border-bottom: 1px solid #bbf7d0;
+  font-size: 12px; font-weight: 500; color: #15803d;
+}
+.detail-body { flex: 1; overflow-y: auto; padding: 28px; }
+.detail-body::-webkit-scrollbar { width: 4px; }
+.detail-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.message-content {
+  background: #ffffff; border-radius: 12px; padding: 28px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  border: 1px solid #e2e8f0;
+  font-size: 14px; line-height: 1.7; color: #334155; max-width: 720px;
+}
+.message-content p { margin-bottom: 16px; }
+.message-content p:last-child { margin-bottom: 0; }
+.message-content ol { margin: 12px 0 16px 20px; }
+.message-content ol li { margin-bottom: 6px; }
+.message-content .signature { margin-top: 20px; color: #64748b; }
+.message-content .signature em { color: #94a3b8; font-style: italic; }
+.attachment-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; background: #fff;
+  border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 12px;
+}
+.attachment-item > i { font-size: 20px; color: #3b82f6; width: 24px; text-align: center; }
+.attachment-info { flex: 1; }
+.attachment-name { font-size: 13px; font-weight: 500; color: #1e293b; }
+.attachment-size { font-size: 11px; color: #94a3b8; }
+.attachment-download {
+  width: 32px; height: 32px; border: none; background: transparent;
+  color: #94a3b8; border-radius: 8px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; font-size: 13px;
+}
+.reply-bar {
+  padding: 16px 28px; background: #ffffff;
+  border-top: 1px solid #e2e8f0;
+  display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+}
+.reply-attach {
+  width: 36px; height: 36px; border: none; background: transparent;
+  color: #94a3b8; border-radius: 8px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; font-size: 16px;
+}
+.reply-input-wrap {
+  flex: 1; padding: 10px 16px; background: #f1f5f9;
+  border-radius: 10px; border: 1px solid transparent;
+}
+.reply-input {
+  width: 100%; border: none; background: transparent; outline: none;
+  font-size: 13px; color: #1e293b; font-family: inherit;
+}
+.reply-input::placeholder { color: #94a3b8; }
+.reply-send {
+  padding: 10px 20px; background: #3b82f6; border: none; border-radius: 10px;
+  color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+</style>
+</head>
+<body>
+
+<div class="sm-layout">
+
+  <!-- LEFT SIDEBAR -->
+  <aside class="sm-sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-brand">
+        <i class="fa-solid fa-shield-halved"></i>
+        <span class="brand-text">Secure Messages</span>
+      </div>
+      <button class="sidebar-toggle"><i class="fa-solid fa-chevron-left"></i></button>
+    </div>
+    <div class="sidebar-profile">
+      <div class="profile-avatar">JD</div>
+      <div class="profile-info">
+        <div class="profile-name">Jane Doe</div>
+        <div class="profile-email">jane.doe@acme.com</div>
+      </div>
+    </div>
+    <button class="compose-btn">
+      <i class="fa-solid fa-pen-to-square"></i>
+      <span>Compose</span>
+    </button>
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Messages</div>
+      <nav class="sidebar-nav">
+        <div class="sidebar-item active">
+          <i class="fa-solid fa-inbox"></i><span>Inbox</span>
+          <div class="badge">3</div>
+        </div>
+        <div class="sidebar-item">
+          <i class="fa-solid fa-star"></i><span>Starred</span>
+        </div>
+        <div class="sidebar-item">
+          <i class="fa-solid fa-paper-plane"></i><span>Sent</span>
+        </div>
+        <div class="sidebar-item">
+          <i class="fa-solid fa-file"></i><span>Drafts</span>
+        </div>
+      </nav>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Categories</div>
+      <nav class="sidebar-nav">
+        <div class="sidebar-item">
+          <i class="fa-solid fa-triangle-exclamation"></i><span>Escalated</span>
+          <div class="badge">1</div>
+        </div>
+        <div class="sidebar-item">
+          <i class="fa-solid fa-folder"></i><span>Documents</span>
+        </div>
+        <div class="sidebar-item">
+          <i class="fa-solid fa-bell"></i><span>Notifications</span>
+        </div>
+      </nav>
+    </div>
+    <div class="sidebar-spacer"></div>
+    <div class="sidebar-footer">
+      <i class="fa-solid fa-lock"></i>
+      <span>End-to-end encrypted</span>
+    </div>
+  </aside>
+
+  <!-- MIDDLE: MESSAGE LIST -->
+  <div class="sm-message-list">
+    <div class="list-header">
+      <div class="search-box">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" placeholder="Search messages...">
+      </div>
+      <div class="list-sort">
+        <span>Sort:</span>
+        <button class="sort-option active">Date</button>
+        <span class="sort-sep">&middot;</span>
+        <button class="sort-option">Sender</button>
+        <span class="sort-sep">&middot;</span>
+        <button class="sort-option">Status</button>
+      </div>
+    </div>
+    <div class="list-body">
+
+      <!-- Message 1 — active, unread, escalated -->
+      <div class="msg-item active unread">
+        <div class="msg-row-top">
+          <div class="msg-sender">Sarah Mitchell</div>
+          <div class="msg-time">2 hours ago</div>
+        </div>
+        <div class="msg-subject">Account Access Issue — Urgent</div>
+        <div class="msg-preview">I have been unable to log into my account since yesterday morning. I've tried resetting...</div>
+        <div class="msg-meta">
+          <span class="status-badge status-escalated">NEEDS REVIEW</span>
+          <span class="msg-indicator"><i class="fa-solid fa-comment"></i> 2</span>
+          <div class="msg-indicators">
+            <i class="fa-solid fa-star msg-star starred"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Message 2 — read, delivered -->
+      <div class="msg-item">
+        <div class="msg-row-top">
+          <div class="msg-sender">David Chen</div>
+          <div class="msg-time">3 hours ago</div>
+        </div>
+        <div class="msg-subject">Q1 Financial Report — Confidential</div>
+        <div class="msg-preview">Attached is the Q1 financial report for your review. Please note the revenue figures...</div>
+        <div class="msg-meta">
+          <span class="status-badge status-delivered">DELIVERED</span>
+          <span class="msg-indicator"><i class="fa-solid fa-paperclip"></i></span>
+          <div class="msg-indicators">
+            <i class="fa-regular fa-star msg-star"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Message 3 — read, system -->
+      <div class="msg-item">
+        <div class="msg-row-top">
+          <div class="msg-sender">System</div>
+          <div class="msg-time">Yesterday</div>
+        </div>
+        <div class="msg-subject">Your subscription has been renewed</div>
+        <div class="msg-preview">Your Pro plan subscription for Acme Corp has been automatically renewed...</div>
+        <div class="msg-meta">
+          <span class="status-badge status-system">SYSTEM</span>
+          <span class="msg-indicator"><i class="fa-solid fa-paperclip"></i></span>
+          <div class="msg-indicators">
+            <i class="fa-regular fa-star msg-star"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Message 4 — unread, new -->
+      <div class="msg-item unread">
+        <div class="msg-row-top">
+          <div class="msg-sender">Marcus Johnson</div>
+          <div class="msg-time">Yesterday</div>
+        </div>
+        <div class="msg-subject">New integration request: Salesforce CRM sync</div>
+        <div class="msg-preview">We would like to explore setting up a Salesforce integration to automatically...</div>
+        <div class="msg-meta">
+          <span class="status-badge status-new">NEW</span>
+          <div class="msg-indicators">
+            <i class="fa-regular fa-star msg-star"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Message 5 — read, replied -->
+      <div class="msg-item">
+        <div class="msg-row-top">
+          <div class="msg-sender">Jessica Park</div>
+          <div class="msg-time">2 days ago</div>
+        </div>
+        <div class="msg-subject">Re: Monthly channel performance review</div>
+        <div class="msg-preview">Thanks for the detailed breakdown David. The email channel metrics look strong...</div>
+        <div class="msg-meta">
+          <span class="status-badge status-replied">REPLIED</span>
+          <div class="msg-indicators">
+            <i class="fa-regular fa-star msg-star"></i>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RIGHT: DETAIL PANEL -->
+  <div class="sm-detail-panel">
+    <div class="detail-header">
+      <div class="detail-header-top">
+        <div class="detail-avatar">SM</div>
+        <div class="detail-header-info">
+          <div class="detail-subject">Account Access Issue — Urgent</div>
+          <div class="detail-from">
+            <strong>Sarah Mitchell</strong>
+            &lt;sarah.mitchell@acme.com&gt;
+            <span class="status-badge status-escalated">NEEDS REVIEW</span>
+          </div>
+          <div class="detail-date">Feb 28, 2026, 9:14 AM</div>
+        </div>
+        <div class="detail-actions">
+          <button class="detail-action-btn" title="Reply"><i class="fa-solid fa-reply"></i></button>
+          <button class="detail-action-btn" title="Forward"><i class="fa-solid fa-share"></i></button>
+          <button class="detail-action-btn" title="Archive"><i class="fa-solid fa-box-archive"></i></button>
+          <button class="detail-action-btn" title="Star"><i class="fa-solid fa-star" style="color:#f59e0b"></i></button>
+          <button class="detail-action-btn" title="More"><i class="fa-solid fa-ellipsis"></i></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="security-bar">
+      <i class="fa-solid fa-shield-check"></i>
+      <span>This message is end-to-end encrypted</span>
+    </div>
+
+    <div class="detail-body">
+      <div class="message-content">
+        <p>Hi team,</p>
+        <p>I have been unable to log into my account since yesterday morning. I've tried resetting my password twice but keep getting an "invalid credentials" error.</p>
+        <p>This is blocking several critical workflows:</p>
+        <ol>
+          <li>Monthly compliance report submission (due Friday)</li>
+          <li>Vendor payment approvals ($47K pending)</li>
+          <li>Team access provisioning for new hires</li>
+        </ol>
+        <p>Could someone please look into this urgently? I'm happy to verify my identity through any additional steps needed.</p>
+        <div class="signature">
+          <p>Thanks,<br>Sarah Mitchell<br><em>VP Operations, Acme Corp</em></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="reply-bar">
+      <button class="reply-attach" title="Attach file"><i class="fa-solid fa-paperclip"></i></button>
+      <div class="reply-input-wrap">
+        <input class="reply-input" type="text" placeholder="Write a reply...">
+      </div>
+      <button class="reply-send">
+        <i class="fa-solid fa-paper-plane"></i>
+        Send
+      </button>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
