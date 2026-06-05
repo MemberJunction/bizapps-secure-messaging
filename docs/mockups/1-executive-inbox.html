@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Secure Messaging — Executive Inbox (Mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="shared.css">
+<style>
+  body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+  .sm-layout { flex: 1; display: flex; overflow: hidden; min-height: 0; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 250px; flex-shrink: 0; background: linear-gradient(180deg, var(--sm-sidebar-from), var(--sm-sidebar-to));
+    color: #f8fafc; display: flex; flex-direction: column; border-right: 1px solid rgba(255,255,255,.06);
+  }
+  .sb-head { display: flex; align-items: center; gap: 10px; padding: 16px; border-bottom: 1px solid rgba(255,255,255,.08); }
+  .sb-head i { color: var(--mj-brand-accent); font-size: 17px; }
+  .sb-head .t { font-size: 14px; font-weight: 700; }
+  .sb-profile { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,.08); }
+  .sb-profile .nm { font-size: 13px; font-weight: 600; }
+  .sb-profile .em { font-size: 11px; color: #94a3b8; }
+  .sb-compose {
+    margin: 14px 16px; padding: 11px; background: var(--mj-brand-primary); border: none; border-radius: var(--mj-radius-lg);
+    color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: all .2s;
+  }
+  .sb-compose:hover { background: var(--mj-brand-primary-hover); transform: translateY(-1px); }
+  .sb-section { padding: 12px 0 2px; }
+  .sb-label { padding: 0 16px 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: #64748b; }
+  .sb-item {
+    display: flex; align-items: center; gap: 12px; padding: 9px 16px; color: #cbd5e1;
+    font-size: 13px; font-weight: 500; cursor: pointer; transition: all .15s; position: relative;
+  }
+  .sb-item i { width: 18px; text-align: center; font-size: 14px; color: #94a3b8; flex-shrink: 0; }
+  .sb-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+  .sb-item.active { background: rgba(0,118,182,.22); color: #5cc0ed; }
+  .sb-item.active i { color: #5cc0ed; }
+  .sb-item .count-pill { margin-left: auto; }
+  .sb-item .count-amber { background: var(--mj-warning); }
+  .sb-spacer { flex: 1; }
+  .sb-foot { padding: 14px 16px; border-top: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; gap: 8px; color: #64748b; font-size: 11px; }
+  .sb-foot i { color: var(--mj-success); }
+
+  /* ── Message list ── */
+  .list { width: 388px; flex-shrink: 0; background: var(--mj-bg-surface); border-right: 1px solid var(--mj-border-default); display: flex; flex-direction: column; }
+  .list-head { padding: 16px; border-bottom: 1px solid var(--mj-border-default); }
+  .list-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .list-title { font-size: 16px; font-weight: 700; }
+  .search {
+    display: flex; align-items: center; gap: 10px; padding: 9px 14px; background: var(--mj-bg-surface-sunken);
+    border-radius: var(--mj-radius-lg); border: 1px solid transparent; transition: all .2s;
+  }
+  .search:focus-within { background: #fff; border-color: var(--mj-brand-primary); box-shadow: 0 0 0 3px rgba(0,118,182,.1); }
+  .search i { color: var(--mj-text-disabled); font-size: 13px; }
+  .search input { flex: 1; border: none; background: transparent; outline: none; font-size: 13px; color: var(--mj-text-primary); }
+  .list-sort { display: flex; align-items: center; gap: 4px; padding-top: 10px; font-size: 12px; color: var(--mj-text-disabled); }
+  .sort-opt { padding: 3px 8px; border: none; background: transparent; border-radius: var(--mj-radius-sm); cursor: pointer; color: var(--mj-text-muted); font-size: 12px; }
+  .sort-opt.active { color: var(--mj-brand-primary); font-weight: 600; }
+  .list-body { flex: 1; overflow-y: auto; }
+
+  .msg { padding: 14px 16px 14px 16px; border-bottom: 1px solid var(--mj-border-subtle); cursor: pointer; transition: background .15s; position: relative; }
+  .msg:hover { background: var(--mj-bg-surface-card); }
+  .msg.active { background: var(--mj-brand-accent-subtle); border-left: 3px solid var(--mj-brand-primary); padding-left: 13px; }
+  .msg.unread { padding-left: 32px; }
+  .msg.active.unread { padding-left: 29px; }
+  .msg.unread::before { content: ''; position: absolute; left: 16px; top: 19px; width: 8px; height: 8px; background: var(--mj-brand-primary); border-radius: 50%; }
+  .msg-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; }
+  .msg-sender { font-size: 13px; font-weight: 600; color: var(--mj-text-primary); }
+  .msg.unread .msg-sender { font-weight: 800; }
+  .msg-time { font-size: 11px; color: var(--mj-text-disabled); flex-shrink: 0; }
+  .msg-subj { font-size: 13px; font-weight: 500; color: var(--mj-text-secondary); margin-bottom: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .msg-prev { font-size: 12px; color: var(--mj-text-disabled); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 8px; }
+  .msg-meta { display: flex; align-items: center; gap: 8px; }
+  .msg-ind { display: flex; align-items: center; gap: 3px; font-size: 11px; color: var(--mj-text-disabled); }
+  .msg-star { margin-left: auto; color: var(--mj-border-strong); cursor: pointer; font-size: 13px; }
+  .msg-star.on { color: var(--mj-warning); }
+
+  /* ── Detail ── */
+  .detail { flex: 1; min-width: 0; background: var(--mj-bg-surface-card); display: flex; flex-direction: column; }
+  .det-head { padding: 18px 28px; background: var(--mj-bg-surface); border-bottom: 1px solid var(--mj-border-default); }
+  .det-head-top { display: flex; align-items: flex-start; gap: 16px; }
+  .det-info { flex: 1; min-width: 0; }
+  .det-subj { font-size: 18px; font-weight: 700; color: var(--mj-text-primary); margin-bottom: 4px; }
+  .det-from { font-size: 13px; color: var(--mj-text-muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .det-from strong { color: var(--mj-text-primary); }
+  .det-date { font-size: 12px; color: var(--mj-text-disabled); margin-top: 3px; }
+  .det-actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .det-tabs { display: flex; gap: 2px; padding: 0 28px; background: var(--mj-bg-surface); border-bottom: 1px solid var(--mj-border-default); }
+  .det-tab {
+    padding: 11px 16px; font-size: 13px; font-weight: 600; color: var(--mj-text-muted); cursor: pointer;
+    border-bottom: 2px solid transparent; display: flex; align-items: center; gap: 7px; transition: all .15s;
+  }
+  .det-tab:hover { color: var(--mj-text-primary); }
+  .det-tab.active { color: var(--mj-brand-primary); border-bottom-color: var(--mj-brand-primary); }
+  .det-tab .count-pill { background: var(--mj-bg-surface-active); color: var(--mj-text-secondary); }
+  .det-body { flex: 1; overflow-y: auto; padding: 24px 28px; }
+  .pane { display: none; }
+  .pane.active { display: block; }
+
+  .msg-card {
+    background: var(--mj-bg-surface); border: 1px solid var(--mj-border-default); border-radius: var(--mj-radius-lg);
+    padding: 26px; box-shadow: var(--mj-shadow-sm); font-size: 14px; line-height: 1.7; color: var(--mj-text-secondary); max-width: 760px;
+  }
+  .msg-card p { margin: 0 0 14px; }
+  .msg-card ol { margin: 12px 0 14px 20px; } .msg-card li { margin-bottom: 6px; }
+  .msg-card .sig { margin-top: 18px; color: var(--mj-text-muted); }
+
+  /* ── AI draft reply card ── */
+  .ai-card {
+    max-width: 760px; margin-top: 18px; border: 1px solid var(--mj-info-border); border-radius: var(--mj-radius-lg);
+    background: linear-gradient(180deg, #f5f9ff, #ffffff); box-shadow: var(--mj-shadow-sm); overflow: hidden;
+  }
+  .ai-head { display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-bottom: 1px solid var(--mj-info-border); }
+  .ai-spark { width: 28px; height: 28px; border-radius: var(--mj-radius-md); background: linear-gradient(135deg, #3b82f6, #6366f1); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+  .ai-title { font-size: 13px; font-weight: 700; color: var(--mj-text-primary); }
+  .ai-sub { font-size: 11px; color: var(--mj-text-muted); }
+  .ai-conf { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: var(--mj-success-text); }
+  .ai-conf .bar { width: 54px; height: 6px; border-radius: 4px; background: var(--mj-bg-surface-active); overflow: hidden; }
+  .ai-conf .bar > i { display: block; height: 100%; background: var(--mj-success); border-radius: 4px; }
+  .ai-text { padding: 16px 18px; font-size: 13.5px; line-height: 1.65; color: var(--mj-text-secondary); }
+  .ai-text[contenteditable="true"] { outline: 2px solid var(--mj-brand-primary); outline-offset: 4px; border-radius: 4px; background: #fff; }
+  .ai-foot { display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--mj-info-border); background: rgba(255,255,255,.6); }
+  .ai-foot .note { margin-left: auto; font-size: 11px; color: var(--mj-text-muted); }
+
+  /* ── Files pane ── */
+  .file-row {
+    display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: var(--mj-bg-surface);
+    border: 1px solid var(--mj-border-default); border-radius: var(--mj-radius-md); margin-bottom: 10px; max-width: 760px;
+  }
+  .file-row > i.ft { font-size: 22px; width: 26px; text-align: center; }
+  .ft-pdf { color: #dc2626; } .ft-xls { color: #15803d; } .ft-img { color: #7c3aed; } .ft-doc { color: #2563eb; }
+  .file-name { font-size: 13px; font-weight: 600; color: var(--mj-text-primary); }
+  .file-sub { font-size: 11px; color: var(--mj-text-muted); }
+
+  /* ── Activity / audit timeline (compliance) ── */
+  .timeline { position: relative; padding-left: 26px; max-width: 760px; }
+  .timeline::before { content: ''; position: absolute; left: 9px; top: 4px; bottom: 4px; width: 2px; background: var(--mj-border-default); }
+  .tl-item { position: relative; padding: 0 0 22px 0; }
+  .tl-dot { position: absolute; left: -26px; top: 1px; width: 20px; height: 20px; border-radius: 50%; background: var(--mj-bg-surface); border: 2px solid var(--mj-border-strong); display: flex; align-items: center; justify-content: center; font-size: 9px; color: var(--mj-text-muted); }
+  .tl-dot.ok   { border-color: var(--mj-success); color: var(--mj-success); }
+  .tl-dot.info { border-color: var(--mj-info); color: var(--mj-info); }
+  .tl-dot.ai   { border-color: #6366f1; color: #6366f1; }
+  .tl-dot.warn { border-color: var(--mj-warning); color: var(--mj-warning); }
+  .tl-title { font-size: 13px; font-weight: 600; color: var(--mj-text-primary); }
+  .tl-desc { font-size: 12px; color: var(--mj-text-muted); margin-top: 2px; }
+  .tl-time { font-size: 11px; color: var(--mj-text-disabled); margin-top: 3px; }
+  .tl-proof { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; font-size: 11px; font-weight: 600; color: var(--mj-success-text); background: var(--mj-success-bg); border: 1px solid var(--mj-success-border); padding: 2px 8px; border-radius: var(--mj-radius-full); }
+
+  /* ── Reply bar ── */
+  .reply-bar { padding: 14px 28px; background: var(--mj-bg-surface); border-top: 1px solid var(--mj-border-default); display: flex; align-items: center; gap: 12px; }
+  .reply-wrap { flex: 1; padding: 10px 16px; background: var(--mj-bg-surface-sunken); border-radius: var(--mj-radius-lg); border: 1px solid transparent; transition: all .2s; }
+  .reply-wrap:focus-within { background: #fff; border-color: var(--mj-brand-primary); box-shadow: 0 0 0 3px rgba(0,118,182,.1); }
+  .reply-wrap input { width: 100%; border: none; background: transparent; outline: none; font-size: 13px; color: var(--mj-text-primary); }
+
+  .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--mj-text-muted); margin: 0 0 12px; }
+
+  @media (max-width: 1180px) { .list { width: 330px; } }
+</style>
+</head>
+<body>
+
+<!-- Prototype navigation bar -->
+<div class="proto-bar">
+  <span class="proto-brand"><i class="fa-solid fa-shield-halved"></i> Secure Messaging — Prototype</span>
+  <a href="index.html"><i class="fa-solid fa-grip"></i> Overview</a>
+  <a href="1-executive-inbox.html" class="active"><i class="fa-solid fa-inbox"></i> Executive Inbox</a>
+  <a href="2-client-portal.html"><i class="fa-solid fa-comments"></i> Client Portal</a>
+  <a href="3-client-workspace.html"><i class="fa-solid fa-folder-open"></i> Client Workspace</a>
+  <span class="proto-right"><i class="fa-solid fa-circle-info"></i> Staff view · inside MJ Explorer</span>
+</div>
+
+<div class="sm-layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sb-head"><i class="fa-solid fa-shield-halved"></i><span class="t">Secure Messages</span></div>
+    <div class="sb-profile">
+      <div class="avatar avatar-blue" style="width:40px;height:40px;font-size:13px;">JD</div>
+      <div><div class="nm">Jane Doe</div><div class="em">jane.doe@acme.com</div></div>
+    </div>
+    <button class="sb-compose" onclick="openModal('composeModal')"><i class="fa-solid fa-pen-to-square"></i> Compose</button>
+    <div class="sb-section">
+      <div class="sb-label">Messages</div>
+      <div id="navPrimary"></div>
+    </div>
+    <div class="sb-section">
+      <div class="sb-label">Workflows</div>
+      <div id="navWorkflow"></div>
+    </div>
+    <div class="sb-section">
+      <div class="sb-label">Workspaces</div>
+      <div id="navWorkspace"></div>
+    </div>
+    <div class="sb-spacer"></div>
+    <div class="sb-foot"><i class="fa-solid fa-lock"></i><span>End-to-end encrypted · SOC 2</span></div>
+  </aside>
+
+  <!-- LIST -->
+  <section class="list">
+    <div class="list-head">
+      <div class="list-title-row">
+        <span class="list-title" id="listTitle">Inbox</span>
+        <button class="icon-btn" title="Filter"><i class="fa-solid fa-sliders"></i></button>
+      </div>
+      <div class="search"><i class="fa-solid fa-magnifying-glass"></i><input id="searchInput" placeholder="Search messages, files, people…" oninput="render()"></div>
+      <div class="list-sort"><span>Sort:</span>
+        <button class="sort-opt active" data-sort="date" onclick="setSort('date')">Date</button>·
+        <button class="sort-opt" data-sort="sender" onclick="setSort('sender')">Sender</button>·
+        <button class="sort-opt" data-sort="status" onclick="setSort('status')">Status</button>
+      </div>
+    </div>
+    <div class="list-body" id="listBody"></div>
+  </section>
+
+  <!-- DETAIL -->
+  <section class="detail" id="detail"></section>
+</div>
+
+<!-- COMPOSE MODAL -->
+<div class="modal-overlay" id="composeModal">
+  <div class="modal">
+    <div class="modal-header"><i class="fa-solid fa-pen-to-square modal-icon"></i><h3>New secure message</h3><button class="icon-btn" onclick="closeModal('composeModal')"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <label class="field-label">To (contact)</label>
+      <input class="field-input" placeholder="Search contacts…" value="Sarah Mitchell <sarah.mitchell@acme.com>">
+      <label class="field-label">Subject</label>
+      <input class="field-input" placeholder="Subject">
+      <label class="field-label">Message</label>
+      <textarea class="field-textarea" placeholder="Write your secure message…"></textarea>
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mj-text-muted);">
+        <i class="fa-solid fa-lock" style="color:var(--mj-success);"></i>
+        A one-time secure link will be generated and delivered to the contact. No password required.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="closeModal('composeModal');toast('Secure message sent — link delivered to contact')"><i class="fa-solid fa-paper-plane"></i> Send securely</button>
+      <button class="btn btn-secondary"><i class="fa-solid fa-paperclip"></i> Attach</button>
+      <div class="spacer"></div>
+      <button class="btn btn-ghost" onclick="closeModal('composeModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- REQUEST FILES MODAL -->
+<div class="modal-overlay" id="requestModal">
+  <div class="modal">
+    <div class="modal-header"><i class="fa-solid fa-folder-plus modal-icon"></i><h3>Request files from contact</h3><button class="icon-btn" onclick="closeModal('requestModal')"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <label class="field-label">What do you need?</label>
+      <input class="field-input" placeholder="e.g. 2025 W-2 and prior-year return" value="Signed engagement letter & ID">
+      <label class="field-label">Instructions (optional)</label>
+      <textarea class="field-textarea" placeholder="Add any guidance for the contact…">Please upload a photo of your driver's license and the signed engagement letter.</textarea>
+      <label class="field-label">Due date</label>
+      <input class="field-input" type="date" value="2026-06-12">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="closeModal('requestModal');toast('File request sent — appears in the contact portal')"><i class="fa-solid fa-paper-plane"></i> Send request</button>
+      <div class="spacer"></div>
+      <button class="btn btn-ghost" onclick="closeModal('requestModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- SIGNATURE MODAL -->
+<div class="modal-overlay" id="signModal">
+  <div class="modal">
+    <div class="modal-header"><i class="fa-solid fa-file-signature modal-icon"></i><h3>Send a document for signature</h3><button class="icon-btn" onclick="closeModal('signModal')"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <label class="field-label">Document title</label>
+      <input class="field-input" value="Account Authorization Form">
+      <label class="field-label">Document</label>
+      <div class="file-row" style="margin:0 0 16px;"><i class="fa-solid fa-file-pdf ft ft-pdf"></i><div style="flex:1"><div class="file-name">Authorization_Form_2026.pdf</div><div class="file-sub">218 KB · ready to send</div></div><button class="btn btn-secondary btn-sm">Replace</button></div>
+      <label class="field-label">E-signature provider</label>
+      <select class="field-input"><option>DocuSign</option><option>Adobe Acrobat Sign</option><option>Dropbox Sign</option></select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="closeModal('signModal');toast('Signature request created & sent via DocuSign')"><i class="fa-solid fa-paper-plane"></i> Create &amp; send</button>
+      <div class="spacer"></div>
+      <button class="btn btn-ghost" onclick="closeModal('signModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><i class="fa-solid fa-circle-check"></i><span id="toastMsg"></span></div>
+
+<script>
+/* ───────── Mock data ───────── */
+const NAV = {
+  primary: [
+    { id:'inbox', label:'Inbox', icon:'fa-solid fa-inbox', count:3 },
+    { id:'review', label:'Needs Review', icon:'fa-solid fa-triangle-exclamation', count:2, amber:true },
+    { id:'starred', label:'Starred', icon:'fa-solid fa-star' },
+    { id:'sent', label:'Sent', icon:'fa-solid fa-paper-plane' },
+    { id:'archived', label:'Archived', icon:'fa-solid fa-box-archive' },
+  ],
+  workflow: [
+    { id:'requests', label:'File Requests', icon:'fa-solid fa-folder-plus', count:4 },
+    { id:'documents', label:'Documents', icon:'fa-solid fa-folder' },
+    { id:'signatures', label:'Signatures', icon:'fa-solid fa-file-signature', count:1 },
+  ],
+  workspace: [
+    { id:'ws-all', label:'All contacts', icon:'fa-solid fa-users' },
+    { id:'ws-sarah', label:'Sarah Mitchell', icon:'fa-solid fa-user', count:3 },
+    { id:'ws-david', label:'David Chen', icon:'fa-solid fa-user', count:2 },
+    { id:'ws-marcus', label:'Marcus Johnson', icon:'fa-solid fa-user', count:1 },
+  ]
+};
+
+const MSGS = [
+  { id:'m1', who:'Sarah Mitchell', email:'sarah.mitchell@acme.com', av:'avatar-amber', subj:'Account Access Issue — Urgent',
+    prev:'I have been unable to log into my account since yesterday morning…', time:'2 hours ago', date:'Jun 5, 2026, 9:14 AM',
+    unread:true, star:true, secure:true, status:'review', replies:2, files:1, ws:'ws-sarah',
+    body:`<p>Hi team,</p><p>I have been unable to log into my account since yesterday morning. I've tried resetting my password twice but keep getting an "invalid credentials" error.</p><p>This is blocking several critical workflows:</p><ol><li>Monthly compliance report submission (due Friday)</li><li>Vendor payment approvals ($47K pending)</li><li>Team access provisioning for new hires</li></ol><p>Could someone please look into this urgently? I'm happy to verify my identity through any additional steps needed.</p><p class="sig">Thanks,<br><strong>Sarah Mitchell</strong><br><em>VP Operations, Acme Corp</em></p>`,
+    ai:{ conf:92, text:`Hi Sarah,\n\nThanks for flagging this — I've escalated your account to our security team and confirmed your identity via the secure session. I've cleared the lock that was triggered by the repeated reset attempts; you should be able to sign in within the next few minutes.\n\nI've also temporarily extended your compliance-report deadline to Monday so the login issue won't put you at risk. Let me know once you're back in.` },
+    attachments:[{ name:'error_screenshot.png', sub:'PNG · 412 KB', ft:'ft-img', icon:'fa-file-image' }],
+    audit:[
+      { k:'ok', i:'fa-paper-plane', t:'Secure link delivered', d:'Sent to sarah.mitchell@acme.com via email', time:'Jun 4, 4:02 PM', proof:'Proof of delivery' },
+      { k:'info', i:'fa-arrow-pointer', t:'Contact opened secure session', d:'Token validated · IP 71.34.x.x · Chrome / macOS', time:'Jun 5, 9:12 AM', proof:'Proof of access' },
+      { k:'info', i:'fa-message', t:'Inbound message received', d:'Encrypted at rest · IsSecure = true', time:'Jun 5, 9:14 AM' },
+      { k:'ai', i:'fa-wand-magic-sparkles', t:'AI reply drafted', d:'Izzy — Single Message agent · confidence 92%', time:'Jun 5, 9:14 AM' },
+      { k:'warn', i:'fa-user-clock', t:'Queued for human review', d:'Below auto-approve threshold for financial topics', time:'Jun 5, 9:14 AM' },
+    ]},
+  { id:'m2', who:'David Chen', email:'david.chen@northwind.io', av:'avatar-teal', subj:'Q1 Financial Report — Confidential',
+    prev:'Attached is the Q1 financial report for your review. Please…', time:'3 hours ago', date:'Jun 5, 2026, 8:05 AM',
+    unread:true, star:false, secure:true, status:'delivered', replies:0, files:2, ws:'ws-david',
+    body:`<p>Hi,</p><p>Attached is the Q1 financial report for your review. Please treat the figures as strictly confidential until the board meeting next week.</p><p>Two documents are included — the summary deck and the full workbook with the supporting schedules.</p><p class="sig">Best,<br><strong>David Chen</strong><br><em>Controller, Northwind</em></p>`,
+    ai:{ conf:78, text:`Hi David,\n\nReceived — thank you. I've stored both documents in the secure workspace and restricted access to the finance review group. I'll circulate comments before the board meeting and flag anything that needs your sign-off.` },
+    attachments:[{ name:'Q1_Summary_Deck.pdf', sub:'PDF · 1.2 MB', ft:'ft-pdf', icon:'fa-file-pdf' },{ name:'Q1_Workbook.xlsx', sub:'XLSX · 480 KB', ft:'ft-xls', icon:'fa-file-excel' }],
+    audit:[
+      { k:'ok', i:'fa-paper-plane', t:'Secure link delivered', d:'Sent to david.chen@northwind.io', time:'Jun 5, 7:40 AM', proof:'Proof of delivery' },
+      { k:'info', i:'fa-arrow-pointer', t:'Contact opened secure session', d:'Token validated · Edge / Windows', time:'Jun 5, 8:01 AM', proof:'Proof of access' },
+      { k:'info', i:'fa-paperclip', t:'2 files uploaded', d:'Stored in MJ File Storage · wrapped as Artifacts', time:'Jun 5, 8:05 AM' },
+    ]},
+  { id:'m3', who:'System', email:'no-reply@memberjunction', av:'avatar-green', subj:'Your subscription has been renewed',
+    prev:'Your Pro plan for Acme Corp has been automatically renewed…', time:'Yesterday', date:'Jun 4, 2026, 6:00 PM',
+    unread:false, star:false, secure:false, status:'system', replies:0, files:0, ws:'ws-all',
+    body:`<p>Your Pro plan for Acme Corp has been automatically renewed for another 12 months.</p><p>No action is required. A receipt is available in your billing settings.</p>`, ai:null, attachments:[], audit:[
+      { k:'info', i:'fa-robot', t:'System notification', d:'Generated by billing automation', time:'Jun 4, 6:00 PM' }]},
+  { id:'m4', who:'Marcus Johnson', email:'marcus@brightlabs.dev', av:'avatar-rose', subj:'New integration request: Salesforce CRM sync',
+    prev:'We would like to explore setting up a Salesforce integration…', time:'Yesterday', date:'Jun 4, 2026, 2:22 PM',
+    unread:false, star:false, secure:true, status:'review', replies:1, files:0, ws:'ws-marcus',
+    body:`<p>Hello,</p><p>We would like to explore setting up a Salesforce integration so our CRM stays in sync with the portal. Could you share what's involved and any security review steps?</p><p class="sig"><strong>Marcus Johnson</strong><br><em>Bright Labs</em></p>`,
+    ai:{ conf:85, text:`Hi Marcus,\n\nHappy to help. Our Salesforce sync runs over an authenticated, encrypted connection and goes through a short security review (data-residency + scopes). I'll send the intake form and a sample DPA so your team can review.` },
+    attachments:[], audit:[
+      { k:'ok', i:'fa-paper-plane', t:'Secure link delivered', d:'Sent to marcus@brightlabs.dev', time:'Jun 4, 1:50 PM', proof:'Proof of delivery' },
+      { k:'info', i:'fa-arrow-pointer', t:'Contact opened secure session', d:'Token validated · Safari / iOS', time:'Jun 4, 2:20 PM', proof:'Proof of access' },
+      { k:'ai', i:'fa-wand-magic-sparkles', t:'AI reply drafted', d:'Izzy — Single Message agent · confidence 85%', time:'Jun 4, 2:22 PM' }]},
+  { id:'m5', who:'Jessica Park', email:'jessica.park@vertex.co', av:'avatar-blue', subj:'Re: Monthly channel performance review',
+    prev:'Thanks for the detailed breakdown David. The email channel…', time:'2 days ago', date:'Jun 3, 2026, 11:10 AM',
+    unread:false, star:false, secure:true, status:'replied', replies:4, files:0, ws:'ws-all',
+    body:`<p>Thanks for the detailed breakdown. The secure channel numbers look great — open rates are up and we've eliminated the bounce issues we had on email.</p><p class="sig"><strong>Jessica Park</strong></p>`,
+    ai:null, attachments:[], audit:[
+      { k:'ok', i:'fa-circle-check', t:'Reply approved & delivered', d:'Auto-approved · confidence 96%', time:'Jun 3, 11:12 AM', proof:'Proof of delivery' }]},
+];
+
+/* ───────── State ───────── */
+let state = { nav:'inbox', sort:'date', selected:'m1', tab:'conversation', search:'' };
+
+/* ───────── Render: sidebar ───────── */
+function navItem(item, group) {
+  const active = (group==='workspace' ? state.nav===item.id : state.nav===item.id) ? 'active' : '';
+  const pill = item.count ? `<span class="count-pill ${item.amber?'count-amber':''}">${item.count}</span>` : '';
+  return `<div class="sb-item ${active}" onclick="selectNav('${item.id}')"><i class="${item.icon}"></i><span>${item.label}</span>${pill}</div>`;
+}
+function renderNav() {
+  navPrimary.innerHTML = NAV.primary.map(i=>navItem(i,'primary')).join('');
+  navWorkflow.innerHTML = NAV.workflow.map(i=>navItem(i,'workflow')).join('');
+  navWorkspace.innerHTML = NAV.workspace.map(i=>navItem(i,'workspace')).join('');
+}
+const LABELS = { inbox:'Inbox', review:'Needs Review', starred:'Starred', sent:'Sent', archived:'Archived',
+  requests:'File Requests', documents:'Documents', signatures:'Signatures',
+  'ws-all':'All contacts', 'ws-sarah':'Sarah Mitchell', 'ws-david':'David Chen', 'ws-marcus':'Marcus Johnson' };
+
+function selectNav(id) {
+  state.nav = id;
+  listTitle.textContent = LABELS[id] || 'Inbox';
+  renderNav(); render();
+}
+function setSort(s){ state.sort=s; document.querySelectorAll('.sort-opt').forEach(b=>b.classList.toggle('active',b.dataset.sort===s)); render(); }
+
+/* ───────── Filtering ───────── */
+function visibleMsgs() {
+  let list = MSGS.slice();
+  const n = state.nav;
+  if (n==='starred') list = list.filter(m=>m.star);
+  else if (n==='review') list = list.filter(m=>m.status==='review');
+  else if (n==='sent') list = list.filter(m=>m.status==='replied');
+  else if (n==='archived') list = [];
+  else if (n.startsWith('ws-') && n!=='ws-all') list = list.filter(m=>m.ws===n);
+  else if (['requests','documents','signatures'].includes(n)) list = list.filter(m=>m.files>0 || m.status==='review');
+  const q = state.search.trim().toLowerCase();
+  if (q) list = list.filter(m => (m.who+m.subj+m.prev).toLowerCase().includes(q));
+  if (state.sort==='date') {/* mock order already by date */}
+  else if (state.sort==='sender') list.sort((a,b)=>a.who.localeCompare(b.who));
+  else if (state.sort==='status') { const o={review:0,new:1,delivered:2,replied:3,system:4}; list.sort((a,b)=>(o[a.status]??9)-(o[b.status]??9)); }
+  return list;
+}
+
+const BADGE = { review:['badge-review','Needs Review'], delivered:['badge-delivered','Delivered'], new:['badge-new','New'], replied:['badge-replied','Replied'], system:['badge-system','System'] };
+
+/* ───────── Render: list ───────── */
+function render() {
+  state.search = searchInput.value;
+  const list = visibleMsgs();
+  if (!list.length) { listBody.innerHTML = `<div style="padding:60px 20px;text-align:center;color:var(--mj-text-disabled);"><i class="fa-solid fa-inbox" style="font-size:2.2rem;opacity:.4;"></i><p style="font-size:13px;">No messages here</p></div>`; }
+  else listBody.innerHTML = list.map(m => {
+    const [bc,bl] = BADGE[m.status] || ['badge-system',m.status];
+    return `<div class="msg ${m.unread?'unread':''} ${state.selected===m.id?'active':''}" onclick="selectMsg('${m.id}')">
+      <div class="msg-top"><span class="msg-sender">${m.who}</span><span class="msg-time">${m.time}</span></div>
+      <div class="msg-subj">${m.subj}</div>
+      <div class="msg-prev">${m.prev}</div>
+      <div class="msg-meta">
+        <span class="badge ${bc}">${bl}</span>
+        ${m.replies?`<span class="msg-ind"><i class="fa-solid fa-comment"></i> ${m.replies}</span>`:''}
+        ${m.files?`<span class="msg-ind"><i class="fa-solid fa-paperclip"></i> ${m.files}</span>`:''}
+        <i class="fa-${m.star?'solid':'regular'} fa-star msg-star ${m.star?'on':''}" onclick="toggleStar(event,'${m.id}')"></i>
+      </div></div>`;
+  }).join('');
+  renderDetail();
+}
+function toggleStar(e,id){ e.stopPropagation(); const m=MSGS.find(x=>x.id===id); m.star=!m.star; render(); }
+function selectMsg(id){ const m=MSGS.find(x=>x.id===id); m.unread=false; state.selected=id; state.tab='conversation'; render(); }
+
+/* ───────── Render: detail ───────── */
+function renderDetail() {
+  const m = MSGS.find(x=>x.id===state.selected);
+  if (!m) { detail.innerHTML = `<div style="margin:auto;text-align:center;color:var(--mj-text-disabled);"><i class="fa-solid fa-envelope-open-text" style="font-size:3rem;opacity:.3;"></i><h3>Select a message</h3></div>`; return; }
+  const [bc,bl] = BADGE[m.status] || ['badge-system',m.status];
+  const initials = m.who.split(' ').map(s=>s[0]).join('').slice(0,2);
+  detail.innerHTML = `
+    <div class="det-head">
+      <div class="det-head-top">
+        <div class="avatar ${m.av}" style="width:48px;height:48px;font-size:16px;">${initials}</div>
+        <div class="det-info">
+          <div class="det-subj">${m.subj}</div>
+          <div class="det-from"><strong>${m.who}</strong> &lt;${m.email}&gt; <span class="badge ${bc}">${bl}</span></div>
+          <div class="det-date">${m.date}</div>
+        </div>
+        <div class="det-actions">
+          <button class="icon-btn" title="Reply"><i class="fa-solid fa-reply"></i></button>
+          <button class="icon-btn" title="Request files" onclick="openModal('requestModal')"><i class="fa-solid fa-folder-plus"></i></button>
+          <button class="icon-btn" title="Send for signature" onclick="openModal('signModal')"><i class="fa-solid fa-file-signature"></i></button>
+          <button class="icon-btn" title="Archive"><i class="fa-solid fa-box-archive"></i></button>
+          <button class="icon-btn" title="More"><i class="fa-solid fa-ellipsis"></i></button>
+        </div>
+      </div>
+    </div>
+    ${m.secure?`<div class="security-bar"><i class="fa-solid fa-shield-check"></i><span>End-to-end encrypted · contact identity verified via secure session</span></div>`:''}
+    <div class="det-tabs">
+      <div class="det-tab ${state.tab==='conversation'?'active':''}" onclick="setTab('conversation')"><i class="fa-solid fa-message"></i> Conversation</div>
+      <div class="det-tab ${state.tab==='files'?'active':''}" onclick="setTab('files')"><i class="fa-solid fa-paperclip"></i> Files ${m.attachments.length?`<span class="count-pill">${m.attachments.length}</span>`:''}</div>
+      <div class="det-tab ${state.tab==='activity'?'active':''}" onclick="setTab('activity')"><i class="fa-solid fa-clock-rotate-left"></i> Activity &amp; Audit</div>
+    </div>
+    <div class="det-body">
+      <div class="pane ${state.tab==='conversation'?'active':''}">
+        <div class="msg-card">${m.body}</div>
+        ${m.ai?aiCard(m):''}
+      </div>
+      <div class="pane ${state.tab==='files'?'active':''}">${filesPane(m)}</div>
+      <div class="pane ${state.tab==='activity'?'active':''}">${auditPane(m)}</div>
+    </div>
+    ${state.tab==='conversation'?`<div class="reply-bar">
+      <button class="icon-btn" title="Attach"><i class="fa-solid fa-paperclip"></i></button>
+      <div class="reply-wrap"><input placeholder="Write a reply…"></div>
+      <button class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i> Send</button>
+    </div>`:''}`;
+}
+function setTab(t){ state.tab=t; renderDetail(); }
+
+function aiCard(m){
+  return `<div class="ai-card">
+    <div class="ai-head">
+      <div class="ai-spark"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+      <div><div class="ai-title">AI-drafted reply</div><div class="ai-sub">Izzy · Single Message agent — review before sending</div></div>
+      <div class="ai-conf"><span>${m.ai.conf}% confidence</span><span class="bar"><i style="width:${m.ai.conf}%"></i></span></div>
+    </div>
+    <div class="ai-text" id="aiText">${m.ai.text.replace(/\n/g,'<br>')}</div>
+    <div class="ai-foot">
+      <button class="btn btn-success btn-sm" onclick="toast('Reply approved & delivered to contact')"><i class="fa-solid fa-check"></i> Approve &amp; send</button>
+      <button class="btn btn-secondary btn-sm" onclick="editAI()"><i class="fa-solid fa-pen"></i> Edit</button>
+      <button class="btn btn-ghost btn-sm" onclick="toast('Regenerating draft…')"><i class="fa-solid fa-rotate"></i> Regenerate</button>
+      <span class="note"><i class="fa-solid fa-circle-info"></i> Held for review — financial topic</span>
+    </div>
+  </div>`;
+}
+function editAI(){ const el=document.getElementById('aiText'); if(!el)return; el.contentEditable='true'; el.focus(); toast('Editing draft — click Approve when ready'); }
+
+function filesPane(m){
+  if (!m.attachments.length) return `<div style="color:var(--mj-text-disabled);font-size:13px;padding:30px 0;text-align:center;"><i class="fa-solid fa-folder-open" style="font-size:2rem;opacity:.4;display:block;margin-bottom:10px;"></i>No files shared in this conversation yet.</div>`;
+  return `<div class="section-title">Shared in this conversation</div>` + m.attachments.map(a=>`
+    <div class="file-row"><i class="fa-solid fa-${a.icon} ft ${a.ft}"></i>
+      <div style="flex:1"><div class="file-name">${a.name}</div><div class="file-sub">${a.sub} · scanned for malware</div></div>
+      <button class="icon-btn" title="Preview"><i class="fa-solid fa-eye"></i></button>
+      <button class="icon-btn" title="Download" onclick="toast('Generating secure download link…')"><i class="fa-solid fa-download"></i></button>
+    </div>`).join('');
+}
+function auditPane(m){
+  const compliance = `<div class="card" style="padding:14px 16px;margin-bottom:18px;max-width:760px;display:flex;align-items:center;gap:14px;">
+    <i class="fa-solid fa-shield-halved" style="font-size:20px;color:var(--mj-success);"></i>
+    <div style="flex:1"><div style="font-size:13px;font-weight:700;">Full chain-of-custody recorded</div><div style="font-size:12px;color:var(--mj-text-muted);">Every delivery, access and action is timestamped via MJ Record Changes — exportable for compliance.</div></div>
+    <button class="btn btn-secondary btn-sm" onclick="toast('Exporting audit report (PDF)…')"><i class="fa-solid fa-file-export"></i> Export</button></div>`;
+  return compliance + `<div class="timeline">` + m.audit.map(a=>`
+    <div class="tl-item">
+      <div class="tl-dot ${a.k}"><i class="fa-solid ${a.i}"></i></div>
+      <div class="tl-title">${a.t}</div>
+      <div class="tl-desc">${a.d}</div>
+      <div class="tl-time">${a.time}</div>
+      ${a.proof?`<div class="tl-proof"><i class="fa-solid fa-circle-check"></i> ${a.proof}</div>`:''}
+    </div>`).join('') + `</div>`;
+}
+
+/* ───────── Modals + toast ───────── */
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{ if(e.target===o) o.classList.remove('open'); }));
+let toastTimer;
+function toast(msg){ toastMsg.textContent=msg; const t=document.getElementById('toast'); t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),2600); }
+
+/* ───────── Init ───────── */
+renderNav(); render();
+</script>
+</body>
+</html>

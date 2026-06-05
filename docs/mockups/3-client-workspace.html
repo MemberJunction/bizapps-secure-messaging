@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Secure Messaging — Client Workspace (Mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="shared.css">
+<style>
+  body { display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+  .ws { flex:1; min-height:0; overflow-y:auto; padding:22px 26px 40px; }
+  .ws-inner { max-width:1240px; margin:0 auto; }
+
+  /* Client header card (interior-header style) */
+  .client-head { background:var(--mj-bg-surface); border:1px solid var(--mj-border-default); border-radius:var(--mj-radius-xl); box-shadow:var(--mj-shadow-sm); padding:22px 24px; display:flex; align-items:center; gap:20px; }
+  .client-head .avatar { width:64px; height:64px; font-size:22px; }
+  .ch-name { font-size:22px; font-weight:800; letter-spacing:-.01em; }
+  .ch-meta { display:flex; align-items:center; gap:16px; margin-top:6px; font-size:13px; color:var(--mj-text-muted); flex-wrap:wrap; }
+  .ch-meta span { display:inline-flex; align-items:center; gap:6px; }
+  .ch-actions { margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+  .ch-session { display:flex; align-items:center; gap:8px; background:var(--mj-success-bg); border:1px solid var(--mj-success-border); color:var(--mj-success-text); padding:7px 13px; border-radius:var(--mj-radius-full); font-size:12px; font-weight:700; }
+  .ch-session .pulse { width:8px; height:8px; border-radius:50%; background:var(--mj-success); box-shadow:0 0 0 0 rgba(34,197,94,.5); animation:pulse 2s infinite; }
+  @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(34,197,94,.5)} 70%{box-shadow:0 0 0 7px rgba(34,197,94,0)} 100%{box-shadow:0 0 0 0 rgba(34,197,94,0)} }
+
+  /* Stat row */
+  .stats { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-top:16px; }
+  .stat { background:var(--mj-bg-surface); border:1px solid var(--mj-border-default); border-radius:var(--mj-radius-lg); box-shadow:var(--mj-shadow-sm); padding:16px 18px; }
+  .stat .v { font-size:26px; font-weight:800; letter-spacing:-.02em; }
+  .stat .l { font-size:12px; color:var(--mj-text-muted); margin-top:2px; display:flex; align-items:center; gap:6px; }
+  .stat .l i { font-size:11px; }
+  .stat.accent .v { color:var(--mj-brand-primary); }
+  .stat.warn .v { color:var(--mj-warning-text); }
+  .stat.violet .v { color:var(--mj-violet); }
+
+  /* Tabs */
+  .ws-tabs { display:flex; gap:2px; margin-top:22px; border-bottom:1px solid var(--mj-border-default); }
+  .ws-tab { padding:11px 18px; font-size:13.5px; font-weight:600; color:var(--mj-text-muted); cursor:pointer; border-bottom:2px solid transparent; display:flex; align-items:center; gap:8px; }
+  .ws-tab:hover { color:var(--mj-text-primary); }
+  .ws-tab.active { color:var(--mj-brand-primary); border-bottom-color:var(--mj-brand-primary); }
+  .ws-tab .count-pill { background:var(--mj-bg-surface-active); color:var(--mj-text-secondary); }
+
+  .grid { display:grid; grid-template-columns:1.7fr 1fr; gap:20px; margin-top:20px; align-items:start; }
+  .pane { display:none; } .pane.active { display:block; }
+  .panel { background:var(--mj-bg-surface); border:1px solid var(--mj-border-default); border-radius:var(--mj-radius-lg); box-shadow:var(--mj-shadow-sm); margin-bottom:20px; overflow:hidden; }
+  .panel-head { display:flex; align-items:center; gap:10px; padding:14px 18px; border-bottom:1px solid var(--mj-border-default); }
+  .panel-head h3 { margin:0; font-size:14px; font-weight:700; }
+  .panel-head .icon-btn, .panel-head .btn { margin-left:auto; }
+  .panel-body { padding:6px 0; }
+
+  /* Thread row */
+  .row { display:flex; align-items:center; gap:14px; padding:13px 18px; border-bottom:1px solid var(--mj-border-subtle); cursor:pointer; transition:background .15s; }
+  .row:last-child { border-bottom:none; }
+  .row:hover { background:var(--mj-bg-surface-card); }
+  .row .ic { width:36px; height:36px; border-radius:var(--mj-radius-md); display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+  .ic-msg { background:var(--mj-info-bg); color:var(--mj-info-text); }
+  .ic-file { background:var(--mj-brand-accent-subtle); color:var(--mj-brand-primary); }
+  .ic-sign { background:var(--mj-warning-bg); color:var(--mj-warning-text); }
+  .ic-doc-pdf { background:#fef2f2; color:#dc2626; }
+  .ic-doc-xls { background:#f0fdf4; color:#15803d; }
+  .ic-doc-img { background:#f5f3ff; color:#7c3aed; }
+  .ic-doc-word{ background:#eff6ff; color:#2563eb; }
+  .row-title { font-size:13.5px; font-weight:600; }
+  .row-sub { font-size:12px; color:var(--mj-text-muted); margin-top:2px; }
+  .row-right { margin-left:auto; display:flex; align-items:center; gap:12px; flex-shrink:0; }
+  .row-time { font-size:11px; color:var(--mj-text-disabled); }
+
+  /* Session & security panel */
+  .sec-item { display:flex; align-items:center; gap:12px; padding:12px 18px; border-bottom:1px solid var(--mj-border-subtle); font-size:13px; }
+  .sec-item:last-child { border-bottom:none; }
+  .sec-item .k { color:var(--mj-text-muted); }
+  .sec-item .v { margin-left:auto; font-weight:600; color:var(--mj-text-primary); display:flex; align-items:center; gap:6px; }
+  .sec-key { font-family:'JetBrains Mono',ui-monospace,Consolas,monospace; font-size:11px; background:var(--mj-bg-surface-sunken); padding:2px 7px; border-radius:var(--mj-radius-sm); color:var(--mj-text-secondary); }
+
+  .compliance { display:flex; flex-wrap:wrap; gap:8px; padding:14px 18px; }
+  .comp-badge { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:var(--mj-success-text); background:var(--mj-success-bg); border:1px solid var(--mj-success-border); padding:5px 10px; border-radius:var(--mj-radius-full); }
+
+  /* Audit timeline */
+  .timeline { position:relative; padding:14px 18px 14px 44px; }
+  .timeline::before { content:''; position:absolute; left:27px; top:18px; bottom:18px; width:2px; background:var(--mj-border-default); }
+  .tl-item { position:relative; padding-bottom:20px; }
+  .tl-item:last-child { padding-bottom:0; }
+  .tl-dot { position:absolute; left:-26px; top:0; width:20px; height:20px; border-radius:50%; background:var(--mj-bg-surface); border:2px solid var(--mj-border-strong); display:flex; align-items:center; justify-content:center; font-size:9px; color:var(--mj-text-muted); }
+  .tl-dot.ok{border-color:var(--mj-success);color:var(--mj-success)} .tl-dot.info{border-color:var(--mj-info);color:var(--mj-info)} .tl-dot.ai{border-color:#6366f1;color:#6366f1} .tl-dot.warn{border-color:var(--mj-warning);color:var(--mj-warning)} .tl-dot.sign{border-color:var(--mj-violet);color:var(--mj-violet)}
+  .tl-title { font-size:13px; font-weight:600; }
+  .tl-desc { font-size:12px; color:var(--mj-text-muted); margin-top:2px; }
+  .tl-time { font-size:11px; color:var(--mj-text-disabled); margin-top:3px; }
+  .tl-proof { display:inline-flex; align-items:center; gap:5px; margin-top:6px; font-size:11px; font-weight:600; color:var(--mj-success-text); background:var(--mj-success-bg); border:1px solid var(--mj-success-border); padding:2px 8px; border-radius:var(--mj-radius-full); }
+
+  @media (max-width:1080px){ .stats{ grid-template-columns:repeat(2,1fr); } .grid{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<div class="proto-bar">
+  <span class="proto-brand"><i class="fa-solid fa-shield-halved"></i> Secure Messaging — Prototype</span>
+  <a href="index.html"><i class="fa-solid fa-grip"></i> Overview</a>
+  <a href="1-executive-inbox.html"><i class="fa-solid fa-inbox"></i> Executive Inbox</a>
+  <a href="2-client-portal.html"><i class="fa-solid fa-comments"></i> Client Portal</a>
+  <a href="3-client-workspace.html" class="active"><i class="fa-solid fa-folder-open"></i> Client Workspace</a>
+  <span class="proto-right"><i class="fa-solid fa-circle-info"></i> Staff · Client 360 + compliance</span>
+</div>
+
+<div class="ws">
+  <div class="ws-inner">
+
+    <!-- breadcrumb -->
+    <div style="font-size:12px;color:var(--mj-text-muted);margin-bottom:14px;">
+      <a href="1-executive-inbox.html"><i class="fa-solid fa-inbox"></i> Secure Messages</a>
+      <i class="fa-solid fa-chevron-right" style="font-size:9px;margin:0 6px;"></i>
+      Workspaces <i class="fa-solid fa-chevron-right" style="font-size:9px;margin:0 6px;"></i>
+      <span style="color:var(--mj-text-primary);font-weight:600;">Sarah Mitchell</span>
+    </div>
+
+    <!-- CLIENT HEADER -->
+    <div class="client-head">
+      <div class="avatar avatar-amber">SM</div>
+      <div>
+        <div class="ch-name">Sarah Mitchell</div>
+        <div class="ch-meta">
+          <span><i class="fa-solid fa-building"></i> VP Operations, Acme Corp</span>
+          <span><i class="fa-solid fa-envelope"></i> sarah.mitchell@acme.com</span>
+          <span><i class="fa-solid fa-phone"></i> (415) 555-0182</span>
+        </div>
+      </div>
+      <div class="ch-actions">
+        <div class="ch-session"><span class="pulse"></span> Secure session active</div>
+        <button class="btn btn-primary btn-sm" onclick="toast('Opening compose…')"><i class="fa-solid fa-pen-to-square"></i> Message</button>
+        <button class="btn btn-secondary btn-sm" onclick="toast('Opening file request…')"><i class="fa-solid fa-folder-plus"></i> Request files</button>
+        <button class="btn btn-secondary btn-sm" onclick="toast('Opening signature request…')"><i class="fa-solid fa-file-signature"></i> Send for signature</button>
+      </div>
+    </div>
+
+    <!-- STATS -->
+    <div class="stats">
+      <div class="stat accent"><div class="v">3</div><div class="l"><i class="fa-solid fa-comments"></i> Open threads</div></div>
+      <div class="stat warn"><div class="v">2</div><div class="l"><i class="fa-solid fa-folder-plus"></i> Pending requests</div></div>
+      <div class="stat violet"><div class="v">1</div><div class="l"><i class="fa-solid fa-file-signature"></i> Awaiting signature</div></div>
+      <div class="stat"><div class="v">7</div><div class="l"><i class="fa-solid fa-paperclip"></i> Files shared</div></div>
+      <div class="stat"><div class="v">2m</div><div class="l"><i class="fa-solid fa-clock"></i> Last access</div></div>
+    </div>
+
+    <!-- TABS -->
+    <div class="ws-tabs">
+      <div class="ws-tab active" data-tab="overview" onclick="setTab('overview')"><i class="fa-solid fa-layer-group"></i> Overview</div>
+      <div class="ws-tab" data-tab="threads" onclick="setTab('threads')"><i class="fa-solid fa-comments"></i> Conversations <span class="count-pill">3</span></div>
+      <div class="ws-tab" data-tab="requests" onclick="setTab('requests')"><i class="fa-solid fa-list-check"></i> Requests &amp; Signatures <span class="count-pill">3</span></div>
+      <div class="ws-tab" data-tab="docs" onclick="setTab('docs')"><i class="fa-solid fa-folder"></i> Documents <span class="count-pill">7</span></div>
+      <div class="ws-tab" data-tab="audit" onclick="setTab('audit')"><i class="fa-solid fa-shield-halved"></i> Audit Trail</div>
+    </div>
+
+    <!-- OVERVIEW -->
+    <div class="pane active" id="pane-overview">
+      <div class="grid">
+        <div>
+          <div class="panel">
+            <div class="panel-head"><i class="fa-solid fa-comments" style="color:var(--mj-info)"></i><h3>Recent conversations</h3><button class="btn btn-ghost btn-sm" onclick="setTab('threads')">View all</button></div>
+            <div class="panel-body" id="ov-threads"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><i class="fa-solid fa-list-check" style="color:var(--mj-warning-text)"></i><h3>Open requests &amp; signatures</h3><button class="btn btn-ghost btn-sm" onclick="setTab('requests')">View all</button></div>
+            <div class="panel-body" id="ov-requests"></div>
+          </div>
+        </div>
+        <div>
+          <div class="panel">
+            <div class="panel-head"><i class="fa-solid fa-key" style="color:var(--mj-brand-primary)"></i><h3>Session &amp; security</h3></div>
+            <div class="sec-item"><span class="k">Status</span><span class="v" style="color:var(--mj-success-text)"><i class="fa-solid fa-circle-check"></i> Active</span></div>
+            <div class="sec-item"><span class="k">Token</span><span class="v"><span class="sec-key">sm_••••••3a9f</span></span></div>
+            <div class="sec-item"><span class="k">Auth method</span><span class="v">Magic link (passwordless)</span></div>
+            <div class="sec-item"><span class="k">Expires</span><span class="v">in 6 days <span style="color:var(--mj-text-muted);font-weight:400">(sliding)</span></span></div>
+            <div class="sec-item"><span class="k">Last access</span><span class="v">2 min ago · Chrome / macOS</span></div>
+            <div class="sec-item"><span class="k">Data residency</span><span class="v"><i class="fa-solid fa-location-dot" style="color:var(--mj-text-muted)"></i> US-East</span></div>
+            <div style="display:flex;gap:8px;padding:14px 18px;">
+              <button class="btn btn-secondary btn-sm" onclick="toast('New magic link emailed to contact')"><i class="fa-solid fa-wand-magic-sparkles"></i> Send new link</button>
+              <button class="btn btn-sm" style="background:var(--mj-error-bg);color:var(--mj-error-text);border:1px solid var(--mj-error-border)" onclick="revoke()"><i class="fa-solid fa-ban"></i> Revoke</button>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><i class="fa-solid fa-certificate" style="color:var(--mj-success)"></i><h3>Compliance</h3></div>
+            <div class="compliance">
+              <span class="comp-badge"><i class="fa-solid fa-lock"></i> AES-256 at rest</span>
+              <span class="comp-badge"><i class="fa-solid fa-shield"></i> SOC 2 Type II</span>
+              <span class="comp-badge"><i class="fa-solid fa-user-shield"></i> HIPAA</span>
+              <span class="comp-badge"><i class="fa-solid fa-globe"></i> GDPR</span>
+              <span class="comp-badge"><i class="fa-solid fa-clock-rotate-left"></i> Full audit</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- THREADS -->
+    <div class="pane" id="pane-threads">
+      <div class="panel"><div class="panel-head"><i class="fa-solid fa-comments" style="color:var(--mj-info)"></i><h3>All conversations</h3><button class="btn btn-primary btn-sm" onclick="toast('Opening compose…')"><i class="fa-solid fa-plus"></i> New</button></div><div class="panel-body" id="all-threads"></div></div>
+    </div>
+
+    <!-- REQUESTS -->
+    <div class="pane" id="pane-requests">
+      <div class="panel"><div class="panel-head"><i class="fa-solid fa-list-check" style="color:var(--mj-warning-text)"></i><h3>Requests &amp; signatures</h3></div><div class="panel-body" id="all-requests"></div></div>
+    </div>
+
+    <!-- DOCS -->
+    <div class="pane" id="pane-docs">
+      <div class="panel"><div class="panel-head"><i class="fa-solid fa-folder" style="color:var(--mj-brand-primary)"></i><h3>All documents</h3><button class="btn btn-secondary btn-sm" onclick="toast('Exporting file manifest…')"><i class="fa-solid fa-file-export"></i> Export list</button></div><div class="panel-body" id="all-docs"></div></div>
+    </div>
+
+    <!-- AUDIT -->
+    <div class="pane" id="pane-audit">
+      <div class="panel">
+        <div class="panel-head"><i class="fa-solid fa-shield-halved" style="color:var(--mj-success)"></i><h3>Complete chain of custody</h3><button class="btn btn-secondary btn-sm" onclick="toast('Exporting audit report (PDF)…')"><i class="fa-solid fa-file-export"></i> Export audit</button></div>
+        <div style="padding:12px 18px;font-size:12px;color:var(--mj-text-muted);border-bottom:1px solid var(--mj-border-subtle);"><i class="fa-solid fa-circle-info"></i> Every delivery, access, message, and document action is timestamped via MJ Record Changes — immutable and exportable for regulators.</div>
+        <div class="timeline" id="audit-tl"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"><i class="fa-solid fa-circle-check"></i><span id="toastMsg"></span></div>
+
+<script>
+const THREADS = [
+  { t:'Account Access Issue — Urgent', sub:'5 messages · last reply 2h ago', time:'9:34 AM', badge:['badge-review','Needs Review'], ic:'ic-msg', icon:'fa-message' },
+  { t:'2026 onboarding & documents', sub:'8 messages · resolved', time:'Jun 4', badge:['badge-replied','Replied'], ic:'ic-msg', icon:'fa-message' },
+  { t:'Quarterly review scheduling', sub:'3 messages · awaiting contact', time:'Jun 1', badge:['badge-delivered','Delivered'], ic:'ic-msg', icon:'fa-message' },
+];
+const REQUESTS = [
+  { t:'Signed engagement letter & ID', sub:'File request · due Jun 12', time:'Sent today', badge:['badge-pending','Pending'], ic:'ic-file', icon:'fa-folder-plus' },
+  { t:'2025 W-2 & prior-year return', sub:'File request · 1 of 2 uploaded', time:'Jun 3', badge:['badge-pending','In progress'], ic:'ic-file', icon:'fa-folder-plus' },
+  { t:'Account Authorization Form', sub:'Signature · DocuSign envelope sent', time:'Sent today', badge:['badge-sent','Awaiting sig'], ic:'ic-sign', icon:'fa-file-signature' },
+];
+const DOCS = [
+  { t:'Engagement_Letter_signed.pdf', sub:'From contact · 240 KB · today', time:'', ic:'ic-doc-pdf', icon:'fa-file-pdf' },
+  { t:'drivers_license.jpg', sub:'From contact · 412 KB · today', time:'', ic:'ic-doc-img', icon:'fa-file-image' },
+  { t:'Q1_Workbook.xlsx', sub:'From contact · 480 KB · Jun 5', time:'', ic:'ic-doc-xls', icon:'fa-file-excel' },
+  { t:'Onboarding_Guide.docx', sub:'Sent to contact · 1.1 MB · Jun 4', time:'', ic:'ic-doc-word', icon:'fa-file-word' },
+  { t:'Q1_Summary_Deck.pdf', sub:'From contact · 1.2 MB · Jun 5', time:'', ic:'ic-doc-pdf', icon:'fa-file-pdf' },
+  { t:'Account_Authorization.pdf', sub:'Sent · awaiting signature', time:'', ic:'ic-doc-pdf', icon:'fa-file-pdf' },
+  { t:'error_screenshot.png', sub:'From contact · 412 KB · today', time:'', ic:'ic-doc-img', icon:'fa-file-image' },
+];
+const AUDIT = [
+  { k:'ok',   i:'fa-paper-plane',   t:'Secure link delivered',          d:'sarah.mitchell@acme.com · session sm_•••3a9f created', time:'Jun 4, 4:02 PM', proof:'Proof of delivery' },
+  { k:'info', i:'fa-arrow-pointer', t:'Contact opened secure session',  d:'Token validated · IP 71.34.x.x · Chrome / macOS',       time:'Jun 5, 9:12 AM', proof:'Proof of access' },
+  { k:'info', i:'fa-message',       t:'Inbound message received',       d:'"Account Access Issue — Urgent" · encrypted at rest',     time:'Jun 5, 9:14 AM' },
+  { k:'ai',   i:'fa-wand-magic-sparkles', t:'AI reply drafted',         d:'Izzy — Single Message agent · confidence 92%',          time:'Jun 5, 9:14 AM' },
+  { k:'warn', i:'fa-user-clock',    t:'Queued for human review',        d:'Below auto-approve threshold (financial topic)',         time:'Jun 5, 9:15 AM' },
+  { k:'ok',   i:'fa-circle-check',  t:'Reply approved & delivered',     d:'Approved by Jane Doe · sent via secure channel',         time:'Jun 5, 9:21 AM', proof:'Proof of delivery' },
+  { k:'info', i:'fa-cloud-arrow-up',t:'File uploaded by contact',       d:'Engagement_Letter_signed.pdf · scanned ✓ clean',         time:'Jun 5, 9:34 AM', proof:'Proof of access' },
+  { k:'sign', i:'fa-file-signature',t:'Signature request sent',         d:'Account Authorization Form · DocuSign envelope #DS-4471', time:'Jun 5, 10:02 AM' },
+];
+
+function rowHTML(x, withChevron){
+  const b = x.badge ? `<span class="badge ${x.badge[0]}">${x.badge[1]}</span>` : '';
+  return `<div class="row" onclick="toast('Opening: ${x.t.replace(/'/g,'')}')">
+    <div class="ic ${x.ic}"><i class="fa-solid ${x.icon}"></i></div>
+    <div style="min-width:0"><div class="row-title">${x.t}</div><div class="row-sub">${x.sub}</div></div>
+    <div class="row-right">${b}${x.time?`<span class="row-time">${x.time}</span>`:''}${withChevron?'<i class="fa-solid fa-chevron-right" style="color:var(--mj-text-disabled);font-size:11px"></i>':''}</div>
+  </div>`;
+}
+function fill(id, arr, chev){ document.getElementById(id).innerHTML = arr.map(x=>rowHTML(x,chev)).join(''); }
+
+function renderAudit(){
+  document.getElementById('audit-tl').innerHTML = AUDIT.map(a=>`
+    <div class="tl-item"><div class="tl-dot ${a.k}"><i class="fa-solid ${a.i}"></i></div>
+      <div class="tl-title">${a.t}</div><div class="tl-desc">${a.d}</div><div class="tl-time">${a.time}</div>
+      ${a.proof?`<div class="tl-proof"><i class="fa-solid fa-circle-check"></i> ${a.proof}</div>`:''}
+    </div>`).join('');
+}
+
+function setTab(t){
+  document.querySelectorAll('.ws-tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t));
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
+  document.getElementById('pane-'+t).classList.add('active');
+}
+function revoke(){
+  if(!confirm('Revoke this contact’s secure session? They will need a new magic link to return.')) return;
+  document.querySelector('.ch-session').outerHTML = '<div class="ch-session" style="background:var(--mj-error-bg);border-color:var(--mj-error-border);color:var(--mj-error-text)"><i class="fa-solid fa-ban"></i> Session revoked</div>';
+  toast('Session revoked — token invalidated');
+}
+function openModal(id){ document.getElementById(id)?.classList.add('open'); }
+function closeModal(id){ document.getElementById(id)?.classList.remove('open'); }
+let tt; function toast(m){ toastMsg.textContent=m; const t=document.getElementById('toast'); t.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove('show'),2400); }
+
+/* init */
+fill('ov-threads', THREADS, true);
+fill('ov-requests', REQUESTS, false);
+fill('all-threads', THREADS, true);
+fill('all-requests', REQUESTS, false);
+fill('all-docs', DOCS, false);
+renderAudit();
+</script>
+</body>
+</html>
