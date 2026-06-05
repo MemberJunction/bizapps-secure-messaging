@@ -1,6 +1,6 @@
 {
   "name": "@memberjunction/secure-messaging-server",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Server-side logic for MJ Secure Messaging: auth service, communication provider, and REST API routes.",
   "type": "module",
   "main": "dist/index.js",
@@ -11,13 +11,19 @@
   },
   "dependencies": {
     "@memberjunction/core": "^5.1.0",
+    "@memberjunction/core-entities": "^5.1.0",
     "@memberjunction/global": "^5.1.0",
     "@memberjunction/communication-types": "^5.1.0",
     "@memberjunction/server": "^5.1.0",
-    "express": "^5.1.0"
+    "@memberjunction/storage": "^5.1.0",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.0",
+    "multer": "^2.0.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.0",
+    "@types/multer": "^2.0.0",
     "@types/node": "^22.0.0",
     "typescript": "^5.4.5"
   }

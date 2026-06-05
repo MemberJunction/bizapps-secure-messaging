@@ -1,13 +1,16 @@
 import { Request, Response } from 'express';
-import { Metadata, RunView } from '@memberjunction/core';
 import { getSystemUser } from '@memberjunction/server';
 import { PortalRequest } from './middleware.js';
+import { getMessageStore } from '../stores/index.js';
 
 /**
  * GET /threads/:threadId/messages
  *
  * Returns all messages in the thread, ordered by date.
  * The caller must have a valid session token for this thread.
+ *
+ * Delegates to the configured MessageStore (owned self-contained store by default,
+ * or the Channel Messages adapter when SECURE_MESSAGING_MESSAGE_BACKEND=channel).
  */
 export async function getThreadMessages(req: Request, res: Response): Promise<void> {
     const { threadId } = req.params;
@@ -21,35 +24,7 @@ export async function getThreadMessages(req: Request, res: Response): Promise<vo
 
     try {
         const systemUser = await getSystemUser();
-        const rv = new RunView();
-        const result = await rv.RunView({
-            EntityName: 'Channel Messages',
-            ExtraFilter: `ChannelID = '${session.channelId}' AND ThreadID = '${threadId}'`,
-            OrderBy: 'ReceivedAt ASC',
-        }, systemUser);
-
-        if (!result.Success) {
-            res.status(500).json({ error: 'Failed to load messages' });
-            return;
-        }
-
-        const messages = (result.Results as Record<string, unknown>[]).map(msg => ({
-            id: msg.ID,
-            sender: msg.Sender,
-            recipient: msg.Recipient,
-            subject: msg.Subject,
-            content: msg.MessageContent,
-            receivedAt: msg.ReceivedAt,
-            generationStatus: msg.GenerationStatus,
-            generatedReply: msg.GeneratedReplyContent,
-            approvalStatus: msg.ApprovalStatus,
-            approvedReply: msg.ApprovedReplyContent,
-            sentContent: msg.SentContent,
-            sentAt: msg.SentAt,
-            parentId: msg.ParentID,
-            messageFormat: msg.MessageFormat,
-        }));
-
+        const messages = await getMessageStore().getThreadMessages(session, threadId, systemUser);
         res.json({ messages });
     } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
@@ -61,8 +36,7 @@ export async function getThreadMessages(req: Request, res: Response): Promise<vo
 /**
  * POST /threads/:threadId/messages
  *
- * Creates a new inbound message from the contact.
- * The message enters the standard MJ ChannelMessage pipeline for AI processing.
+ * Creates a new inbound message from the contact via the configured MessageStore.
  *
  * Body: { content: string, subject?: string }
  */
@@ -83,32 +57,15 @@ export async function createThreadMessage(req: Request, res: Response): Promise<
 
     try {
         const systemUser = await getSystemUser();
-        const md = new Metadata();
-        const entity = await md.GetEntityObject('Channel Messages', systemUser);
-        entity.NewRecord();
-        entity.Set('ChannelID', session.channelId);
-        entity.Set('ThreadID', threadId);
-        entity.Set('Sender', session.contactEmail);
-        entity.Set('Recipient', ''); // Org receives — no specific recipient address
-        entity.Set('MessageContent', content.trim());
-        entity.Set('ReceivedAt', new Date().toISOString());
-        entity.Set('GenerationStatus', 'Read');
-        entity.Set('IsSecure', true);
-        entity.Set('ContactID', session.contactId);
-        entity.Set('MessageFormat', 'text');
-
-        if (subject && typeof subject === 'string') {
-            entity.Set('Subject', subject.trim());
-        }
-
-        const saved = await entity.Save();
-        if (!saved) {
-            res.status(500).json({ error: 'Failed to create message' });
-            return;
-        }
+        const result = await getMessageStore().createMessage(
+            session,
+            threadId,
+            { content, subject: typeof subject === 'string' ? subject : undefined },
+            systemUser
+        );
 
         res.status(201).json({
-            messageId: entity.Get('ID'),
+            messageId: result.messageId,
             status: 'created',
         });
     } catch (error) {

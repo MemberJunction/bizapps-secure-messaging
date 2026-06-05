@@ -29,14 +29,14 @@ import { ThreadMessage } from '../../services/api.service';
             word-wrap: break-word;
         }
         .sm-bubble--outbound {
-            background: var(--sm-brand-color, #1a73e8);
+            background: var(--sm-brand-color, var(--mat-sys-primary, #1a73e8));
             color: white;
             margin-left: auto;
             border-bottom-right-radius: 4px;
         }
         .sm-bubble--inbound {
-            background: var(--sm-bubble-inbound-bg, #f0f0f0);
-            color: var(--sm-text-color, #333);
+            background: var(--mat-sys-surface-container, #f0f0f0);
+            color: var(--mat-sys-on-surface, #333);
             margin-right: auto;
             border-bottom-left-radius: 4px;
         }
@@ -72,7 +72,7 @@ import { ThreadMessage } from '../../services/api.service';
             width: 14px;
             height: 14px;
             border: 2px solid rgba(0,0,0,0.1);
-            border-top-color: var(--sm-brand-color, #1a73e8);
+            border-top-color: var(--sm-brand-color, var(--mat-sys-primary, #1a73e8));
             border-radius: 50%;
             animation: sm-spin 0.8s linear infinite;
         }

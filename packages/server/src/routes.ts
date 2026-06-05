@@ -1,8 +1,21 @@
 import { Router, json, Request, Response, NextFunction } from 'express';
+import multer from 'multer';
 import { portalAuthMiddleware } from './handlers/middleware.js';
 import { validateToken, requestMagicLink, redeemMagicLink } from './handlers/auth.js';
 import { getThreadMessages, createThreadMessage } from './handlers/messages.js';
-import { getThreadAttachments, uploadAttachment } from './handlers/attachments.js';
+import { getThreadAttachments, uploadAttachment, downloadAttachment } from './handlers/attachments.js';
+import { getFileRequests, createFileRequest, fulfillFileRequest } from './handlers/fileRequests.js';
+import { getSignatureRequests, createSignatureRequest, sendSignatureRequest, refreshSignatureStatus } from './handlers/signatures.js';
+import { MAX_FILE_BYTES } from './stores/ArtifactFileStore.js';
+
+/**
+ * Multipart upload middleware (in-memory). Applied only to the upload route so the
+ * router-wide json() parser continues to handle every other route unchanged.
+ */
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: MAX_FILE_BYTES },
+});
 
 /**
  * Simple CORS middleware for the Secure Messaging routes.
@@ -54,9 +67,21 @@ export function createSecureMessagingRouter(): Router {
     router.get('/threads/:threadId/messages', getThreadMessages);
     router.post('/threads/:threadId/messages', createThreadMessage);
 
-    // Thread attachments
+    // Thread attachments — multer handles the multipart upload on POST only
     router.get('/threads/:threadId/attachments', getThreadAttachments);
-    router.post('/threads/:threadId/attachments', uploadAttachment);
+    router.post('/threads/:threadId/attachments', upload.single('file'), uploadAttachment);
+    router.get('/threads/:threadId/attachments/:attachmentId/download', downloadAttachment);
+
+    // File requests — staff creates, contact fulfills (fulfill is a multipart upload)
+    router.get('/threads/:threadId/file-requests', getFileRequests);
+    router.post('/threads/:threadId/file-requests', createFileRequest);
+    router.post('/threads/:threadId/file-requests/:requestId/fulfill', upload.single('file'), fulfillFileRequest);
+
+    // Signature requests — provider-backed (DocuSign stub by default)
+    router.get('/threads/:threadId/signature-requests', getSignatureRequests);
+    router.post('/threads/:threadId/signature-requests', createSignatureRequest);
+    router.post('/threads/:threadId/signature-requests/:requestId/send', sendSignatureRequest);
+    router.post('/threads/:threadId/signature-requests/:requestId/refresh-status', refreshSignatureStatus);
 
     return router;
 }

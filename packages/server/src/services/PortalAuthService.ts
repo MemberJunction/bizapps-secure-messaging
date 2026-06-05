@@ -52,11 +52,12 @@ export class PortalAuthService {
     private static _instance: PortalAuthService | null = null;
 
     /**
-     * The entity name used to look up contacts. Defaults to 'Contacts'.
-     * Override this if your MJ instance uses a different entity name
-     * (e.g., 'BC: Contacts' for BCSaaS environments).
+     * The entity name used to look up contacts. Defaults to the app-agnostic
+     * BizAppsCommon People entity, which stores Email as a direct column and is the
+     * MemberJunction ecosystem standard. Override for environments that use a different
+     * contact entity (e.g., 'Contacts', or 'BC: Contacts' for BCSaaS).
      */
-    static contactEntityName = 'Contacts';
+    static contactEntityName = 'MJ_BizApps_Common: People';
 
     /**
      * The field name on the contact entity that holds the email address.

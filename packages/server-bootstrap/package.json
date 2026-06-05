@@ -1,6 +1,6 @@
 {
   "name": "@memberjunction/secure-messaging-bootstrap",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Server bootstrap package for MJ Secure Messaging. Registers the Secure Web communication provider and exports the startup function.",
   "type": "module",
   "main": "dist/index.js",
@@ -10,7 +10,7 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "@memberjunction/secure-messaging-server": "file:../server",
+    "@memberjunction/secure-messaging-server": "^1.1.0",
     "@memberjunction/core": "^5.1.0"
   },
   "devDependencies": {

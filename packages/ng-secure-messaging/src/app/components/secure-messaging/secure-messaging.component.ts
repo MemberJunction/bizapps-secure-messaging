@@ -26,6 +26,7 @@ import { AuthService, AuthState } from '../../services/auth.service';
                 [threadId]="authService.session!.threadId"
                 [channelId]="authService.session!.channelId"
                 [contactEmail]="authService.session!.contactEmail"
+                (fileUploaded)="fileUploadedEvent.emit($event)"
             ></sm-conversation>
         </div>
     `,
@@ -37,7 +38,7 @@ import { AuthService, AuthState } from '../../services/auth.service';
         .sm-container {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             height: 100%;
-            border: 1px solid var(--sm-border-color, #e0e0e0);
+            border: 1px solid var(--mat-sys-outline-variant, #e0e0e0);
             border-radius: 8px;
             overflow: hidden;
             display: flex;
@@ -60,6 +61,7 @@ export class SecureMessagingComponent implements OnInit {
     }>();
     @Output('session-expired') sessionExpired = new EventEmitter<void>();
     @Output('message-sent') messageSentEvent = new EventEmitter<{ messageId: string }>();
+    @Output('file-uploaded') fileUploadedEvent = new EventEmitter<{ attachmentId: string; filename: string }>();
 
     noToken = false;
 

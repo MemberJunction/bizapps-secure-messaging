@@ -41,17 +41,17 @@ import { AuthState } from '../../services/auth.service';
             min-height: 300px;
             text-align: center;
             padding: 2rem;
-            color: var(--sm-text-color, #333);
+            color: var(--mat-sys-on-surface, #333);
         }
         .sm-auth-loading p {
             margin-top: 1rem;
-            color: var(--sm-text-secondary, #666);
+            color: var(--mat-sys-on-surface-variant, #666);
         }
         .sm-spinner {
             width: 40px;
             height: 40px;
-            border: 3px solid var(--sm-border-color, #e0e0e0);
-            border-top-color: var(--sm-brand-color, #1a73e8);
+            border: 3px solid var(--mat-sys-outline-variant, #e0e0e0);
+            border-top-color: var(--sm-brand-color, var(--mat-sys-primary, #1a73e8));
             border-radius: 50%;
             animation: sm-spin 0.8s linear infinite;
             margin: 0 auto;
@@ -65,7 +65,7 @@ import { AuthState } from '../../services/auth.service';
         }
         p {
             margin: 0.25rem 0;
-            color: var(--sm-text-secondary, #666);
+            color: var(--mat-sys-on-surface-variant, #666);
         }
     `]
 })

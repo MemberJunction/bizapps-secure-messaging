@@ -74,14 +74,17 @@ npm run build:bundle
 
 ### Widget Theming
 
+The widget is built on MemberJunction's Material 3 design tokens (`--mat-sys-*`), so it
+automatically inherits the host MJ instance's theme — including light/dark mode — just
+like the Executive Inbox. No per-widget color configuration is required.
+
+To override just the accent/brand color (e.g. to match a specific page), set the
+`brand-color` attribute or the `--sm-brand-color` variable; it takes precedence over
+`--mat-sys-primary`:
+
 ```css
 mj-secure-messaging {
   --sm-brand-color: #0076B6;
-  --sm-text-color: #333;
-  --sm-bg-color: #fff;
-  --sm-header-bg: #F4F4F4;
-  --sm-border-color: #D9D9D9;
-  --sm-bubble-inbound-bg: #F4F4F4;
 }
 ```
 

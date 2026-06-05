@@ -1,6 +1,7 @@
 import { Component, OnInit, Input } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { RunView } from '@memberjunction/core';
+import { Metadata, RunView } from '@memberjunction/core';
+import { GraphQLDataProvider, GraphQLFileStorageClient } from '@memberjunction/graphql-dataprovider';
 
 /* ─── Interfaces ─── */
 
@@ -27,6 +28,7 @@ interface SecureMessageItem {
   id: string;
   senderName: string;
   senderEmail: string;
+  personId?: string;
   subject: string;
   preview: string;
   bodyHtml: SafeHtml;
@@ -39,6 +41,14 @@ interface SecureMessageItem {
   attachments: MessageAttachment[];
   threadId?: string;
   replyCount?: number;
+}
+
+/** A per-person workspace grouping derived from the loaded messages. */
+interface WorkspaceNavItem {
+  /** Stable key: PersonID when present, otherwise the sender email. */
+  key: string;
+  label: string;
+  count: number;
 }
 
 @Component({
@@ -101,6 +111,25 @@ interface SecureMessageItem {
         }
       </nav>
     </div>
+
+    @if (workspaceNavItems.length > 0) {
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Workspaces</div>
+        <nav class="sidebar-nav">
+          <div class="sidebar-item" [class.active]="activeWorkspace === null" (click)="selectWorkspace(null)">
+            <i class="fa-solid fa-users"></i>
+            <span>All contacts</span>
+          </div>
+          @for (ws of workspaceNavItems; track ws.key) {
+            <div class="sidebar-item" [class.active]="activeWorkspace === ws.key" (click)="selectWorkspace(ws.key)">
+              <i class="fa-solid fa-user"></i>
+              <span>{{ ws.label }}</span>
+              <div class="badge">{{ ws.count }}</div>
+            </div>
+          }
+        </nav>
+      </div>
+    }
 
     <div class="sidebar-spacer"></div>
 
@@ -209,8 +238,11 @@ interface SecureMessageItem {
             <button class="detail-action-btn" title="Reply" (click)="onReply()">
               <i class="fa-solid fa-reply"></i>
             </button>
-            <button class="detail-action-btn" title="Forward" (click)="onForward()">
-              <i class="fa-solid fa-share"></i>
+            <button class="detail-action-btn" title="Request files" (click)="openRequestFiles()">
+              <i class="fa-solid fa-folder-plus"></i>
+            </button>
+            <button class="detail-action-btn" title="Send for signature" (click)="openSendForSignature()">
+              <i class="fa-solid fa-file-signature"></i>
             </button>
             <button class="detail-action-btn" title="Archive" (click)="onArchive()">
               <i class="fa-solid fa-box-archive"></i>
@@ -232,6 +264,32 @@ interface SecureMessageItem {
         </div>
       }
 
+      @if (actionPanel) {
+        <div class="action-panel">
+          <div class="action-panel-header">
+            <i [class]="actionPanel === 'request' ? 'fa-solid fa-folder-plus' : 'fa-solid fa-file-signature'"></i>
+            <span>{{ actionPanel === 'request' ? 'Request files from contact' : 'Send a document for signature' }}</span>
+            <button class="action-panel-close" title="Cancel" (click)="closeActionPanel()">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          <input class="action-panel-input" type="text" [(ngModel)]="actionTitle"
+            [placeholder]="actionPanel === 'request' ? 'What files do you need? (title)' : 'Document title'">
+          @if (actionPanel === 'request') {
+            <textarea class="action-panel-input" rows="2" [(ngModel)]="actionInstructions"
+              placeholder="Instructions (optional)"></textarea>
+          }
+          @if (actionError) {
+            <div class="action-panel-error">{{ actionError }}</div>
+          }
+          <div class="action-panel-footer">
+            <button class="action-panel-submit" [disabled]="actionSubmitting || !actionTitle.trim()" (click)="submitActionPanel()">
+              {{ actionSubmitting ? 'Working…' : (actionPanel === 'request' ? 'Send request' : 'Create & send') }}
+            </button>
+          </div>
+        </div>
+      }
+
       <div class="detail-body">
         <div class="message-content" [innerHTML]="selectedMessage.bodyHtml"></div>
 
@@ -248,7 +306,7 @@ interface SecureMessageItem {
                   <div class="attachment-name">{{ att.filename }}</div>
                   <div class="attachment-size">{{ formatFileSize(att.size) }}</div>
                 </div>
-                <button class="attachment-download" title="Download">
+                <button class="attachment-download" title="Download" (click)="downloadAttachment(att)">
                   <i class="fa-solid fa-download"></i>
                 </button>
               </div>
@@ -1003,6 +1061,85 @@ interface SecureMessageItem {
   color: #15803d;
 }
 
+/* ─── Action panel (Request files / Send for signature) ─── */
+
+.action-panel {
+  margin: 12px 28px 0;
+  padding: 16px;
+  background: var(--mat-sys-surface-container-low, #f8fafc);
+  border: 1px solid var(--mat-sys-outline-variant, #e2e8f0);
+  border-radius: var(--mat-sys-corner-medium, 12px);
+}
+
+.action-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mat-sys-on-surface, #1e293b);
+  margin-bottom: 12px;
+}
+
+.action-panel-header i {
+  color: var(--mat-sys-primary, #3b82f6);
+}
+
+.action-panel-close {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: var(--mat-sys-on-surface-variant, #94a3b8);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.action-panel-input {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--mat-sys-outline-variant, #e2e8f0);
+  border-radius: var(--mat-sys-corner-small, 8px);
+  background: var(--mat-sys-surface-container-lowest, #ffffff);
+  color: var(--mat-sys-on-surface, #1e293b);
+  font-family: inherit;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.action-panel-input:focus {
+  outline: none;
+  border-color: var(--mat-sys-primary, #3b82f6);
+}
+
+.action-panel-error {
+  font-size: 12px;
+  color: var(--mat-sys-error, #dc2626);
+  margin-bottom: 8px;
+}
+
+.action-panel-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.action-panel-submit {
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--mat-sys-corner-small, 8px);
+  background: var(--mat-sys-primary, #3b82f6);
+  color: var(--mat-sys-on-primary, #ffffff);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.action-panel-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .security-bar i {
   font-size: 13px;
 }
@@ -1349,9 +1486,21 @@ export class SecureMessagingExecutiveComponent implements OnInit {
   searchQuery = '';
   sortMode: 'date' | 'sender' | 'status' = 'date';
 
+  /* ─── Workspaces (per-person grouping) ─── */
+  workspaceNavItems: WorkspaceNavItem[] = [];
+  /** Currently selected workspace key, or null for "all". */
+  activeWorkspace: string | null = null;
+
   /* ─── Detail panel state ─── */
   selectedMessage: SecureMessageItem | null = null;
   replyText = '';
+
+  /* ─── Action panel (Request files / Send for signature) ─── */
+  actionPanel: 'request' | 'signature' | null = null;
+  actionTitle = '';
+  actionInstructions = '';
+  actionSubmitting = false;
+  actionError = '';
 
   /* ─── Loading ─── */
   isLoading = true;
@@ -1393,8 +1542,17 @@ export class SecureMessagingExecutiveComponent implements OnInit {
     this.applyFilter();
   }
 
+  selectWorkspace(key: string | null): void {
+    this.activeWorkspace = this.activeWorkspace === key ? null : key;
+    this.applyFilter();
+  }
+
   applyFilter(): void {
     let result = [...this.messages];
+
+    if (this.activeWorkspace) {
+      result = result.filter(m => this.workspaceKeyOf(m) === this.activeWorkspace);
+    }
 
     if (this.searchQuery.trim()) {
       const q = this.searchQuery.toLowerCase();
@@ -1435,6 +1593,37 @@ export class SecureMessagingExecutiveComponent implements OnInit {
       this.updateInboxCount();
     }
     this.replyText = '';
+    this.closeActionPanel();
+    void this.loadAttachments(message);
+  }
+
+  /** Loads the files attached to a message's thread from the owned MessageFile entity. */
+  private async loadAttachments(message: SecureMessageItem): Promise<void> {
+    if (!message.threadId) return;
+    try {
+      const rv = new RunView();
+      const result = await rv.RunView({
+        EntityName: 'Message Files',
+        ExtraFilter: `ThreadID = '${message.threadId.replace(/'/g, "''")}'`,
+        OrderBy: '__mj_CreatedAt ASC',
+        ResultType: 'simple',
+      });
+      if (result.Success && result.Results) {
+        const atts = (result.Results as Record<string, unknown>[]).map(r => ({
+          id: r['ID'] as string,
+          filename: (r['Filename'] as string) ?? 'file',
+          contentType: (r['ContentType'] as string) ?? '',
+          size: Number(r['Size'] ?? 0),
+        }));
+        // Only mutate if this message is still selected (avoid races on quick switches).
+        if (this.selectedMessage?.id === message.id) {
+          message.attachments = atts;
+          message.attachmentCount = atts.length;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load attachments', e);
+    }
   }
 
   toggleStar(message: SecureMessageItem, event: Event): void {
@@ -1460,6 +1649,154 @@ export class SecureMessagingExecutiveComponent implements OnInit {
     if (!this.replyText.trim()) return;
     // Phase 2: send reply via API
     this.replyText = '';
+  }
+
+  /* ─── File request / signature actions ─── */
+
+  openRequestFiles(): void {
+    this.actionPanel = 'request';
+    this.resetActionForm();
+  }
+
+  openSendForSignature(): void {
+    this.actionPanel = 'signature';
+    this.resetActionForm();
+  }
+
+  closeActionPanel(): void {
+    this.actionPanel = null;
+  }
+
+  private resetActionForm(): void {
+    this.actionTitle = '';
+    this.actionInstructions = '';
+    this.actionError = '';
+  }
+
+  async submitActionPanel(): Promise<void> {
+    const title = this.actionTitle.trim();
+    const threadId = this.selectedMessage?.threadId;
+    if (!title || !threadId || this.actionSubmitting) return;
+
+    this.actionSubmitting = true;
+    this.actionError = '';
+    try {
+      const sessionId = await this.resolvePortalSessionId(threadId);
+      if (!sessionId) {
+        this.actionError = 'No active portal session was found for this conversation.';
+        return;
+      }
+
+      const md = new Metadata();
+      if (this.actionPanel === 'request') {
+        const entity = await md.GetEntityObject('File Requests');
+        entity.NewRecord();
+        entity.Set('PortalSessionID', sessionId);
+        entity.Set('ThreadID', threadId);
+        entity.Set('Title', title);
+        entity.Set('Status', 'Pending');
+        if (this.actionInstructions.trim()) entity.Set('Instructions', this.actionInstructions.trim());
+        if (!(await entity.Save())) {
+          this.actionError = entity.LatestResult?.Message || 'Failed to create file request.';
+          return;
+        }
+      } else if (this.actionPanel === 'signature') {
+        const entity = await md.GetEntityObject('Signature Requests');
+        entity.NewRecord();
+        entity.Set('PortalSessionID', sessionId);
+        entity.Set('ThreadID', threadId);
+        entity.Set('Title', title);
+        entity.Set('Status', 'Draft');
+        entity.Set('Provider', 'DocuSign');
+        if (!(await entity.Save())) {
+          this.actionError = entity.LatestResult?.Message || 'Failed to create signature request.';
+          return;
+        }
+      }
+      this.closeActionPanel();
+    } catch (e) {
+      console.error('Action panel submit failed', e);
+      this.actionError = 'Something went wrong. Please try again.';
+    } finally {
+      this.actionSubmitting = false;
+    }
+  }
+
+  /** Resolves the PortalSession ID for a thread (newest active session). */
+  private async resolvePortalSessionId(threadId: string): Promise<string | null> {
+    const rv = new RunView();
+    const result = await rv.RunView({
+      EntityName: 'Portal Sessions',
+      ExtraFilter: `ThreadID = '${threadId.replace(/'/g, "''")}'`,
+      OrderBy: 'LastAccessedAt DESC',
+      MaxRows: 1,
+      ResultType: 'simple',
+    });
+    if (result.Success && result.Results && result.Results.length > 0) {
+      return (result.Results[0] as Record<string, unknown>)['ID'] as string;
+    }
+    return null;
+  }
+
+  async downloadAttachment(att: MessageAttachment): Promise<void> {
+    try {
+      const rv = new RunView();
+
+      // 1. MessageFile (att.id) → underlying MJ: Files ID
+      const linkResult = await rv.RunView({
+        EntityName: 'Message Files',
+        ExtraFilter: `ID = '${att.id}'`,
+        Fields: ['ID', 'FileID'],
+        MaxRows: 1,
+        ResultType: 'simple',
+      });
+      const fileId = linkResult.Success && linkResult.Results?.length
+        ? ((linkResult.Results[0] as Record<string, unknown>)['FileID'] as string)
+        : null;
+      if (!fileId) {
+        console.error('No underlying file for attachment', att.id);
+        return;
+      }
+
+      // 2. MJ: Files → ProviderID + ProviderKey
+      const fileResult = await rv.RunView({
+        EntityName: 'MJ: Files',
+        ExtraFilter: `ID = '${fileId}'`,
+        Fields: ['ID', 'Name', 'ProviderID', 'ProviderKey'],
+        MaxRows: 1,
+        ResultType: 'simple',
+      });
+      if (!fileResult.Success || !fileResult.Results?.length) {
+        console.error('File record not found', fileId);
+        return;
+      }
+      const file = fileResult.Results[0] as Record<string, unknown>;
+      const providerId = file['ProviderID'] as string;
+      const objectName = (file['ProviderKey'] as string) || (file['Name'] as string);
+
+      // 3. Resolve a storage account on that provider (first active)
+      const acctResult = await rv.RunView({
+        EntityName: 'MJ: File Storage Accounts',
+        ExtraFilter: `ProviderID = '${providerId}'`,
+        Fields: ['ID', 'ProviderID'],
+        MaxRows: 1,
+        ResultType: 'simple',
+      });
+      if (!acctResult.Success || !acctResult.Results?.length) {
+        console.error('No storage account configured for provider', providerId);
+        return;
+      }
+      const accountId = (acctResult.Results[0] as Record<string, unknown>)['ID'] as string;
+
+      // 4. Pre-auth download URL via the storage client, then open it
+      const client = new GraphQLFileStorageClient(Metadata.Provider as unknown as GraphQLDataProvider);
+      const url = await client.CreatePreAuthDownloadUrl(accountId, objectName);
+      if (url) {
+        window.open(url, '_blank', 'noopener');
+      }
+    } catch (e) {
+      console.error('Failed to download attachment', e);
+    }
   }
 
   /* ─── Helpers ─── */
@@ -1532,6 +1869,8 @@ export class SecureMessagingExecutiveComponent implements OnInit {
       });
       if (result.Success && result.Results) {
         this.messages = result.Results.map(r => this.mapToMessageItem(r as Record<string, unknown>));
+        await this.resolvePersonNames();
+        this.buildWorkspaces();
         this.updateInboxCount();
       }
     } catch (e) {
@@ -1542,12 +1881,69 @@ export class SecureMessagingExecutiveComponent implements OnInit {
     }
   }
 
+  /**
+   * Resolves friendly person names from the BizAppsCommon People entity for messages
+   * that carry a PersonID. Best-effort — falls back to the sender email on failure.
+   */
+  private async resolvePersonNames(): Promise<void> {
+    const personIds = [...new Set(this.messages.map(m => m.personId).filter((id): id is string => !!id))];
+    if (personIds.length === 0) return;
+
+    try {
+      const rv = new RunView();
+      const inList = personIds.map(id => `'${id}'`).join(', ');
+      const result = await rv.RunView({
+        EntityName: 'MJ_BizApps_Common: People',
+        ExtraFilter: `ID IN (${inList})`,
+        ResultType: 'simple',
+      });
+      if (result.Success && result.Results) {
+        const nameById = new Map<string, string>();
+        for (const p of result.Results as Record<string, unknown>[]) {
+          const display = (p['DisplayName'] as string)
+            || [p['FirstName'], p['LastName']].filter(Boolean).join(' ').trim()
+            || (p['Email'] as string);
+          if (display) nameById.set(p['ID'] as string, display);
+        }
+        for (const m of this.messages) {
+          if (m.personId && nameById.has(m.personId)) {
+            m.senderName = nameById.get(m.personId)!;
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Failed to resolve person names', e);
+    }
+  }
+
+  /** Builds the per-person workspace list from loaded messages. */
+  private buildWorkspaces(): void {
+    const byKey = new Map<string, WorkspaceNavItem>();
+    for (const m of this.messages) {
+      const key = m.personId || m.senderEmail || 'unknown';
+      const existing = byKey.get(key);
+      if (existing) {
+        existing.count++;
+      } else {
+        byKey.set(key, { key, label: m.senderName || m.senderEmail || 'Unknown', count: 1 });
+      }
+    }
+    this.workspaceNavItems = [...byKey.values()].sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  /** The key used to group a message into a workspace. */
+  private workspaceKeyOf(m: SecureMessageItem): string {
+    return m.personId || m.senderEmail || 'unknown';
+  }
+
   private mapToMessageItem(r: Record<string, unknown>): SecureMessageItem {
     const content = (r['MessageContent'] as string) ?? '';
+    const personId = (r['PersonID'] as string) || undefined;
     return {
       id: r['ID'] as string,
       senderName: (r['Sender'] as string) ?? 'Unknown',
       senderEmail: (r['Sender'] as string) ?? '',
+      personId,
       subject: (r['Subject'] as string) ?? '(no subject)',
       preview: content.replace(/<[^>]*>/g, '').substring(0, 120),
       bodyHtml: this.sanitizer.bypassSecurityTrustHtml(content),

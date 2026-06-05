@@ -22,5 +22,53 @@
       "AllowDeleteAPI": false,
       "TrackRecordChanges": true
     }
+  },
+  {
+    "fields": {
+      "Name": "Secure Messages",
+      "Description": "Self-contained secure message store. Each row is one inbound or outbound message in a thread. App-agnostic: does not require an external Channel Messages entity.",
+      "BaseView": "vwSecureMessages",
+      "IncludeInAPI": true,
+      "AllowCreateAPI": true,
+      "AllowUpdateAPI": true,
+      "AllowDeleteAPI": false,
+      "TrackRecordChanges": true
+    }
+  },
+  {
+    "fields": {
+      "Name": "Message Files",
+      "Description": "Links an uploaded file to a secure message. Bytes are stored in core MJ File Storage (MJ: Files) and wrapped as an MJ Artifact; this table holds references and display metadata only.",
+      "BaseView": "vwMessageFiles",
+      "IncludeInAPI": true,
+      "AllowCreateAPI": true,
+      "AllowUpdateAPI": true,
+      "AllowDeleteAPI": true,
+      "TrackRecordChanges": true
+    }
+  },
+  {
+    "fields": {
+      "Name": "File Requests",
+      "Description": "A request from staff for the external contact to securely upload one or more files. Fulfilled by uploading files and setting Status to Fulfilled.",
+      "BaseView": "vwFileRequests",
+      "IncludeInAPI": true,
+      "AllowCreateAPI": true,
+      "AllowUpdateAPI": true,
+      "AllowDeleteAPI": false,
+      "TrackRecordChanges": true
+    }
+  },
+  {
+    "fields": {
+      "Name": "Signature Requests",
+      "Description": "A request to have a document electronically signed by the external contact. The signing integration is pluggable (e.g. DocuSign).",
+      "BaseView": "vwSignatureRequests",
+      "IncludeInAPI": true,
+      "AllowCreateAPI": true,
+      "AllowUpdateAPI": true,
+      "AllowDeleteAPI": false,
+      "TrackRecordChanges": true
+    }
   }
 ]

@@ -34,6 +34,57 @@ export interface CreateMessageResponse {
     status: string;
 }
 
+export interface ThreadAttachment {
+    id: string;
+    artifactId: string;
+    fileId: string;
+    filename: string;
+    contentType: string;
+    size: number;
+}
+
+export interface AttachmentsResponse {
+    attachments: ThreadAttachment[];
+}
+
+export interface UploadResponse {
+    attachmentId: string;
+    artifactId: string;
+    filename: string;
+    contentType: string;
+    size: number;
+    status: string;
+}
+
+export interface FileRequest {
+    id: string;
+    title: string;
+    instructions: string | null;
+    status: 'Pending' | 'Fulfilled' | 'Cancelled';
+    dueAt: string | null;
+    fulfilledAt: string | null;
+    createdAt: string;
+}
+
+export interface FileRequestsResponse {
+    fileRequests: FileRequest[];
+}
+
+export interface SignatureRequest {
+    id: string;
+    title: string;
+    status: 'Draft' | 'Sent' | 'Signed' | 'Declined' | 'Cancelled';
+    provider: string;
+    artifactId: string | null;
+    sentAt: string | null;
+    completedAt: string | null;
+    createdAt: string;
+}
+
+export interface SignatureRequestsResponse {
+    signatureRequests: SignatureRequest[];
+}
+
 export class ApiError extends Error {
     constructor(public statusCode: number, message: string) {
         super(message);
@@ -115,5 +166,62 @@ export class SecureMessagingApiService {
             method: 'POST',
             body: JSON.stringify({ content, subject }),
         });
+    }
+
+    /**
+     * Uploads a file as multipart/form-data. Deliberately does NOT set Content-Type so
+     * the browser supplies the correct multipart boundary; only the Authorization header
+     * is attached.
+     */
+    private async upload<T>(path: string, formData: FormData): Promise<T> {
+        const headers: Record<string, string> = {};
+        if (this.token) {
+            headers['Authorization'] = `Bearer ${this.token}`;
+        }
+
+        const response = await fetch(`${this.baseUrl}${path}`, {
+            method: 'POST',
+            headers,
+            body: formData,
+        });
+
+        if (!response.ok) {
+            const body = await response.json().catch(() => ({ error: response.statusText }));
+            throw new ApiError(response.status, body.error || response.statusText);
+        }
+
+        return response.json();
+    }
+
+    async getAttachments(threadId: string): Promise<AttachmentsResponse> {
+        return this.request<AttachmentsResponse>(`/threads/${threadId}/attachments`);
+    }
+
+    async uploadFile(threadId: string, file: File): Promise<UploadResponse> {
+        const form = new FormData();
+        form.append('file', file, file.name);
+        return this.upload<UploadResponse>(`/threads/${threadId}/attachments`, form);
+    }
+
+    /** Resolves a pre-authenticated download URL for a stored attachment. */
+    async getDownloadUrl(threadId: string, attachmentId: string): Promise<string> {
+        const result = await this.request<{ url: string }>(
+            `/threads/${threadId}/attachments/${attachmentId}/download`
+        );
+        return result.url;
+    }
+
+    async getFileRequests(threadId: string): Promise<FileRequestsResponse> {
+        return this.request<FileRequestsResponse>(`/threads/${threadId}/file-requests`);
+    }
+
+    async fulfillFileRequest(threadId: string, requestId: string, file: File): Promise<UploadResponse & { fileRequestId: string }> {
+        const form = new FormData();
+        form.append('file', file, file.name);
+        return this.upload(`/threads/${threadId}/file-requests/${requestId}/fulfill`, form);
+    }
+
+    async getSignatureRequests(threadId: string): Promise<SignatureRequestsResponse> {
+        return this.request<SignatureRequestsResponse>(`/threads/${threadId}/signature-requests`);
     }
 }
