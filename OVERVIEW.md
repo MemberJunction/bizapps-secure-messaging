@@ -110,7 +110,7 @@ mj-secure-messaging/
 
 ## Database Schema
 
-Created in the `secure_messaging` schema.
+Created in the `__mj_BizAppsSecureMessaging` schema.
 
 ### PortalSession
 
@@ -399,11 +399,11 @@ Contact sees the reply in the conversation
 The app registers itself with MJ via metadata JSON files:
 
 ### Entities
-- **Portal Sessions** → `secure_messaging.PortalSession`
+- **Portal Sessions** → `__mj_BizAppsSecureMessaging.PortalSession`
   - Available via GraphQL (`IncludeInAPI: true`)
   - Create/Update allowed, Delete disabled (sessions must expire naturally)
   - Change tracking enabled
-- **Portal Magic Links** → `secure_messaging.PortalMagicLink`
+- **Portal Magic Links** → `__mj_BizAppsSecureMessaging.PortalMagicLink`
   - Same API settings as Portal Sessions
 
 ### Channel Type
@@ -427,7 +427,7 @@ mj app install https://github.com/MJ-Central/app-secure-messaging
 ```
 
 This:
-1. Creates the `secure_messaging` schema (if not exists)
+1. Creates the `__mj_BizAppsSecureMessaging` schema (if not exists)
 2. Runs migrations (creates `PortalSession` and `PortalMagicLink` tables)
 3. Syncs metadata (registers entities, channel type, communication provider)
 4. Installs server bootstrap package (auto-registers on API startup)

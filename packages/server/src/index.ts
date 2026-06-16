@@ -5,13 +5,17 @@ export type { PortalSessionContext, MagicLinkResult, MagicLinkRedemptionResult }
 // Communication Provider (auto-registers via @RegisterClass on import)
 export { SecureWebCommunicationProvider } from './services/SecureWebCommunicationProvider.js';
 
-// Signature Provider boundary (DocuSign stub auto-registers via @RegisterClass on import)
-export { BaseSignatureProvider, DocuSignSignatureProvider } from './services/SignatureProvider.js';
-export type {
-    CreateEnvelopeParams,
-    CreateEnvelopeResult,
-    EnvelopeStatusResult,
-} from './services/SignatureProvider.js';
+// E-signature provider drivers (DocuSign / PandaDoc / Dropbox Sign). Importing each package
+// runs its @RegisterClass(BaseSignatureProvider, '<DriverKey>') side-effect, so the MJ
+// SignatureEngine can resolve the driver named by an MJ: Signature Provider's ServerDriverKey.
+import '@memberjunction/esignature-docusign';
+import '@memberjunction/esignature-pandadoc';
+import '@memberjunction/esignature-dropboxsign';
+
+// Server-side Actions (auto-register via @RegisterClass on import). Lets MJ-authenticated
+// staff surfaces invoke server-only portal logic (e.g. issuing a magic link) through the
+// data provider, instead of the contact-facing portal REST API.
+export { IssuePortalMagicLinkAction } from './actions/IssuePortalMagicLinkAction.js';
 
 // File store + message store abstractions (app-agnostic core)
 export { ArtifactFileStore, getFileStore } from './stores/ArtifactFileStore.js';

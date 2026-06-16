@@ -1,0 +1,12 @@
+{
+  "entity": "MJ: Actions",
+  "filePattern": "**/.*.json",
+  "pull": {
+    "relatedEntities": {
+      "MJ: Action Params": {
+        "entity": "MJ: Action Params",
+        "foreignKey": "ActionID"
+      }
+    }
+  }
+}

@@ -1,7 +1,7 @@
 [
   {
     "fields": {
-      "Name": "Portal Sessions",
+      "Name": "MJ_BizApps_SecureMessaging: Portal Sessions",
       "Description": "Tracks active secure messaging sessions for external contacts. Each session maps a contact to a channel thread and is authenticated via a hashed opaque token.",
       "BaseView": "vwPortalSessions",
       "IncludeInAPI": true,
@@ -13,7 +13,7 @@
   },
   {
     "fields": {
-      "Name": "Portal Magic Links",
+      "Name": "MJ_BizApps_SecureMessaging: Portal Magic Links",
       "Description": "Single-use magic links for re-authenticating expired portal sessions. Short-lived, redeems into a fresh session token.",
       "BaseView": "vwPortalMagicLinks",
       "IncludeInAPI": true,
@@ -25,7 +25,7 @@
   },
   {
     "fields": {
-      "Name": "Secure Messages",
+      "Name": "MJ_BizApps_SecureMessaging: Secure Messages",
       "Description": "Self-contained secure message store. Each row is one inbound or outbound message in a thread. App-agnostic: does not require an external Channel Messages entity.",
       "BaseView": "vwSecureMessages",
       "IncludeInAPI": true,
@@ -37,7 +37,7 @@
   },
   {
     "fields": {
-      "Name": "Message Files",
+      "Name": "MJ_BizApps_SecureMessaging: Message Files",
       "Description": "Links an uploaded file to a secure message. Bytes are stored in core MJ File Storage (MJ: Files) and wrapped as an MJ Artifact; this table holds references and display metadata only.",
       "BaseView": "vwMessageFiles",
       "IncludeInAPI": true,
@@ -49,21 +49,9 @@
   },
   {
     "fields": {
-      "Name": "File Requests",
+      "Name": "MJ_BizApps_SecureMessaging: File Requests",
       "Description": "A request from staff for the external contact to securely upload one or more files. Fulfilled by uploading files and setting Status to Fulfilled.",
       "BaseView": "vwFileRequests",
-      "IncludeInAPI": true,
-      "AllowCreateAPI": true,
-      "AllowUpdateAPI": true,
-      "AllowDeleteAPI": false,
-      "TrackRecordChanges": true
-    }
-  },
-  {
-    "fields": {
-      "Name": "Signature Requests",
-      "Description": "A request to have a document electronically signed by the external contact. The signing integration is pluggable (e.g. DocuSign).",
-      "BaseView": "vwSignatureRequests",
       "IncludeInAPI": true,
       "AllowCreateAPI": true,
       "AllowUpdateAPI": true,

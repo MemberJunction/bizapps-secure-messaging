@@ -29,8 +29,11 @@ Source: `README.md`, `OVERVIEW.md`, the migrations, and the live Angular compone
   reply bar, plus *Request files* and *Send for signature* action panels.
 - **Contact widget** (`<mj-secure-messaging>`): chat-style conversation, compose box,
   file-request banners, signature-request banners, attachment chips.
-- **Data model** (schema `secure_messaging`): `PortalSession`, `PortalMagicLink`,
-  `SecureMessage`, `MessageFile`, `FileRequest`, `SignatureRequest`.
+- **Data model** (schema `__mj_BizAppsSecureMessaging`): `PortalSession`, `PortalMagicLink`,
+  `SecureMessage`, `MessageFile`, `FileRequest`. E-signature is handled by the core MJ
+  eSignature subsystem (`@memberjunction/esignature` + DocuSign / PandaDoc / Dropbox Sign
+  drivers); signature requests live in `MJ: Signature Requests`, linked back to a portal
+  session via the engine's polymorphic `EntityID`/`RecordID`.
 - **Auth**: opaque `sm_*` session tokens (SHA-256 hashed, 7-day sliding TTL) and
   single-use `sm_ml_*` magic links — **passwordless**.
 - **Pipeline**: inbound messages enter MJ's standard `ChannelMessage` flow → AI agent
@@ -111,7 +114,7 @@ inherit dark mode automatically.
 
 **2 · Client Portal** turns the embeddable widget into a friendly hosted experience:
 - **Messages / To-Do / Documents** tabs — the To-Do list is the Liscio-style task
-  surface, driven by open `FileRequest` / `SignatureRequest` rows;
+  surface, driven by open `FileRequest` / `MJ: Signature Requests` rows;
 - **guided e-signature** modal (review → sign → submit) and a secure **upload** modal;
 - **live brand-color theming** (matches the widget's `brand-color` / `--sm-brand-color`);
 - the **session-expired → magic-link** state, showcasing passwordless re-auth.
@@ -128,5 +131,5 @@ inherit dark mode automatically.
 1. Pick a direction (or merge — the three are complementary, not mutually exclusive).
 2. Wire the AI-reply card to the real approval workflow surfaced from `AIAgentRun`.
 3. Surface the audit timeline from MJ Record Changes / `AIAgentRunStep`.
-4. Promote `FileRequest` / `SignatureRequest` into the client To-Do list.
+4. Promote `FileRequest` / `MJ: Signature Requests` into the client To-Do list.
 5. Add compliance badges + a per-session "revoke / re-issue" admin control.

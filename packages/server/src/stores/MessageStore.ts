@@ -38,7 +38,7 @@ export interface CreateMessageResult {
 
 /**
  * Abstraction over where secure messages live. This keeps the app **app-agnostic**:
- * the default {@link OwnedMessageStore} uses only the secure_messaging schema, so the
+ * the default {@link OwnedMessageStore} uses only the __mj_BizAppsSecureMessaging schema, so the
  * app runs in any MJ instance. The optional ChannelMessageStore adapter bridges to
  * Izzy's Channel Messages entity (and its AI pipeline) when that platform is present.
  */

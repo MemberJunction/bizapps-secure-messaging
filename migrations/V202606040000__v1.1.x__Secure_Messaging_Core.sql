@@ -1,7 +1,12 @@
 -- MJ Secure Messaging - Core self-contained schema (v1.1.x)
--- Adds an app-agnostic message store plus file-link, file-request, and signature-request
--- tables, all owned by the secure_messaging schema. Bytes for files live in core MJ
--- File Storage (MJ: Files) wrapped as MJ Artifacts; these tables only hold references.
+-- Adds an app-agnostic message store plus file-link and file-request tables, all owned by
+-- the __mj_BizAppsSecureMessaging schema. Bytes for files live in core MJ File Storage (MJ: Files)
+-- wrapped as MJ Artifacts; these tables only hold references.
+--
+-- E-signature is handled by the core MJ eSignature subsystem (@memberjunction/esignature and
+-- its provider drivers), which owns its own MJ: Signature* entities, accounts, and credentials.
+-- A signature request is linked back to a portal session via its polymorphic EntityID/RecordID,
+-- so this schema no longer defines a SignatureRequest table.
 
 -- =====================================================================================
 -- SecureMessage
@@ -115,42 +120,4 @@ EXEC sp_addextendedproperty @name=N'MS_Description',
 EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'Request lifecycle status: Pending, Fulfilled, or Cancelled.',
     @level0type=N'SCHEMA', @level0name=N'${flyway:defaultSchema}',
     @level1type=N'TABLE', @level1name=N'FileRequest',
-    @level2type=N'COLUMN', @level2name=N'Status';
-
-
--- =====================================================================================
--- SignatureRequest
--- A request to have a document e-signed. The actual signing integration (e.g. DocuSign)
--- is pluggable via a SignatureProvider; ExternalEnvelopeID holds the provider's envelope.
--- =====================================================================================
-CREATE TABLE [${flyway:defaultSchema}].[SignatureRequest] (
-    [ID] UNIQUEIDENTIFIER NOT NULL DEFAULT NEWSEQUENTIALID(),
-    [PortalSessionID] UNIQUEIDENTIFIER NOT NULL,
-    [ThreadID] NVARCHAR(255) NOT NULL,
-    [ArtifactID] UNIQUEIDENTIFIER NULL,
-    [Title] NVARCHAR(255) NOT NULL,
-    [Status] NVARCHAR(20) NOT NULL DEFAULT 'Draft',
-    [Provider] NVARCHAR(50) NOT NULL DEFAULT 'DocuSign',
-    [ExternalEnvelopeID] NVARCHAR(255) NULL,
-    [SentAt] DATETIMEOFFSET NULL,
-    [CompletedAt] DATETIMEOFFSET NULL,
-    [__mj_CreatedAt] DATETIMEOFFSET NOT NULL DEFAULT SYSDATETIMEOFFSET(),
-    CONSTRAINT [PK_SignatureRequest] PRIMARY KEY ([ID]),
-    CONSTRAINT [FK_SignatureRequest_PortalSession] FOREIGN KEY ([PortalSessionID]) REFERENCES [${flyway:defaultSchema}].[PortalSession]([ID]),
-    CONSTRAINT [CK_SignatureRequest_Status] CHECK ([Status] IN ('Draft', 'Sent', 'Signed', 'Declined', 'Cancelled'))
-);
-
-EXEC sp_addextendedproperty @name=N'MS_Description',
-    @value=N'A request to have a document electronically signed by the external contact. The signing integration is pluggable (e.g. DocuSign); ExternalEnvelopeID holds the provider envelope ID once sent.',
-    @level0type=N'SCHEMA', @level0name=N'${flyway:defaultSchema}',
-    @level1type=N'TABLE', @level1name=N'SignatureRequest';
-
-EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'Soft reference to MJ: Artifacts.ID for the document to be signed.',
-    @level0type=N'SCHEMA', @level0name=N'${flyway:defaultSchema}',
-    @level1type=N'TABLE', @level1name=N'SignatureRequest',
-    @level2type=N'COLUMN', @level2name=N'ArtifactID';
-
-EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'Signature lifecycle status: Draft, Sent, Signed, Declined, or Cancelled.',
-    @level0type=N'SCHEMA', @level0name=N'${flyway:defaultSchema}',
-    @level1type=N'TABLE', @level1name=N'SignatureRequest',
     @level2type=N'COLUMN', @level2name=N'Status';

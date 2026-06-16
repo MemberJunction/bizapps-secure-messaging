@@ -1603,7 +1603,7 @@ export class SecureMessagingExecutiveComponent implements OnInit {
     try {
       const rv = new RunView();
       const result = await rv.RunView({
-        EntityName: 'Message Files',
+        EntityName: 'MJ_BizApps_SecureMessaging: Message Files',
         ExtraFilter: `ThreadID = '${message.threadId.replace(/'/g, "''")}'`,
         OrderBy: '__mj_CreatedAt ASC',
         ResultType: 'simple',
@@ -1689,7 +1689,7 @@ export class SecureMessagingExecutiveComponent implements OnInit {
 
       const md = new Metadata();
       if (this.actionPanel === 'request') {
-        const entity = await md.GetEntityObject('File Requests');
+        const entity = await md.GetEntityObject('MJ_BizApps_SecureMessaging: File Requests');
         entity.NewRecord();
         entity.Set('PortalSessionID', sessionId);
         entity.Set('ThreadID', threadId);
@@ -1701,17 +1701,15 @@ export class SecureMessagingExecutiveComponent implements OnInit {
           return;
         }
       } else if (this.actionPanel === 'signature') {
-        const entity = await md.GetEntityObject('Signature Requests');
-        entity.NewRecord();
-        entity.Set('PortalSessionID', sessionId);
-        entity.Set('ThreadID', threadId);
-        entity.Set('Title', title);
-        entity.Set('Status', 'Draft');
-        entity.Set('Provider', 'DocuSign');
-        if (!(await entity.Save())) {
-          this.actionError = entity.LatestResult?.Message || 'Failed to create signature request.';
-          return;
-        }
+        // E-signature now runs through the core MJ eSignature engine
+        // (@memberjunction/esignature), which sends atomically and requires a signature
+        // account (provider + credentials) and a document. The staff-side picker for those
+        // is being rebuilt as part of the inbox UX rework; until then, surface a clear
+        // message rather than writing to the retired Signature Requests entity.
+        // TODO(ux): add account + document pickers, then POST to
+        //   /threads/:threadId/signature-requests { title, signatureAccountId, artifactId }
+        this.actionError = 'Sending for signature is being reconnected to the MJ eSignature service.';
+        return;
       }
       this.closeActionPanel();
     } catch (e) {
@@ -1726,7 +1724,7 @@ export class SecureMessagingExecutiveComponent implements OnInit {
   private async resolvePortalSessionId(threadId: string): Promise<string | null> {
     const rv = new RunView();
     const result = await rv.RunView({
-      EntityName: 'Portal Sessions',
+      EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
       ExtraFilter: `ThreadID = '${threadId.replace(/'/g, "''")}'`,
       OrderBy: 'LastAccessedAt DESC',
       MaxRows: 1,
@@ -1744,7 +1742,7 @@ export class SecureMessagingExecutiveComponent implements OnInit {
 
       // 1. MessageFile (att.id) → underlying MJ: Files ID
       const linkResult = await rv.RunView({
-        EntityName: 'Message Files',
+        EntityName: 'MJ_BizApps_SecureMessaging: Message Files',
         ExtraFilter: `ID = '${att.id}'`,
         Fields: ['ID', 'FileID'],
         MaxRows: 1,

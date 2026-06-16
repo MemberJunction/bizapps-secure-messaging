@@ -15,7 +15,7 @@
   "icon": "fa-solid fa-shield-halved",
   "color": "#1a73e8",
   "schema": {
-    "name": "secure_messaging",
+    "name": "__mj_BizAppsSecureMessaging",
     "createIfNotExists": true
   },
   "migrations": {

@@ -42,7 +42,7 @@ export interface StoredFile {
  *   1. bytes → MJ: Files via FileStorageEngine (lands in the configured storage provider)
  *   2. wrap in MJ: Artifacts + MJ: Artifact Versions (ContentMode='File') — when present,
  *      Izzy's AI attachment pipeline picks these up automatically
- *   3. link to a secure message via secure_messaging.MessageFile
+ *   3. link to a secure message via __mj_BizAppsSecureMessaging.MessageFile
  *
  * Requires a FileStorageAccount to be configured in the host instance.
  */
@@ -127,8 +127,8 @@ export class ArtifactFileStore {
             throw new Error(version.LatestResult?.CompleteMessage || 'Failed to create artifact version');
         }
 
-        // 3. secure_messaging.MessageFile link
-        const link = await md.GetEntityObject('Message Files', systemUser);
+        // 3. __mj_BizAppsSecureMessaging.MessageFile link
+        const link = await md.GetEntityObject('MJ_BizApps_SecureMessaging: Message Files', systemUser);
         link.NewRecord();
         if (ctx.secureMessageId) link.Set('SecureMessageID', ctx.secureMessageId);
         if (ctx.externalMessageId) link.Set('ExternalMessageID', ctx.externalMessageId);
@@ -156,7 +156,7 @@ export class ArtifactFileStore {
     async listThreadFiles(threadId: string, systemUser: UserInfo): Promise<StoredFile[]> {
         const rv = new RunView();
         const result = await rv.RunView({
-            EntityName: 'Message Files',
+            EntityName: 'MJ_BizApps_SecureMessaging: Message Files',
             ExtraFilter: `ThreadID = '${threadId.replace(/'/g, "''")}'`,
             OrderBy: '__mj_CreatedAt ASC',
         }, systemUser);
@@ -229,7 +229,7 @@ export class ArtifactFileStore {
     async getDownloadUrl(messageFileId: string, threadId: string, systemUser: UserInfo): Promise<string> {
         const rv = new RunView();
         const linkResult = await rv.RunView({
-            EntityName: 'Message Files',
+            EntityName: 'MJ_BizApps_SecureMessaging: Message Files',
             ExtraFilter: `ID = '${messageFileId}' AND ThreadID = '${threadId.replace(/'/g, "''")}'`,
         }, systemUser);
 

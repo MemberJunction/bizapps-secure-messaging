@@ -22,7 +22,7 @@ export async function getFileRequests(req: Request, res: Response): Promise<void
         const systemUser = await getSystemUser();
         const rv = new RunView();
         const result = await rv.RunView({
-            EntityName: 'File Requests',
+            EntityName: 'MJ_BizApps_SecureMessaging: File Requests',
             ExtraFilter: `ThreadID = '${threadId.replace(/'/g, "''")}'`,
             OrderBy: '__mj_CreatedAt DESC',
         }, systemUser);
@@ -75,7 +75,7 @@ export async function createFileRequest(req: Request, res: Response): Promise<vo
     try {
         const systemUser = await getSystemUser();
         const md = new Metadata();
-        const entity = await md.GetEntityObject('File Requests', systemUser);
+        const entity = await md.GetEntityObject('MJ_BizApps_SecureMessaging: File Requests', systemUser);
         entity.NewRecord();
         entity.Set('PortalSessionID', session.sessionId);
         entity.Set('ThreadID', threadId);
@@ -124,7 +124,7 @@ export async function fulfillFileRequest(req: Request, res: Response): Promise<v
         const md = new Metadata();
 
         // Load and validate the request belongs to this thread.
-        const request = await md.GetEntityObject('File Requests', systemUser);
+        const request = await md.GetEntityObject('MJ_BizApps_SecureMessaging: File Requests', systemUser);
         const loaded = await request.InnerLoad(CompositeKey.FromID(requestId));
         if (!loaded || request.Get('ThreadID') !== threadId) {
             res.status(404).json({ error: 'File request not found in this thread' });

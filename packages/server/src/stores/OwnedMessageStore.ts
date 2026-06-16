@@ -8,7 +8,7 @@ import {
 } from './MessageStore.js';
 
 /**
- * Default, self-contained message store. Reads and writes the secure_messaging.SecureMessage
+ * Default, self-contained message store. Reads and writes the __mj_BizAppsSecureMessaging.SecureMessage
  * table only — no dependency on any external app entity, so the app runs in any MJ instance.
  */
 export class OwnedMessageStore implements MessageStore {
@@ -19,7 +19,7 @@ export class OwnedMessageStore implements MessageStore {
     ): Promise<SecureMessageView[]> {
         const rv = new RunView();
         const result = await rv.RunView({
-            EntityName: 'Secure Messages',
+            EntityName: 'MJ_BizApps_SecureMessaging: Secure Messages',
             ExtraFilter: `ThreadID = '${threadId.replace(/'/g, "''")}'`,
             OrderBy: 'ReceivedAt ASC',
         }, systemUser);
@@ -45,7 +45,7 @@ export class OwnedMessageStore implements MessageStore {
         systemUser: UserInfo
     ): Promise<CreateMessageResult> {
         const md = new Metadata();
-        const entity = await md.GetEntityObject('Secure Messages', systemUser);
+        const entity = await md.GetEntityObject('MJ_BizApps_SecureMessaging: Secure Messages', systemUser);
         entity.NewRecord();
         entity.Set('PortalSessionID', session.sessionId);
         entity.Set('ThreadID', threadId);

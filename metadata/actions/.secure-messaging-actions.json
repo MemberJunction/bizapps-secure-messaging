@@ -1,0 +1,36 @@
+[
+  {
+    "fields": {
+      "Name": "Issue Portal Magic Link",
+      "Description": "Issues a fresh single-use portal magic link for an existing portal session (staff-initiated, server-side token generation + hashing via PortalAuthService). Returns the raw token for out-of-band delivery to the contact.",
+      "Type": "Custom",
+      "DriverClass": "IssuePortalMagicLinkAction",
+      "Status": "Active",
+      "CodeApprovalStatus": "Approved"
+    },
+    "relatedEntities": {
+      "MJ: Action Params": [
+        {
+          "fields": {
+            "Name": "SessionID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsRequired": true,
+            "IsArray": false,
+            "Description": "The Portal Session (MJ_BizApps_SecureMessaging: Portal Sessions.ID) to issue the magic link for."
+          }
+        },
+        {
+          "fields": {
+            "Name": "MagicLinkToken",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsRequired": false,
+            "IsArray": false,
+            "Description": "The raw single-use magic link token. Delivered out-of-band (e.g. emailed); never stored raw."
+          }
+        }
+      ]
+    }
+  }
+]

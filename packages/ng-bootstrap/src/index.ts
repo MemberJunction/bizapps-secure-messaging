@@ -6,6 +6,7 @@ export * from './lib/secure-messaging.module';
 
 // Components & Application
 export * from './lib/secure-messaging-executive.component';
+export * from './lib/secure-messaging-client-workspace.component';
 export * from './lib/secure-messaging-executive.resource';
 export * from './lib/secure-messaging.application';
 

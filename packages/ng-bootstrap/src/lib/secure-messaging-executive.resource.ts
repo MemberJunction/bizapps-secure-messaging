@@ -12,7 +12,7 @@ import { BaseResourceComponent } from '@memberjunction/ng-shared';
 })
 export class SecureMessagingResource extends BaseResourceComponent {
   async GetResourceDisplayName(data: ResourceData): Promise<string> {
-    return 'Secure Messages';
+    return 'MJ_BizApps_SecureMessaging: Secure Messages';
   }
 
   async GetResourceIconClass(data: ResourceData): Promise<string> {

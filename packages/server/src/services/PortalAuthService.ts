@@ -87,7 +87,7 @@ export class PortalAuthService {
         expiresAt.setDate(expiresAt.getDate() + DEFAULT_SESSION_TTL_DAYS);
 
         const md = new Metadata();
-        const entity = await md.GetEntityObject('Portal Sessions', systemUser);
+        const entity = await md.GetEntityObject('MJ_BizApps_SecureMessaging: Portal Sessions', systemUser);
         entity.NewRecord();
         entity.Set('ChannelID', channelId);
         entity.Set('ContactID', contactId);
@@ -120,7 +120,7 @@ export class PortalAuthService {
         const tokenHash = hashToken(rawToken);
         const rv = new RunView();
         const result = await rv.RunView({
-            EntityName: 'Portal Sessions',
+            EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
             ExtraFilter: `TokenHash = '${tokenHash}' AND Status = 'Active' AND ExpiresAt > SYSDATETIMEOFFSET()`,
         }, systemUser);
 
@@ -132,7 +132,7 @@ export class PortalAuthService {
 
         // Extend session TTL
         const md = new Metadata();
-        const entity = await md.GetEntityObject('Portal Sessions', systemUser);
+        const entity = await md.GetEntityObject('MJ_BizApps_SecureMessaging: Portal Sessions', systemUser);
         await entity.InnerLoad(CompositeKey.FromID(session.ID));
         const newExpiry = new Date();
         newExpiry.setDate(newExpiry.getDate() + DEFAULT_SESSION_TTL_DAYS);
@@ -162,7 +162,7 @@ export class PortalAuthService {
         // Verify session exists
         const rv = new RunView();
         const sessionResult = await rv.RunView({
-            EntityName: 'Portal Sessions',
+            EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
             ExtraFilter: `ID = '${sessionId}'`,
         }, systemUser);
 
@@ -176,7 +176,7 @@ export class PortalAuthService {
         expiresAt.setMinutes(expiresAt.getMinutes() + DEFAULT_MAGIC_LINK_TTL_MINUTES);
 
         const md = new Metadata();
-        const entity = await md.GetEntityObject('Portal Magic Links', systemUser);
+        const entity = await md.GetEntityObject('MJ_BizApps_SecureMessaging: Portal Magic Links', systemUser);
         entity.NewRecord();
         entity.Set('PortalSessionID', sessionId);
         entity.Set('TokenHash', tokenHash);
@@ -206,7 +206,7 @@ export class PortalAuthService {
         const tokenHash = hashToken(rawToken);
         const rv = new RunView();
         const result = await rv.RunView({
-            EntityName: 'Portal Magic Links',
+            EntityName: 'MJ_BizApps_SecureMessaging: Portal Magic Links',
             ExtraFilter: `TokenHash = '${tokenHash}' AND Status = 'Pending' AND ExpiresAt > SYSDATETIMEOFFSET()`,
         }, systemUser);
 
@@ -218,7 +218,7 @@ export class PortalAuthService {
 
         // Mark magic link as used
         const md = new Metadata();
-        const mlEntity = await md.GetEntityObject('Portal Magic Links', systemUser);
+        const mlEntity = await md.GetEntityObject('MJ_BizApps_SecureMessaging: Portal Magic Links', systemUser);
         await mlEntity.InnerLoad(CompositeKey.FromID(magicLink.ID));
         mlEntity.Set('Status', 'Used');
         mlEntity.Set('UsedAt', new Date().toISOString());
@@ -228,7 +228,7 @@ export class PortalAuthService {
         const newRawToken = generateToken(SESSION_TOKEN_PREFIX);
         const newTokenHash = hashToken(newRawToken);
 
-        const sessionEntity = await md.GetEntityObject('Portal Sessions', systemUser);
+        const sessionEntity = await md.GetEntityObject('MJ_BizApps_SecureMessaging: Portal Sessions', systemUser);
         await sessionEntity.InnerLoad(CompositeKey.FromID(magicLink.PortalSessionID));
         sessionEntity.Set('TokenHash', newTokenHash);
         sessionEntity.Set('Status', 'Active');

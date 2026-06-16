@@ -46,7 +46,7 @@ mj app install https://github.com/MJ-Central/app-secure-messaging
 ```
 
 This will:
-1. Create the `secure_messaging` database schema
+1. Create the `__mj_BizAppsSecureMessaging` database schema
 2. Run migrations (PortalSession, PortalMagicLink tables)
 3. Register the "Secure Web" channel type and communication provider
 4. Register the Secure Messages application in MJ Explorer
@@ -149,7 +149,7 @@ mj-secure-messaging/
 ## Requirements
 
 - MemberJunction >= 5.0.0
-- SQL Server (for `secure_messaging` schema)
+- SQL Server (for `__mj_BizAppsSecureMessaging` schema)
 - Node.js >= 20
 
 ## License

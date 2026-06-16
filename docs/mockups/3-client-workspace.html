@@ -89,6 +89,23 @@
   .tl-proof { display:inline-flex; align-items:center; gap:5px; margin-top:6px; font-size:11px; font-weight:600; color:var(--mj-success-text); background:var(--mj-success-bg); border:1px solid var(--mj-success-border); padding:2px 8px; border-radius:var(--mj-radius-full); }
 
   @media (max-width:1080px){ .stats{ grid-template-columns:repeat(2,1fr); } .grid{ grid-template-columns:1fr; } }
+
+  /* Advanced-mode toggle + progressive disclosure.
+     Advanced-only surfaces (Session & Security, Compliance, Audit tab, extra stats) carry
+     the .adv class and are hidden unless the workspace is in advanced mode. The preference
+     is per-user sticky (persisted in localStorage). */
+  .adv-toggle { display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:600; color:var(--mj-text-muted); cursor:pointer; user-select:none; padding:6px 11px; border:1px solid var(--mj-border-default); border-radius:var(--mj-radius-full); background:var(--mj-bg-surface); transition:all .15s; }
+  .adv-toggle:hover { color:var(--mj-text-primary); border-color:var(--mj-border-strong); }
+  .adv-toggle .sw { position:relative; width:30px; height:17px; border-radius:var(--mj-radius-full); background:var(--mj-border-strong); transition:background .15s; flex-shrink:0; }
+  .adv-toggle .sw::after { content:''; position:absolute; top:2px; left:2px; width:13px; height:13px; border-radius:50%; background:#fff; box-shadow:var(--mj-shadow-sm); transition:transform .15s; }
+  body[data-mode="advanced"] .adv-toggle { color:var(--mj-brand-primary); border-color:var(--mj-brand-primary); background:var(--mj-brand-accent-subtle); }
+  body[data-mode="advanced"] .adv-toggle .sw { background:var(--mj-brand-primary); }
+  body[data-mode="advanced"] .adv-toggle .sw::after { transform:translateX(13px); }
+
+  /* Hide advanced-only surfaces in basic mode (default). */
+  body:not([data-mode="advanced"]) .adv { display:none !important; }
+  /* In basic mode the Overview right column is hidden, so collapse the grid to one column. */
+  body:not([data-mode="advanced"]) .grid { grid-template-columns:1fr; }
 </style>
 </head>
 <body>
@@ -125,6 +142,9 @@
         </div>
       </div>
       <div class="ch-actions">
+        <div class="adv-toggle" onclick="toggleMode()" title="Show session, compliance & audit detail">
+          <span class="sw"></span> Advanced
+        </div>
         <div class="ch-session"><span class="pulse"></span> Secure session active</div>
         <button class="btn btn-primary btn-sm" onclick="toast('Opening compose…')"><i class="fa-solid fa-pen-to-square"></i> Message</button>
         <button class="btn btn-secondary btn-sm" onclick="toast('Opening file request…')"><i class="fa-solid fa-folder-plus"></i> Request files</button>
@@ -132,8 +152,8 @@
       </div>
     </div>
 
-    <!-- STATS -->
-    <div class="stats">
+    <!-- STATS (advanced only — the basic view is just the conversation) -->
+    <div class="stats adv">
       <div class="stat accent"><div class="v">3</div><div class="l"><i class="fa-solid fa-comments"></i> Open threads</div></div>
       <div class="stat warn"><div class="v">2</div><div class="l"><i class="fa-solid fa-folder-plus"></i> Pending requests</div></div>
       <div class="stat violet"><div class="v">1</div><div class="l"><i class="fa-solid fa-file-signature"></i> Awaiting signature</div></div>
@@ -141,17 +161,17 @@
       <div class="stat"><div class="v">2m</div><div class="l"><i class="fa-solid fa-clock"></i> Last access</div></div>
     </div>
 
-    <!-- TABS -->
+    <!-- TABS (Overview / Requests / Documents / Audit are advanced; basic shows only Conversations) -->
     <div class="ws-tabs">
-      <div class="ws-tab active" data-tab="overview" onclick="setTab('overview')"><i class="fa-solid fa-layer-group"></i> Overview</div>
+      <div class="ws-tab adv" data-tab="overview" onclick="setTab('overview')"><i class="fa-solid fa-layer-group"></i> Overview</div>
       <div class="ws-tab" data-tab="threads" onclick="setTab('threads')"><i class="fa-solid fa-comments"></i> Conversations <span class="count-pill">3</span></div>
-      <div class="ws-tab" data-tab="requests" onclick="setTab('requests')"><i class="fa-solid fa-list-check"></i> Requests &amp; Signatures <span class="count-pill">3</span></div>
-      <div class="ws-tab" data-tab="docs" onclick="setTab('docs')"><i class="fa-solid fa-folder"></i> Documents <span class="count-pill">7</span></div>
-      <div class="ws-tab" data-tab="audit" onclick="setTab('audit')"><i class="fa-solid fa-shield-halved"></i> Audit Trail</div>
+      <div class="ws-tab adv" data-tab="requests" onclick="setTab('requests')"><i class="fa-solid fa-list-check"></i> Requests &amp; Signatures <span class="count-pill">3</span></div>
+      <div class="ws-tab adv" data-tab="docs" onclick="setTab('docs')"><i class="fa-solid fa-folder"></i> Documents <span class="count-pill">7</span></div>
+      <div class="ws-tab adv" data-tab="audit" onclick="setTab('audit')"><i class="fa-solid fa-shield-halved"></i> Audit Trail</div>
     </div>
 
     <!-- OVERVIEW -->
-    <div class="pane active" id="pane-overview">
+    <div class="pane" id="pane-overview">
       <div class="grid">
         <div>
           <div class="panel">
@@ -163,7 +183,7 @@
             <div class="panel-body" id="ov-requests"></div>
           </div>
         </div>
-        <div>
+        <div class="adv">
           <div class="panel">
             <div class="panel-head"><i class="fa-solid fa-key" style="color:var(--mj-brand-primary)"></i><h3>Session &amp; security</h3></div>
             <div class="sec-item"><span class="k">Status</span><span class="v" style="color:var(--mj-success-text)"><i class="fa-solid fa-circle-check"></i> Active</span></div>
@@ -274,6 +294,29 @@ function setTab(t){
   document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
   document.getElementById('pane-'+t).classList.add('active');
 }
+
+/* Advanced mode — per-user sticky (localStorage). Basic is the default and is intentionally
+   minimal: just the client header, the three actions, and the conversation list. Everything
+   else (stats, Overview, Requests, Documents, Session/Compliance, Audit) is advanced-only. */
+const ADV_KEY = 'sm.workspace.advanced';
+const ADV_TABS = ['overview','requests','docs','audit']; // tabs hidden in basic mode
+function applyMode(advanced){
+  document.body.dataset.mode = advanced ? 'advanced' : 'basic';
+  const active = document.querySelector('.ws-tab.active')?.dataset.tab;
+  if(!advanced){
+    // Basic shows only Conversations — if we're on any advanced-only tab (or nothing), land there.
+    if(!active || ADV_TABS.includes(active)) setTab('threads');
+  } else {
+    // Entering advanced with no active tab → land on the richer Overview.
+    if(!active) setTab('overview');
+  }
+}
+function toggleMode(){
+  const advanced = document.body.dataset.mode !== 'advanced';
+  try { localStorage.setItem(ADV_KEY, advanced ? '1' : '0'); } catch(e) {}
+  applyMode(advanced);
+  toast(advanced ? 'Advanced mode on — session, compliance & audit shown' : 'Back to the basic view');
+}
 function revoke(){
   if(!confirm('Revoke this contact’s secure session? They will need a new magic link to return.')) return;
   document.querySelector('.ch-session').outerHTML = '<div class="ch-session" style="background:var(--mj-error-bg);border-color:var(--mj-error-border);color:var(--mj-error-text)"><i class="fa-solid fa-ban"></i> Session revoked</div>';
@@ -284,6 +327,9 @@ function closeModal(id){ document.getElementById(id)?.classList.remove('open'); 
 let tt; function toast(m){ toastMsg.textContent=m; const t=document.getElementById('toast'); t.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove('show'),2400); }
 
 /* init */
+let savedAdv = false;
+try { savedAdv = localStorage.getItem(ADV_KEY) === '1'; } catch(e) {}
+applyMode(savedAdv);
 fill('ov-threads', THREADS, true);
 fill('ov-requests', REQUESTS, false);
 fill('all-threads', THREADS, true);

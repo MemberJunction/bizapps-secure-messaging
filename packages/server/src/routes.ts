@@ -5,7 +5,7 @@ import { validateToken, requestMagicLink, redeemMagicLink } from './handlers/aut
 import { getThreadMessages, createThreadMessage } from './handlers/messages.js';
 import { getThreadAttachments, uploadAttachment, downloadAttachment } from './handlers/attachments.js';
 import { getFileRequests, createFileRequest, fulfillFileRequest } from './handlers/fileRequests.js';
-import { getSignatureRequests, createSignatureRequest, sendSignatureRequest, refreshSignatureStatus } from './handlers/signatures.js';
+import { getSignatureRequests, createSignatureRequest, refreshSignatureStatus, voidSignatureRequest, downloadSignedDocument } from './handlers/signatures.js';
 import { MAX_FILE_BYTES } from './stores/ArtifactFileStore.js';
 
 /**
@@ -77,11 +77,13 @@ export function createSecureMessagingRouter(): Router {
     router.post('/threads/:threadId/file-requests', createFileRequest);
     router.post('/threads/:threadId/file-requests/:requestId/fulfill', upload.single('file'), fulfillFileRequest);
 
-    // Signature requests — provider-backed (DocuSign stub by default)
+    // Signature requests — backed by the MJ eSignature engine (DocuSign / PandaDoc / Dropbox Sign).
+    // Create+send is one atomic step (the engine has no separate "send a draft" primitive).
     router.get('/threads/:threadId/signature-requests', getSignatureRequests);
     router.post('/threads/:threadId/signature-requests', createSignatureRequest);
-    router.post('/threads/:threadId/signature-requests/:requestId/send', sendSignatureRequest);
     router.post('/threads/:threadId/signature-requests/:requestId/refresh-status', refreshSignatureStatus);
+    router.post('/threads/:threadId/signature-requests/:requestId/void', voidSignatureRequest);
+    router.get('/threads/:threadId/signature-requests/:requestId/signed-document', downloadSignedDocument);
 
     return router;
 }

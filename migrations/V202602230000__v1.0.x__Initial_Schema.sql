@@ -1,5 +1,5 @@
 -- MJ Secure Messaging - Initial Schema
--- Creates the secure_messaging schema with PortalSession and PortalMagicLink tables
+-- Creates the __mj_BizAppsSecureMessaging schema with PortalSession and PortalMagicLink tables
 
 CREATE TABLE [${flyway:defaultSchema}].[PortalSession] (
     [ID] UNIQUEIDENTIFIER NOT NULL DEFAULT NEWSEQUENTIALID(),
