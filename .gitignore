@@ -14,5 +14,15 @@ build/
 # Built bundle in test directory (build artifact)
 test/mj-secure-messaging.js
 
+# Playwright CLI profile (cached auth) + snapshots — local tooling, never commit
+.playwright-cli/
+
+# CodeGen / build logs + scratch outputs (authoritative migrations live in migrations/)
+codegen.output.log
+*.output.log
+migrations/codegen/
+SQL Scripts/
+Schema Files/
+
 # ML model cache (downloaded by MJ tooling; never commit)
 .cache/

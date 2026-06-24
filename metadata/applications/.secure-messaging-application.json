@@ -20,5 +20,12 @@
   },
   "relatedEntities": {
     "MJ: Application Entities": []
+  },
+  "primaryKey": {
+    "ID": "1D153638-D221-4BED-B1DD-942F40EDAC83"
+  },
+  "sync": {
+    "lastModified": "2026-06-24T20:44:22.716Z",
+    "checksum": "96d8746497c98035718d93af3c7b3b14beb4e530ce9abb543a60bed85031c5c1"
   }
 }

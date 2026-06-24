@@ -10,6 +10,7 @@
   },
   "files": ["/dist"],
   "scripts": {
+    "prebuild": "mj codegen manifest --exclude-packages @memberjunction --output ./src/lib/generated/class-registrations-manifest.ts || echo 'Warning: mj codegen manifest not available, using existing manifest'",
     "build": "ngc",
     "dev": "ngc --watch"
   },

@@ -20,6 +20,13 @@
             "IsRequired": true,
             "IsArray": false,
             "Description": "The Portal Session (MJ_BizApps_SecureMessaging: Portal Sessions.ID) to issue the magic link for."
+          },
+          "primaryKey": {
+            "ID": "6761E4F1-B460-4754-9AA5-F25AADCCFA0A"
+          },
+          "sync": {
+            "lastModified": "2026-06-24T20:44:22.668Z",
+            "checksum": "c1da82a3c30e7352006e2865e1cd87a2b885d5d8bfb90145b626c108332cec28"
           }
         },
         {
@@ -31,9 +38,23 @@
             "IsRequired": false,
             "IsArray": false,
             "Description": "The raw single-use magic link token. Delivered out-of-band (e.g. emailed); never stored raw."
+          },
+          "primaryKey": {
+            "ID": "1109B7BF-E173-41C9-9DEE-A3BA73189977"
+          },
+          "sync": {
+            "lastModified": "2026-06-24T20:44:22.692Z",
+            "checksum": "1e31c05fa3797e7bb653b0de4893965dec0039cb69ceb3fa9e4a933b22aa31ec"
           }
         }
       ]
+    },
+    "primaryKey": {
+      "ID": "76A41213-2CC5-4544-956D-BD9C00319E88"
+    },
+    "sync": {
+      "lastModified": "2026-06-24T20:44:22.654Z",
+      "checksum": "05e333f70e995a808afb1d832e4913f5ffd7feab2ad7d84e9f8788809cf8f197"
     }
   }
 ]
