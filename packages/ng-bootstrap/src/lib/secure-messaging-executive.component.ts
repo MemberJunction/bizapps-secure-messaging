@@ -1,7 +1,7 @@
 import { Component, OnInit, Input } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Metadata, RunView } from '@memberjunction/core';
-import { GraphQLDataProvider, GraphQLFileStorageClient } from '@memberjunction/graphql-dataprovider';
+import { GraphQLDataProvider, GraphQLFileStorageClient, GraphQLActionClient } from '@memberjunction/graphql-dataprovider';
 import { mjBizAppsCommonPersonEntity } from '@mj-biz-apps/common-entities';
 
 /* ─── Interfaces ─── */
@@ -280,11 +280,33 @@ interface WorkspaceNavItem {
             <textarea class="action-panel-input" rows="2" [(ngModel)]="actionInstructions"
               placeholder="Instructions (optional)"></textarea>
           }
+          @if (actionPanel === 'signature') {
+            <label class="action-panel-label">Signature account</label>
+            @if (signatureAccounts.length > 0) {
+              <select class="action-panel-input" [(ngModel)]="selectedSignatureAccountId">
+                @for (acct of signatureAccounts; track acct.id) {
+                  <option [value]="acct.id">{{ acct.label }}</option>
+                }
+              </select>
+            } @else {
+              <div class="action-panel-hint">No active signature accounts are configured. Add one in MJ: Signature Accounts.</div>
+            }
+            <label class="action-panel-label">Document to sign</label>
+            @if (signatureDocuments.length > 0) {
+              <select class="action-panel-input" [(ngModel)]="selectedSignatureArtifactId">
+                @for (doc of signatureDocuments; track doc.artifactId) {
+                  <option [value]="doc.artifactId">{{ doc.filename }}</option>
+                }
+              </select>
+            } @else {
+              <div class="action-panel-hint">No documents on this conversation yet. Upload a file to the thread first.</div>
+            }
+          }
           @if (actionError) {
             <div class="action-panel-error">{{ actionError }}</div>
           }
           <div class="action-panel-footer">
-            <button class="action-panel-submit" [disabled]="actionSubmitting || !actionTitle.trim()" (click)="submitActionPanel()">
+            <button class="action-panel-submit" [disabled]="!canSubmitAction()" (click)="submitActionPanel()">
               {{ actionSubmitting ? 'Working…' : (actionPanel === 'request' ? 'Send request' : 'Create & send') }}
             </button>
           </div>
@@ -1120,6 +1142,22 @@ interface WorkspaceNavItem {
   margin-bottom: 8px;
 }
 
+.action-panel-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--mat-sys-on-surface-variant, #64748b);
+  margin-bottom: 4px;
+}
+
+.action-panel-hint {
+  font-size: 12px;
+  color: var(--mat-sys-on-surface-variant, #64748b);
+  margin-bottom: 8px;
+}
+
 .action-panel-footer {
   display: flex;
   justify-content: flex-end;
@@ -1503,6 +1541,12 @@ export class SecureMessagingExecutiveComponent implements OnInit {
   actionSubmitting = false;
   actionError = '';
 
+  /* Send-for-signature pickers: an active MJ: Signature Account + a thread document to sign. */
+  signatureAccounts: { id: string; label: string }[] = [];
+  signatureDocuments: { artifactId: string; filename: string }[] = [];
+  selectedSignatureAccountId = '';
+  selectedSignatureArtifactId = '';
+
   /* ─── Loading ─── */
   isLoading = true;
 
@@ -1662,6 +1706,8 @@ export class SecureMessagingExecutiveComponent implements OnInit {
   openSendForSignature(): void {
     this.actionPanel = 'signature';
     this.resetActionForm();
+    void this.loadSignatureAccounts();
+    void this.loadSignatureDocuments();
   }
 
   closeActionPanel(): void {
@@ -1672,6 +1718,75 @@ export class SecureMessagingExecutiveComponent implements OnInit {
     this.actionTitle = '';
     this.actionInstructions = '';
     this.actionError = '';
+    this.selectedSignatureAccountId = '';
+    this.selectedSignatureArtifactId = '';
+  }
+
+  /** Load active signature accounts (provider + credentials) for the account picker. */
+  private async loadSignatureAccounts(): Promise<void> {
+    try {
+      const rv = new RunView();
+      const res = await rv.RunView({
+        EntityName: 'MJ: Signature Accounts',
+        ExtraFilter: 'IsActive = 1',
+        OrderBy: 'IsDefault DESC, Name ASC',
+        ResultType: 'simple',
+      });
+      if (!res.Success) return;
+      this.signatureAccounts = (res.Results as Record<string, unknown>[]).map(r => ({
+        id: String(r['ID']),
+        label: `${r['Name']}${r['SignatureProvider'] ? ' (' + r['SignatureProvider'] + ')' : ''}`,
+      }));
+      // Preselect the default/first account for convenience.
+      this.selectedSignatureAccountId = this.signatureAccounts[0]?.id ?? '';
+    } catch (e) {
+      console.error('Failed to load signature accounts', e);
+    }
+  }
+
+  /** Load the thread's documents (Message Files backed by an Artifact) for the document picker. */
+  private async loadSignatureDocuments(): Promise<void> {
+    const threadId = this.selectedMessage?.threadId;
+    if (!threadId) return;
+    try {
+      const rv = new RunView();
+      const res = await rv.RunView({
+        EntityName: 'MJ_BizApps_SecureMessaging: Message Files',
+        ExtraFilter: `ThreadID = '${threadId.replace(/'/g, "''")}' AND ArtifactID IS NOT NULL`,
+        OrderBy: '__mj_CreatedAt DESC',
+        ResultType: 'simple',
+      });
+      if (!res.Success) return;
+      this.signatureDocuments = (res.Results as Record<string, unknown>[]).map(r => ({
+        artifactId: String(r['ArtifactID']),
+        filename: (r['Filename'] as string) ?? 'document',
+      }));
+      this.selectedSignatureArtifactId = this.signatureDocuments[0]?.artifactId ?? '';
+    } catch (e) {
+      console.error('Failed to load signable documents', e);
+    }
+  }
+
+  /** Resolve an Action's ID by name (RunView on MJ: Actions). */
+  private async resolveActionId(name: string): Promise<string | null> {
+    const rv = new RunView();
+    const res = await rv.RunView({
+      EntityName: 'MJ: Actions',
+      ExtraFilter: `Name = '${name.replace(/'/g, "''")}'`,
+      MaxRows: 1,
+      ResultType: 'simple',
+    });
+    if (!res.Success || res.Results.length === 0) return null;
+    return String((res.Results as Record<string, unknown>[])[0].ID);
+  }
+
+  /** Whether the action panel's submit button should be enabled. */
+  canSubmitAction(): boolean {
+    if (this.actionSubmitting || !this.actionTitle.trim()) return false;
+    if (this.actionPanel === 'signature') {
+      return !!this.selectedSignatureAccountId && !!this.selectedSignatureArtifactId;
+    }
+    return true;
   }
 
   async submitActionPanel(): Promise<void> {
@@ -1702,15 +1817,46 @@ export class SecureMessagingExecutiveComponent implements OnInit {
           return;
         }
       } else if (this.actionPanel === 'signature') {
-        // E-signature now runs through the core MJ eSignature engine
-        // (@memberjunction/esignature), which sends atomically and requires a signature
-        // account (provider + credentials) and a document. The staff-side picker for those
-        // is being rebuilt as part of the inbox UX rework; until then, surface a clear
-        // message rather than writing to the retired Signature Requests entity.
-        // TODO(ux): add account + document pickers, then POST to
-        //   /threads/:threadId/signature-requests { title, signatureAccountId, artifactId }
-        this.actionError = 'Sending for signature is being reconnected to the MJ eSignature service.';
-        return;
+        if (!this.selectedSignatureAccountId) {
+          this.actionError = 'Select a signature account to send through.';
+          return;
+        }
+        if (!this.selectedSignatureArtifactId) {
+          this.actionError = 'Select a document to send for signature.';
+          return;
+        }
+        const signerEmail = this.selectedMessage?.senderEmail;
+        if (!signerEmail) {
+          this.actionError = 'No contact email is available for this conversation.';
+          return;
+        }
+
+        // Send through the core MJ 'Send Document for Signature' Action, which wraps
+        // SignatureEngine.SendForSignature (atomic create+send). Invoked via the data
+        // provider — the engine lives server-side; the staff UI never touches portal auth.
+        const actionId = await this.resolveActionId('Send Document for Signature');
+        if (!actionId) {
+          this.actionError = 'The signature action is not available in this environment.';
+          return;
+        }
+        const portalSessionsEntityId = new Metadata().Entities.find(
+          e => e.Name === 'MJ_BizApps_SecureMessaging: Portal Sessions'
+        )?.ID;
+
+        const client = new GraphQLActionClient(Metadata.Provider as unknown as GraphQLDataProvider);
+        const result = await client.RunAction(actionId, [
+          { Name: 'SignatureAccountID', Value: this.selectedSignatureAccountId, Type: 'Input' },
+          { Name: 'Title', Value: title, Type: 'Input' },
+          { Name: 'ArtifactID', Value: this.selectedSignatureArtifactId, Type: 'Input' },
+          { Name: 'Recipients', Value: [{ email: signerEmail }], Type: 'Input' },
+          { Name: 'EntityID', Value: portalSessionsEntityId, Type: 'Input' },
+          { Name: 'RecordID', Value: sessionId, Type: 'Input' },
+          { Name: 'SendImmediately', Value: true, Type: 'Input' },
+        ]);
+        if (!result?.Success) {
+          this.actionError = result?.Message || 'Failed to send for signature.';
+          return;
+        }
       }
       this.closeActionPanel();
     } catch (e) {
