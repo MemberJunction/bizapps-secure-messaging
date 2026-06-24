@@ -1,6 +1,7 @@
-import { Component, OnInit, OnChanges, SimpleChanges, Input, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, OnChanges, SimpleChanges, Input, Output, EventEmitter, Optional } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Metadata, RunView } from '@memberjunction/core';
+import { MJAuthBase } from '@memberjunction/ng-auth-services';
 import { GraphQLDataProvider, GraphQLFileStorageClient } from '@memberjunction/graphql-dataprovider';
 import { mjBizAppsCommonPersonEntity } from '@mj-biz-apps/common-entities';
 import { ContactSelection } from './secure-messaging.contracts';
@@ -43,6 +44,8 @@ interface SecureMessageItem {
   attachments: MessageAttachment[];
   threadId?: string;
   replyCount?: number;
+  /** 'Inbound' (from contact) or 'Outbound' (reply to contact). Drives the Sent/Inbox nav split. */
+  direction: 'Inbound' | 'Outbound';
 }
 
 /** A per-person workspace grouping derived from the loaded messages. */
@@ -72,7 +75,11 @@ interface WorkspaceNavItem {
     </div>
 
     <div class="sidebar-profile">
-      <div class="profile-avatar">{{ getInitials(userName) }}</div>
+      @if (avatarUrl) {
+        <img class="profile-avatar profile-avatar-img" [src]="avatarUrl" [alt]="userName" />
+      } @else {
+        <div class="profile-avatar">{{ getInitials(userName) }}</div>
+      }
       <div class="profile-info">
         <div class="profile-name">{{ userName }}</div>
         <div class="profile-email">{{ userEmail }}</div>
@@ -446,6 +453,11 @@ interface WorkspaceNavItem {
   font-weight: 700;
   flex-shrink: 0;
   color: #ffffff;
+}
+
+.profile-avatar-img {
+  background: none;
+  object-fit: cover;
 }
 
 .profile-info {
@@ -1472,21 +1484,23 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
   activeNav = 'inbox';
 
   primaryNavItems: SecureMessageNavItem[] = [
-    { id: 'inbox', label: 'Inbox', icon: 'fa-solid fa-inbox', count: 2 },
+    { id: 'inbox', label: 'Inbox', icon: 'fa-solid fa-inbox' },
     { id: 'starred', label: 'Starred', icon: 'fa-solid fa-star' },
     { id: 'sent', label: 'Sent', icon: 'fa-solid fa-paper-plane' },
     { id: 'drafts', label: 'Drafts', icon: 'fa-solid fa-file' }
   ];
 
   categoryNavItems: SecureMessageNavItem[] = [
-    { id: 'escalated', label: 'Escalated', icon: 'fa-solid fa-triangle-exclamation', count: 1 },
+    { id: 'escalated', label: 'Escalated', icon: 'fa-solid fa-triangle-exclamation' },
     { id: 'documents', label: 'Documents', icon: 'fa-solid fa-folder' },
     { id: 'notifications', label: 'Notifications', icon: 'fa-solid fa-bell' }
   ];
 
-  /* ─── User (mock for Phase 1, @Input in Phase 2) ─── */
-  userName = 'Sarah Mitchell';
-  userEmail = 'sarah.mitchell@acme.com';
+  /* ─── Staff user — the signed-in MJ user (resolved from the metadata provider + auth). ─── */
+  userName = '';
+  userEmail = '';
+  /** Profile picture from the auth provider; empty falls back to initials. */
+  avatarUrl = '';
 
   /* ─── Message list state ─── */
   messages: SecureMessageItem[] = [];
@@ -1510,10 +1524,32 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
   /* ─── Loading ─── */
   isLoading = true;
 
-  constructor(private sanitizer: DomSanitizer) {}
+  constructor(
+    private sanitizer: DomSanitizer,
+    @Optional() private authService: MJAuthBase | null = null,
+  ) {}
 
   ngOnInit(): void {
+    this.loadCurrentUser();
     void this.loadMessages();
+  }
+
+  /**
+   * Resolve the signed-in staff member: name/email from the metadata provider's current
+   * user, profile picture from the auth provider (best-effort; falls back to initials).
+   */
+  private loadCurrentUser(): void {
+    const user = Metadata.Provider?.CurrentUser;
+    if (user) {
+      this.userName = user.Name || [user.FirstName, user.LastName].filter(Boolean).join(' ').trim() || user.Email || '';
+      this.userEmail = user.Email || '';
+    }
+    if (this.authService) {
+      this.authService
+        .getProfilePictureUrl()
+        .then(url => { if (url) this.avatarUrl = url; })
+        .catch(() => { /* no picture available — initials fallback */ });
+    }
   }
 
   /* ─── Sidebar ─── */
@@ -1524,7 +1560,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
 
   selectNav(navId: string): void {
     this.activeNav = navId;
-    // Phase 2: filter messages by nav category
+    this.applyFilter();
   }
 
   onCompose(): void {
@@ -1575,6 +1611,9 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
   applyFilter(): void {
     let result = [...this.messages];
 
+    // Nav category filter (Inbox / Starred / Sent / Drafts / Escalated / Documents / Notifications).
+    result = result.filter(m => this.matchesNavCategory(m));
+
     if (this.activeWorkspace) {
       result = result.filter(m => this.workspaceKeyOf(m) === this.activeWorkspace);
     }
@@ -1608,6 +1647,40 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
 
     this.filteredMessages = result;
   }
+
+  /**
+   * Whether a message belongs in the currently-selected left-nav category.
+   * - inbox: everything from contacts (Inbound)
+   * - sent: replies to contacts (Outbound)
+   * - starred: user-starred messages
+   * - drafts: unsent drafts (none in the owned store yet — empty by design)
+   * - escalated: messages whose status badge flags review (Failed)
+   * - documents: threads that have a file request or an attachment
+   * - notifications: system messages (none in the owned store yet — empty by design)
+   */
+  private matchesNavCategory(m: SecureMessageItem): boolean {
+    switch (this.activeNav) {
+      case 'inbox':
+        return m.direction === 'Inbound';
+      case 'sent':
+        return m.direction === 'Outbound';
+      case 'starred':
+        return m.isStarred;
+      case 'drafts':
+        return false;
+      case 'escalated':
+        return m.statusBadge?.type === 'escalated';
+      case 'documents':
+        return m.attachmentCount > 0 || (!!m.threadId && this.fileRequestThreadIds.has(m.threadId));
+      case 'notifications':
+        return m.statusBadge?.type === 'system';
+      default:
+        return true;
+    }
+  }
+
+  /** Thread IDs that have at least one file request — drives the Documents nav category. */
+  private fileRequestThreadIds = new Set<string>();
 
   /* ─── Message selection ─── */
 
@@ -1796,10 +1869,15 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
   /* ─── Private helpers ─── */
 
   private updateInboxCount(): void {
-    const inbox = this.primaryNavItems.find(n => n.id === 'inbox');
-    if (inbox) {
-      inbox.count = this.messages.filter(m => !m.isRead).length || undefined;
-    }
+    const setCount = (items: SecureMessageNavItem[], id: string, n: number) => {
+      const item = items.find(i => i.id === id);
+      if (item) item.count = n || undefined;
+    };
+    // Inbox badge = unread inbound; Sent = outbound; Escalated = needs-review.
+    setCount(this.primaryNavItems, 'inbox', this.messages.filter(m => m.direction === 'Inbound' && !m.isRead).length);
+    setCount(this.primaryNavItems, 'sent', this.messages.filter(m => m.direction === 'Outbound').length);
+    setCount(this.categoryNavItems, 'documents', this.fileRequestThreadIds.size);
+    setCount(this.categoryNavItems, 'escalated', this.messages.filter(m => m.statusBadge?.type === 'escalated').length);
   }
 
   private async loadMessages(): Promise<void> {
@@ -1807,7 +1885,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
     try {
       const rv = new RunView();
       const result = await rv.RunView({
-        EntityName: 'Channel Messages',
+        EntityName: 'MJ_BizApps_SecureMessaging: Secure Messages',
         ExtraFilter: `IsSecure=1`,
         OrderBy: 'ReceivedAt DESC',
         MaxRows: 100,
@@ -1816,6 +1894,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
       if (result.Success && result.Results) {
         this.messages = result.Results.map(r => this.mapToMessageItem(r as Record<string, unknown>));
         await this.resolvePersonNames();
+        await this.loadFileRequestThreads();
         this.buildWorkspaces();
         this.updateInboxCount();
       }
@@ -1826,6 +1905,28 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
       this.applyFilter();
       // Honor a pending focus request (deep-link or workspace→inbox jump) once data is present.
       if (this.focusThreadId) void this.tryFocusThread(this.focusThreadId);
+    }
+  }
+
+  /** Load the set of thread IDs that have at least one file request (drives the Documents nav). */
+  private async loadFileRequestThreads(): Promise<void> {
+    this.fileRequestThreadIds = new Set<string>();
+    try {
+      const rv = new RunView();
+      const result = await rv.RunView({
+        EntityName: 'MJ_BizApps_SecureMessaging: File Requests',
+        OrderBy: '__mj_CreatedAt DESC',
+        MaxRows: 500,
+        ResultType: 'simple',
+      });
+      if (result.Success && result.Results) {
+        for (const r of result.Results) {
+          const tid = (r as Record<string, unknown>)['ThreadID'] as string;
+          if (tid) this.fileRequestThreadIds.add(tid);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load file requests for Documents nav', e);
     }
   }
 
@@ -1858,7 +1959,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
     try {
       const rv = new RunView();
       const result = await rv.RunView({
-        EntityName: 'Channel Messages',
+        EntityName: 'MJ_BizApps_SecureMessaging: Secure Messages',
         ExtraFilter: `ThreadID = '${threadId.replace(/'/g, "''")}'`,
         OrderBy: 'ReceivedAt DESC',
         MaxRows: 1,
@@ -1929,8 +2030,10 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
   }
 
   private mapToMessageItem(r: Record<string, unknown>): SecureMessageItem {
-    const content = (r['MessageContent'] as string) ?? '';
+    const content = (r['Content'] as string) ?? '';
     const personId = (r['PersonID'] as string) || undefined;
+    const status = (r['Status'] as string) ?? '';
+    const direction = (r['Direction'] as string) ?? 'Inbound';
     return {
       id: r['ID'] as string,
       senderName: (r['Sender'] as string) ?? 'Unknown',
@@ -1940,27 +2043,29 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
       preview: content.replace(/<[^>]*>/g, '').substring(0, 120),
       bodyHtml: this.sanitizer.bypassSecurityTrustHtml(content),
       receivedAt: new Date(r['ReceivedAt'] as string),
-      isRead: (r['GenerationStatus'] as string) === 'Read',
+      isRead: status === 'Read' || status === 'Replied' || direction === 'Outbound',
       isStarred: false,
       isSecure: !!(r['IsSecure']),
-      statusBadge: this.resolveStatusBadge(
-        r['ApprovalStatus'] as string,
-        r['GenerationStatus'] as string
-      ),
+      statusBadge: this.resolveStatusBadge(status, direction),
       attachmentCount: 0,
       attachments: [],
       threadId: r['ThreadID'] as string,
+      direction: direction === 'Outbound' ? 'Outbound' : 'Inbound',
     };
   }
 
+  /**
+   * Map our owned SecureMessage Status/Direction onto the inbox status badge.
+   * SecureMessage.Status values: 'New' | 'Read' | 'Replied' | 'Sent' | 'Failed'.
+   */
   private resolveStatusBadge(
-    approvalStatus: string,
-    generationStatus: string
+    status: string,
+    direction: string
   ): StatusBadge | undefined {
-    if (approvalStatus === 'Pending') return { type: 'escalated', label: 'NEEDS REVIEW' };
-    if (approvalStatus === 'Approved') return { type: 'replied', label: 'REPLIED' };
-    if (!generationStatus || generationStatus === 'Pending') return { type: 'new', label: 'NEW' };
-    if (generationStatus === 'Generated') return { type: 'delivered', label: 'DELIVERED' };
+    if (status === 'Failed') return { type: 'escalated', label: 'FAILED' };
+    if (status === 'Replied') return { type: 'replied', label: 'REPLIED' };
+    if (direction === 'Outbound' || status === 'Sent') return { type: 'delivered', label: 'DELIVERED' };
+    if (!status || status === 'New') return { type: 'new', label: 'NEW' };
     return undefined;
   }
 

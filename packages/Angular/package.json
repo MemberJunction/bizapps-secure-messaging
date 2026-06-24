@@ -28,6 +28,7 @@
     "@memberjunction/graphql-dataprovider": "^5.40.2",
     "@memberjunction/ng-base-application": "^5.40.2",
     "@memberjunction/ng-shared": "^5.40.2",
+    "@memberjunction/ng-auth-services": "^5.40.2",
     "@mj-biz-apps/common-entities": "^5.30.0"
   },
   "devDependencies": {
@@ -43,6 +44,7 @@
     "@memberjunction/graphql-dataprovider": "^5.40.2",
     "@memberjunction/ng-base-application": "^5.40.2",
     "@memberjunction/ng-shared": "^5.40.2",
+    "@memberjunction/ng-auth-services": "^5.40.2",
     "@mj-biz-apps/common-entities": "^5.30.0",
     "typescript": "^5.9.3"
   }

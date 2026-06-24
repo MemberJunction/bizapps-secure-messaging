@@ -13,6 +13,11 @@
     "build:stream": "turbo --log-order=stream build",
     "build:generated": "turbo --log-order=stream build --filter=\"@mj-biz-apps/secure-messaging-entities\" --filter=\"@mj-biz-apps/secure-messaging-actions\"",
     "build:packages": "turbo --log-order=stream build --filter=\"@mj-biz-apps/secure-messaging-*\"",
+    "build:api": "turbo --log-order=stream build --filter=\"mj_api\"",
+    "build:explorer": "turbo --log-order=stream build --filter=\"mj_explorer\"",
+    "start": "turbo start --filter=mj_explorer --filter=mj_api",
+    "start:api": "turbo start --filter=mj_api",
+    "start:explorer": "turbo start --filter=mj_explorer",
     "mj": "npx @memberjunction/cli",
     "mj:migrate": "npx @memberjunction/cli migrate",
     "mj:codegen": "npx @memberjunction/cli codegen"
