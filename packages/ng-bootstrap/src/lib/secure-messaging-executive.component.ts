@@ -1,7 +1,7 @@
 import { Component, OnInit, Input } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Metadata, RunView } from '@memberjunction/core';
-import { GraphQLDataProvider, GraphQLFileStorageClient, GraphQLActionClient } from '@memberjunction/graphql-dataprovider';
+import { GraphQLDataProvider, GraphQLFileStorageClient } from '@memberjunction/graphql-dataprovider';
 import { mjBizAppsCommonPersonEntity } from '@mj-biz-apps/common-entities';
 
 /* ─── Interfaces ─── */
@@ -265,52 +265,14 @@ interface WorkspaceNavItem {
         </div>
       }
 
-      @if (actionPanel) {
-        <div class="action-panel">
-          <div class="action-panel-header">
-            <i [class]="actionPanel === 'request' ? 'fa-solid fa-folder-plus' : 'fa-solid fa-file-signature'"></i>
-            <span>{{ actionPanel === 'request' ? 'Request files from contact' : 'Send a document for signature' }}</span>
-            <button class="action-panel-close" title="Cancel" (click)="closeActionPanel()">
-              <i class="fa-solid fa-xmark"></i>
-            </button>
-          </div>
-          <input class="action-panel-input" type="text" [(ngModel)]="actionTitle"
-            [placeholder]="actionPanel === 'request' ? 'What files do you need? (title)' : 'Document title'">
-          @if (actionPanel === 'request') {
-            <textarea class="action-panel-input" rows="2" [(ngModel)]="actionInstructions"
-              placeholder="Instructions (optional)"></textarea>
-          }
-          @if (actionPanel === 'signature') {
-            <label class="action-panel-label">Signature account</label>
-            @if (signatureAccounts.length > 0) {
-              <select class="action-panel-input" [(ngModel)]="selectedSignatureAccountId">
-                @for (acct of signatureAccounts; track acct.id) {
-                  <option [value]="acct.id">{{ acct.label }}</option>
-                }
-              </select>
-            } @else {
-              <div class="action-panel-hint">No active signature accounts are configured. Add one in MJ: Signature Accounts.</div>
-            }
-            <label class="action-panel-label">Document to sign</label>
-            @if (signatureDocuments.length > 0) {
-              <select class="action-panel-input" [(ngModel)]="selectedSignatureArtifactId">
-                @for (doc of signatureDocuments; track doc.artifactId) {
-                  <option [value]="doc.artifactId">{{ doc.filename }}</option>
-                }
-              </select>
-            } @else {
-              <div class="action-panel-hint">No documents on this conversation yet. Upload a file to the thread first.</div>
-            }
-          }
-          @if (actionError) {
-            <div class="action-panel-error">{{ actionError }}</div>
-          }
-          <div class="action-panel-footer">
-            <button class="action-panel-submit" [disabled]="!canSubmitAction()" (click)="submitActionPanel()">
-              {{ actionSubmitting ? 'Working…' : (actionPanel === 'request' ? 'Send request' : 'Create & send') }}
-            </button>
-          </div>
-        </div>
+      @if (actionPanel && selectedMessage.threadId) {
+        <mj-secure-messaging-action-panel
+          [mode]="actionPanel"
+          [threadId]="selectedMessage.threadId"
+          [contactEmail]="selectedMessage.senderEmail"
+          (done)="closeActionPanel()"
+          (cancel)="closeActionPanel()">
+        </mj-secure-messaging-action-panel>
       }
 
       <div class="detail-body">
@@ -1535,17 +1497,8 @@ export class SecureMessagingExecutiveComponent implements OnInit {
   replyText = '';
 
   /* ─── Action panel (Request files / Send for signature) ─── */
+  // Which mode the shared <mj-secure-messaging-action-panel> opens in (null = closed).
   actionPanel: 'request' | 'signature' | null = null;
-  actionTitle = '';
-  actionInstructions = '';
-  actionSubmitting = false;
-  actionError = '';
-
-  /* Send-for-signature pickers: an active MJ: Signature Account + a thread document to sign. */
-  signatureAccounts: { id: string; label: string }[] = [];
-  signatureDocuments: { artifactId: string; filename: string }[] = [];
-  selectedSignatureAccountId = '';
-  selectedSignatureArtifactId = '';
 
   /* ─── Loading ─── */
   isLoading = true;
@@ -1698,190 +1651,11 @@ export class SecureMessagingExecutiveComponent implements OnInit {
 
   /* ─── File request / signature actions ─── */
 
-  openRequestFiles(): void {
-    this.actionPanel = 'request';
-    this.resetActionForm();
-  }
-
-  openSendForSignature(): void {
-    this.actionPanel = 'signature';
-    this.resetActionForm();
-    void this.loadSignatureAccounts();
-    void this.loadSignatureDocuments();
-  }
-
-  closeActionPanel(): void {
-    this.actionPanel = null;
-  }
-
-  private resetActionForm(): void {
-    this.actionTitle = '';
-    this.actionInstructions = '';
-    this.actionError = '';
-    this.selectedSignatureAccountId = '';
-    this.selectedSignatureArtifactId = '';
-  }
-
-  /** Load active signature accounts (provider + credentials) for the account picker. */
-  private async loadSignatureAccounts(): Promise<void> {
-    try {
-      const rv = new RunView();
-      const res = await rv.RunView({
-        EntityName: 'MJ: Signature Accounts',
-        ExtraFilter: 'IsActive = 1',
-        OrderBy: 'IsDefault DESC, Name ASC',
-        ResultType: 'simple',
-      });
-      if (!res.Success) return;
-      this.signatureAccounts = (res.Results as Record<string, unknown>[]).map(r => ({
-        id: String(r['ID']),
-        label: `${r['Name']}${r['SignatureProvider'] ? ' (' + r['SignatureProvider'] + ')' : ''}`,
-      }));
-      // Preselect the default/first account for convenience.
-      this.selectedSignatureAccountId = this.signatureAccounts[0]?.id ?? '';
-    } catch (e) {
-      console.error('Failed to load signature accounts', e);
-    }
-  }
-
-  /** Load the thread's documents (Message Files backed by an Artifact) for the document picker. */
-  private async loadSignatureDocuments(): Promise<void> {
-    const threadId = this.selectedMessage?.threadId;
-    if (!threadId) return;
-    try {
-      const rv = new RunView();
-      const res = await rv.RunView({
-        EntityName: 'MJ_BizApps_SecureMessaging: Message Files',
-        ExtraFilter: `ThreadID = '${threadId.replace(/'/g, "''")}' AND ArtifactID IS NOT NULL`,
-        OrderBy: '__mj_CreatedAt DESC',
-        ResultType: 'simple',
-      });
-      if (!res.Success) return;
-      this.signatureDocuments = (res.Results as Record<string, unknown>[]).map(r => ({
-        artifactId: String(r['ArtifactID']),
-        filename: (r['Filename'] as string) ?? 'document',
-      }));
-      this.selectedSignatureArtifactId = this.signatureDocuments[0]?.artifactId ?? '';
-    } catch (e) {
-      console.error('Failed to load signable documents', e);
-    }
-  }
-
-  /** Resolve an Action's ID by name (RunView on MJ: Actions). */
-  private async resolveActionId(name: string): Promise<string | null> {
-    const rv = new RunView();
-    const res = await rv.RunView({
-      EntityName: 'MJ: Actions',
-      ExtraFilter: `Name = '${name.replace(/'/g, "''")}'`,
-      MaxRows: 1,
-      ResultType: 'simple',
-    });
-    if (!res.Success || res.Results.length === 0) return null;
-    return String((res.Results as Record<string, unknown>[])[0].ID);
-  }
-
-  /** Whether the action panel's submit button should be enabled. */
-  canSubmitAction(): boolean {
-    if (this.actionSubmitting || !this.actionTitle.trim()) return false;
-    if (this.actionPanel === 'signature') {
-      return !!this.selectedSignatureAccountId && !!this.selectedSignatureArtifactId;
-    }
-    return true;
-  }
-
-  async submitActionPanel(): Promise<void> {
-    const title = this.actionTitle.trim();
-    const threadId = this.selectedMessage?.threadId;
-    if (!title || !threadId || this.actionSubmitting) return;
-
-    this.actionSubmitting = true;
-    this.actionError = '';
-    try {
-      const sessionId = await this.resolvePortalSessionId(threadId);
-      if (!sessionId) {
-        this.actionError = 'No active portal session was found for this conversation.';
-        return;
-      }
-
-      const md = new Metadata();
-      if (this.actionPanel === 'request') {
-        const entity = await md.GetEntityObject('MJ_BizApps_SecureMessaging: File Requests');
-        entity.NewRecord();
-        entity.Set('PortalSessionID', sessionId);
-        entity.Set('ThreadID', threadId);
-        entity.Set('Title', title);
-        entity.Set('Status', 'Pending');
-        if (this.actionInstructions.trim()) entity.Set('Instructions', this.actionInstructions.trim());
-        if (!(await entity.Save())) {
-          this.actionError = entity.LatestResult?.Message || 'Failed to create file request.';
-          return;
-        }
-      } else if (this.actionPanel === 'signature') {
-        if (!this.selectedSignatureAccountId) {
-          this.actionError = 'Select a signature account to send through.';
-          return;
-        }
-        if (!this.selectedSignatureArtifactId) {
-          this.actionError = 'Select a document to send for signature.';
-          return;
-        }
-        const signerEmail = this.selectedMessage?.senderEmail;
-        if (!signerEmail) {
-          this.actionError = 'No contact email is available for this conversation.';
-          return;
-        }
-
-        // Send through the core MJ 'Send Document for Signature' Action, which wraps
-        // SignatureEngine.SendForSignature (atomic create+send). Invoked via the data
-        // provider — the engine lives server-side; the staff UI never touches portal auth.
-        const actionId = await this.resolveActionId('Send Document for Signature');
-        if (!actionId) {
-          this.actionError = 'The signature action is not available in this environment.';
-          return;
-        }
-        const portalSessionsEntityId = new Metadata().Entities.find(
-          e => e.Name === 'MJ_BizApps_SecureMessaging: Portal Sessions'
-        )?.ID;
-
-        const client = new GraphQLActionClient(Metadata.Provider as unknown as GraphQLDataProvider);
-        const result = await client.RunAction(actionId, [
-          { Name: 'SignatureAccountID', Value: this.selectedSignatureAccountId, Type: 'Input' },
-          { Name: 'Title', Value: title, Type: 'Input' },
-          { Name: 'ArtifactID', Value: this.selectedSignatureArtifactId, Type: 'Input' },
-          { Name: 'Recipients', Value: [{ email: signerEmail }], Type: 'Input' },
-          { Name: 'EntityID', Value: portalSessionsEntityId, Type: 'Input' },
-          { Name: 'RecordID', Value: sessionId, Type: 'Input' },
-          { Name: 'SendImmediately', Value: true, Type: 'Input' },
-        ]);
-        if (!result?.Success) {
-          this.actionError = result?.Message || 'Failed to send for signature.';
-          return;
-        }
-      }
-      this.closeActionPanel();
-    } catch (e) {
-      console.error('Action panel submit failed', e);
-      this.actionError = 'Something went wrong. Please try again.';
-    } finally {
-      this.actionSubmitting = false;
-    }
-  }
-
-  /** Resolves the PortalSession ID for a thread (newest active session). */
-  private async resolvePortalSessionId(threadId: string): Promise<string | null> {
-    const rv = new RunView();
-    const result = await rv.RunView({
-      EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
-      ExtraFilter: `ThreadID = '${threadId.replace(/'/g, "''")}'`,
-      OrderBy: 'LastAccessedAt DESC',
-      MaxRows: 1,
-      ResultType: 'simple',
-    });
-    if (result.Success && result.Results && result.Results.length > 0) {
-      return (result.Results[0] as Record<string, unknown>)['ID'] as string;
-    }
-    return null;
-  }
+  // The request/signature panel itself (state, pickers, submit) lives in the shared
+  // SecureMessagingActionPanelComponent; these just toggle which mode it opens in.
+  openRequestFiles(): void { this.actionPanel = 'request'; }
+  openSendForSignature(): void { this.actionPanel = 'signature'; }
+  closeActionPanel(): void { this.actionPanel = null; }
 
   async downloadAttachment(att: MessageAttachment): Promise<void> {
     try {

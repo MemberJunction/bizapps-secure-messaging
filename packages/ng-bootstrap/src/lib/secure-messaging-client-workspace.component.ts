@@ -100,6 +100,17 @@ const ADV_PREF_KEY = 'sm.workspace.advanced';
       </div>
     </div>
 
+    <!-- Shared action panel (Request files / Send for signature) -->
+    @if (actionPanel && session.threadId) {
+      <mj-secure-messaging-action-panel
+        [mode]="actionPanel"
+        [threadId]="session.threadId"
+        [contactEmail]="contactEmail"
+        (done)="onActionDone()"
+        (cancel)="closeActionPanel()">
+      </mj-secure-messaging-action-panel>
+    }
+
     <!-- STATS (advanced only) -->
     <div class="stats adv">
       <div class="stat accent"><div class="v">{{ stats.openThreads }}</div><div class="l"><i class="fa-solid fa-comments"></i> Open threads</div></div>
@@ -382,6 +393,9 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
 
   session: SessionInfo = { id: null, status: 'None', tokenMasked: '—', expiresLabel: '—', lastAccessLabel: '—', threadId: null };
   sessionBusy = false;
+
+  /** Open mode for the shared action panel (Request files / Send for signature); null = closed. */
+  actionPanel: 'request' | 'signature' | null = null;
 
   stats = { openThreads: 0, pendingRequests: 0, awaitingSignature: 0, filesShared: 0 };
 
@@ -737,9 +751,27 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
   }
 
   act(kind: 'message' | 'request' | 'signature'): void {
-    const label = kind === 'message' ? 'compose' : kind === 'request' ? 'file request' : 'signature request';
-    this.toast(`Opening ${label}…`);
-    // TODO: open the corresponding action panel / modal (shared with the Executive Inbox).
+    if (kind === 'message') {
+      // Compose is a separate surface (Phase 2) — not part of the request/signature panel.
+      this.toast('Opening compose…');
+      return;
+    }
+    if (!this.session.threadId) {
+      this.toast('No active conversation thread to act on.');
+      return;
+    }
+    this.actionPanel = kind; // 'request' | 'signature' — opens the shared action panel
+  }
+
+  /** Called when the shared action panel completes; refresh requests so the new row shows. */
+  onActionDone(): void {
+    this.actionPanel = null;
+    void this.loadRequestsAndSignatures();
+    this.toast('Done.');
+  }
+
+  closeActionPanel(): void {
+    this.actionPanel = null;
   }
 
   /* ───────── Presentation helpers ───────── */
