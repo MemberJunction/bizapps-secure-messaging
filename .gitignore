@@ -5,5 +5,13 @@ build/
 .angular/
 .turbo/
 
+# Local environment / secrets
+.env
+.env.*
+!.env.example
+
 # Built bundle in test directory (build artifact)
 test/mj-secure-messaging.js
+
+# ML model cache (downloaded by MJ tooling; never commit)
+.cache/

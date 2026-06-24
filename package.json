@@ -4,12 +4,14 @@
   "license": "MIT",
   "description": "MJ Secure Messaging - a secure web messaging portal Open App for MemberJunction",
   "workspaces": [
+    "apps/*",
     "packages/*"
   ],
   "scripts": {
     "prebuild": "node -e \"try { require.resolve('turbo') } catch (e) { console.error('\\n\\u274c Dependencies not installed. Run: npm install\\n'); process.exit(1); }\"",
     "build": "npm run build:stream",
     "build:stream": "turbo --log-order=stream build",
+    "build:generated": "turbo --log-order=stream build --filter=\"@mj-biz-apps/secure-messaging-entities\" --filter=\"@mj-biz-apps/secure-messaging-actions\"",
     "build:packages": "turbo --log-order=stream build --filter=\"@mj-biz-apps/secure-messaging-*\"",
     "mj": "npx @memberjunction/cli",
     "mj:migrate": "npx @memberjunction/cli migrate",
