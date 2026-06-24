@@ -1,0 +1,21 @@
+{
+  "entity": "MJ: Action Categories",
+  "filePattern": ".*.json",
+  "pull": {
+    "createNewFileIfNotFound": true,
+    "newFileName": ".action-categories.json",
+    "appendRecordsToExistingFile": true,
+    "updateExistingRecords": true,
+    "preserveFields": [],
+    "excludeFields": [],
+    "ignoreVirtualFields": true,
+    "ignoreNullFields": true,
+    "mergeStrategy": "merge",
+    "backupBeforeUpdate": true,
+    "backupDirectory": ".backups",
+    "filter": "Name = 'Secure Messaging'",
+    "externalizeFields": [],
+    "lookupFields": {},
+    "relatedEntities": {}
+  }
+}

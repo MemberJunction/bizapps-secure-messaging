@@ -5,6 +5,7 @@
     "communication-providers",
     "channel-types",
     "entities",
+    "action-categories",
     "actions",
     "applications"
   ]

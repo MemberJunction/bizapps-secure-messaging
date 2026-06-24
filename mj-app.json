@@ -27,28 +27,27 @@
   },
   "packages": {
     "registry": "https://registry.npmjs.org",
-    "prefix": "@memberjunction/",
     "server": [
       {
-        "name": "@memberjunction/secure-messaging-bootstrap",
+        "name": "@mj-biz-apps/secure-messaging-bootstrap",
         "role": "bootstrap",
         "startupExport": "LoadSecureMessaging"
       }
     ],
     "client": [
       {
-        "name": "@memberjunction/ng-secure-messaging-bootstrap",
+        "name": "@mj-biz-apps/secure-messaging-ng-bootstrap",
         "role": "bootstrap",
         "startupExport": "LoadSecureMessagingClient"
       }
     ],
     "shared": [
       {
-        "name": "@memberjunction/secure-messaging-server",
+        "name": "@mj-biz-apps/secure-messaging-server",
         "role": "library"
       },
       {
-        "name": "@memberjunction/ng-secure-messaging",
+        "name": "@mj-biz-apps/secure-messaging-ng",
         "role": "library"
       }
     ]

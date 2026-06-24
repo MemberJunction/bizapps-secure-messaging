@@ -20,9 +20,9 @@ import { PortalAuthService } from '../services/PortalAuthService.js';
  *   - `MagicLinkToken` — the raw, single-use token (deliver out-of-band; never stored raw).
  *
  * Register the corresponding `Issue Portal Magic Link` Action metadata with
- * `ServerDriverKey = 'IssuePortalMagicLinkAction'`.
+ * `DriverClass = '__IssuePortalMagicLink'` (matching the @RegisterClass key below).
  */
-@RegisterClass(BaseAction, 'IssuePortalMagicLinkAction')
+@RegisterClass(BaseAction, '__IssuePortalMagicLink')
 export class IssuePortalMagicLinkAction extends BaseAction {
     protected async InternalRunAction(params: RunActionParams): Promise<ActionResultSimple> {
         const sessionId = this.getParam(params, 'SessionID');

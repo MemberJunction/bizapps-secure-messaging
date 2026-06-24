@@ -4,7 +4,8 @@
       "Name": "Issue Portal Magic Link",
       "Description": "Issues a fresh single-use portal magic link for an existing portal session (staff-initiated, server-side token generation + hashing via PortalAuthService). Returns the raw token for out-of-band delivery to the contact.",
       "Type": "Custom",
-      "DriverClass": "IssuePortalMagicLinkAction",
+      "DriverClass": "__IssuePortalMagicLink",
+      "CategoryID": "@lookup:MJ: Action Categories.Name=Secure Messaging",
       "Status": "Active",
       "CodeApprovalStatus": "Approved"
     },
@@ -12,6 +13,7 @@
       "MJ: Action Params": [
         {
           "fields": {
+            "ActionID": "@parent:ID",
             "Name": "SessionID",
             "Type": "Input",
             "ValueType": "Scalar",
@@ -22,6 +24,7 @@
         },
         {
           "fields": {
+            "ActionID": "@parent:ID",
             "Name": "MagicLinkToken",
             "Type": "Output",
             "ValueType": "Scalar",

@@ -1,6 +1,7 @@
 import { Component, OnInit, Input } from '@angular/core';
 import { Metadata, RunView, CompositeKey } from '@memberjunction/core';
 import { GraphQLDataProvider, GraphQLFileStorageClient, GraphQLActionClient } from '@memberjunction/graphql-dataprovider';
+import { mjBizAppsCommonPersonEntity } from '@mj-biz-apps/common-entities';
 
 /* ─────────────────────────── Interfaces ─────────────────────────── */
 
@@ -80,7 +81,7 @@ const ADV_PREF_KEY = 'sm.workspace.advanced';
       <div class="ch-id">
         <div class="ch-name">{{ contactName || 'Contact' }}</div>
         <div class="ch-meta">
-          @if (contactTitle) { <span><i class="fa-solid fa-building"></i> {{ contactTitle }}</span> }
+          @if (contactTitle) { <span><i class="fa-solid fa-briefcase"></i> {{ contactTitle }}</span> }
           @if (contactEmail) { <span><i class="fa-solid fa-envelope"></i> {{ contactEmail }}</span> }
           @if (contactPhone) { <span><i class="fa-solid fa-phone"></i> {{ contactPhone }}</span> }
         </div>
@@ -426,7 +427,10 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
   private async loadAll(): Promise<void> {
     this.loading = true;
     try {
-      await this.loadSessions();           // also populates threadIds + session info
+      await Promise.all([
+        this.loadContact(),                // typed Person + linked Organization
+        this.loadSessions(),               // also populates threadIds + session info
+      ]);
       await Promise.all([
         this.loadThreads(),
         this.loadRequestsAndSignatures(),
@@ -439,6 +443,26 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
       this.toast('Some workspace data could not be loaded.');
     } finally {
       this.loading = false;
+    }
+  }
+
+  /**
+   * Resolve the contact as a typed BizAppsCommon Person, filling any contact display fields
+   * (name/email/title/phone) not supplied via @Input.
+   */
+  private async loadContact(): Promise<void> {
+    if (!this.contactId) return;
+    try {
+      const md = new Metadata();
+      const person = await md.GetEntityObject<mjBizAppsCommonPersonEntity>('MJ_BizApps_Common: People');
+      if (!(await person.InnerLoad(CompositeKey.FromID(this.contactId)))) return;
+
+      this.contactName = this.contactName || person.DisplayName || [person.FirstName, person.LastName].filter(Boolean).join(' ').trim();
+      this.contactEmail = this.contactEmail || (person.Email ?? '');
+      this.contactTitle = this.contactTitle || (person.Title ?? '');
+      this.contactPhone = this.contactPhone || (person.Phone ?? '');
+    } catch (e) {
+      console.error('loadContact failed', e);
     }
   }
 

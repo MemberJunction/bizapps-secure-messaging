@@ -1,5 +1,5 @@
 {
-  "name": "@memberjunction/secure-messaging-server",
+  "name": "@mj-biz-apps/secure-messaging-server",
   "version": "1.1.0",
   "description": "Server-side logic for MJ Secure Messaging: auth service, communication provider, and REST API routes.",
   "type": "module",
@@ -10,6 +10,24 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
+    "express": "^5.1.0",
+    "multer": "^2.0.0"
+  },
+  "peerDependencies": {
+    "@memberjunction/core": "^5.40.2",
+    "@memberjunction/core-entities": "^5.40.2",
+    "@memberjunction/global": "^5.40.2",
+    "@memberjunction/communication-types": "^5.40.2",
+    "@memberjunction/server": "^5.40.2",
+    "@memberjunction/storage": "^5.40.2",
+    "@memberjunction/actions": "^5.40.2",
+    "@memberjunction/actions-base": "^5.40.2",
+    "@memberjunction/esignature": "^5.40.2",
+    "@memberjunction/esignature-docusign": "^5.40.2",
+    "@memberjunction/esignature-pandadoc": "^5.40.2",
+    "@memberjunction/esignature-dropboxsign": "^5.40.2"
+  },
+  "devDependencies": {
     "@memberjunction/core": "^5.40.2",
     "@memberjunction/core-entities": "^5.40.2",
     "@memberjunction/global": "^5.40.2",
@@ -22,10 +40,6 @@
     "@memberjunction/esignature-docusign": "^5.40.2",
     "@memberjunction/esignature-pandadoc": "^5.40.2",
     "@memberjunction/esignature-dropboxsign": "^5.40.2",
-    "express": "^5.1.0",
-    "multer": "^2.0.0"
-  },
-  "devDependencies": {
     "@types/express": "^5.0.0",
     "@types/multer": "^2.0.0",
     "@types/node": "^22.0.0",

@@ -2,6 +2,7 @@ import { Component, OnInit, Input } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Metadata, RunView } from '@memberjunction/core';
 import { GraphQLDataProvider, GraphQLFileStorageClient } from '@memberjunction/graphql-dataprovider';
+import { mjBizAppsCommonPersonEntity } from '@mj-biz-apps/common-entities';
 
 /* ─── Interfaces ─── */
 
@@ -1890,18 +1891,18 @@ export class SecureMessagingExecutiveComponent implements OnInit {
     try {
       const rv = new RunView();
       const inList = personIds.map(id => `'${id}'`).join(', ');
-      const result = await rv.RunView({
+      const result = await rv.RunView<mjBizAppsCommonPersonEntity>({
         EntityName: 'MJ_BizApps_Common: People',
         ExtraFilter: `ID IN (${inList})`,
         ResultType: 'simple',
       });
       if (result.Success && result.Results) {
         const nameById = new Map<string, string>();
-        for (const p of result.Results as Record<string, unknown>[]) {
-          const display = (p['DisplayName'] as string)
-            || [p['FirstName'], p['LastName']].filter(Boolean).join(' ').trim()
-            || (p['Email'] as string);
-          if (display) nameById.set(p['ID'] as string, display);
+        for (const p of result.Results) {
+          const display = p.DisplayName
+            || [p.FirstName, p.LastName].filter(Boolean).join(' ').trim()
+            || (p.Email ?? '');
+          if (display) nameById.set(p.ID, display);
         }
         for (const m of this.messages) {
           if (m.personId && nameById.has(m.personId)) {

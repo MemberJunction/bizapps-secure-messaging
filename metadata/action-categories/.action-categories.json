@@ -1,0 +1,9 @@
+[
+  {
+    "fields": {
+      "Name": "Secure Messaging",
+      "Description": "Actions for the MJ Secure Messaging app — portal session and magic-link management, file/signature workflows.",
+      "Status": "Active"
+    }
+  }
+]
