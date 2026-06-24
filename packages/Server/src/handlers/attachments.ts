@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { getSystemUser } from '@memberjunction/server';
 import { PortalRequest } from './middleware.js';
-import { getFileStore } from '../stores/ArtifactFileStore.js';
+import { getFileStore } from '@mj-biz-apps/secure-messaging-core';
 
 /**
  * GET /threads/:threadId/attachments

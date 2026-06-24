@@ -18,7 +18,9 @@
     "tsc-alias": "^1.8.16",
     "typescript": "^5.9.3"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@mj-biz-apps/secure-messaging-core": "1.1.0"
+  },
   "peerDependencies": {
     "@memberjunction/core": "^5.40.2",
     "@memberjunction/core-entities": "^5.40.2",

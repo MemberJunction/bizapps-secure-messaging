@@ -1,7 +1,7 @@
 import { RegisterClass } from '@memberjunction/global';
 import { BaseAction } from '@memberjunction/actions';
 import { ActionResultSimple, RunActionParams } from '@memberjunction/actions-base';
-import { PortalAuthService } from '../services/PortalAuthService.js';
+import { PortalAuthService } from '@mj-biz-apps/secure-messaging-core';
 
 /**
  * Server-side MJ Action that issues a fresh single-use portal magic link for an existing

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { getSystemUser } from '@memberjunction/server';
 import { PortalRequest } from './middleware.js';
-import { getMessageStore } from '../stores/index.js';
+import { getMessageStore } from '@mj-biz-apps/secure-messaging-core';
 
 /**
  * GET /threads/:threadId/messages

@@ -1,0 +1,53 @@
+/**
+ * MJ Secure Messaging — Server bootstrap.
+ *
+ * Import this package and call LoadSecureMessagingServer() from the host API
+ * (apps/MJAPI) so every @RegisterClass decorator fires (entities, actions, the
+ * Secure Web communication provider, eSignature drivers) and the GraphQL
+ * resolvers are discoverable via RESOLVER_PATHS.
+ */
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { LogStatus } from '@memberjunction/core';
+
+// Generated entity + action subclasses (fire @RegisterClass on import).
+import { LoadGeneratedEntities } from '@mj-biz-apps/secure-messaging-entities';
+import '@mj-biz-apps/secure-messaging-actions';
+
+// Core services (PortalAuthService, stores, config) — imported so any registrations fire.
+import '@mj-biz-apps/secure-messaging-core';
+
+// Secure Web communication provider (auto-registers via @RegisterClass on import).
+import './services/SecureWebCommunicationProvider.js';
+
+// E-signature provider drivers (DocuSign / PandaDoc / Dropbox Sign). Each package's
+// @RegisterClass(BaseSignatureProvider, '<DriverKey>') side-effect lets the MJ
+// SignatureEngine resolve the driver named by an MJ: Signature Provider's ServerDriverKey.
+import '@memberjunction/esignature-docusign';
+import '@memberjunction/esignature-pandadoc';
+import '@memberjunction/esignature-dropboxsign';
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
+
+/** Resolver paths for the host's TypeGraphQL schema build (generated + any custom resolvers). */
+export const RESOLVER_PATHS: string[] = [
+  resolve(__dirname, 'resolvers/*.js'),
+  resolve(__dirname, 'generated/*.js'),
+];
+
+/**
+ * Bootstrap entry point. Static imports above ensure all @RegisterClass decorators fire;
+ * this function is the explicit anchor the host calls (and prevents tree-shaking).
+ */
+export function LoadSecureMessagingServer(): void {
+  LoadGeneratedEntities();
+  LogStatus('MJ Secure Messaging: Server bootstrap loaded.');
+}
+
+// Public server surface for hosts/embedders:
+// Secure Web communication provider class
+export { SecureWebCommunicationProvider } from './services/SecureWebCommunicationProvider.js';
+// Express router (mounts the portal REST API)
+export { createSecureMessagingRouter, mountSecureMessagingRoutes } from './routes.js';
+// Middleware types
+export type { PortalRequest } from './handlers/middleware.js';

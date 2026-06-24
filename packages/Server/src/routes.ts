@@ -6,7 +6,7 @@ import { getThreadMessages, createThreadMessage } from './handlers/messages.js';
 import { getThreadAttachments, uploadAttachment, downloadAttachment } from './handlers/attachments.js';
 import { getFileRequests, createFileRequest, fulfillFileRequest } from './handlers/fileRequests.js';
 import { getSignatureRequests, createSignatureRequest, refreshSignatureStatus, voidSignatureRequest, downloadSignedDocument } from './handlers/signatures.js';
-import { MAX_FILE_BYTES } from './stores/ArtifactFileStore.js';
+import { MAX_FILE_BYTES } from '@mj-biz-apps/secure-messaging-core';
 
 /**
  * Multipart upload middleware (in-memory). Applied only to the upload route so the

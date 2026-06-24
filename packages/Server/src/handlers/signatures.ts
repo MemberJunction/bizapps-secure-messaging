@@ -3,7 +3,7 @@ import { Metadata, RunView, UserInfo } from '@memberjunction/core';
 import { getSystemUser } from '@memberjunction/server';
 import { SignatureEngine } from '@memberjunction/esignature/server';
 import { PortalRequest } from './middleware.js';
-import { getFileStore } from '../stores/ArtifactFileStore.js';
+import { getFileStore } from '@mj-biz-apps/secure-messaging-core';
 
 /**
  * E-signature handlers, backed by the core MJ eSignature subsystem

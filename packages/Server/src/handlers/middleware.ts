@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { getSystemUser } from '@memberjunction/server';
-import { PortalAuthService, PortalSessionContext } from '../services/PortalAuthService.js';
+import { PortalAuthService, PortalSessionContext } from '@mj-biz-apps/secure-messaging-core';
 
 /**
  * Extended Express Request with portal session context.

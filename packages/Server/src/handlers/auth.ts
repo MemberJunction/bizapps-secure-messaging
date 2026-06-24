@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { getSystemUser } from '@memberjunction/server';
-import { PortalAuthService } from '../services/PortalAuthService.js';
+import { PortalAuthService } from '@mj-biz-apps/secure-messaging-core';
 
 /**
  * POST /auth/validate

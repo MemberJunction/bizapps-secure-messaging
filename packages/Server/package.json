@@ -1,0 +1,49 @@
+{
+  "name": "@mj-biz-apps/secure-messaging-server",
+  "type": "module",
+  "version": "1.1.0",
+  "description": "MJ Secure Messaging server bootstrap - REST API routes, Secure Web communication provider, and class registrations.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["/dist"],
+  "scripts": {
+    "build": "tsc && tsc-alias -f"
+  },
+  "author": "MemberJunction.com",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^22.0.0",
+    "tsc-alias": "^1.8.16",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@mj-biz-apps/secure-messaging-entities": "1.1.0",
+    "@mj-biz-apps/secure-messaging-actions": "1.1.0",
+    "@mj-biz-apps/secure-messaging-core": "1.1.0",
+    "express": "^5.1.0",
+    "multer": "^2.0.0"
+  },
+  "peerDependencies": {
+    "@memberjunction/core": "^5.40.2",
+    "@memberjunction/core-entities": "^5.40.2",
+    "@memberjunction/global": "^5.40.2",
+    "@memberjunction/communication-types": "^5.40.2",
+    "@memberjunction/server": "^5.40.2",
+    "@memberjunction/storage": "^5.40.2",
+    "@memberjunction/actions": "^5.40.2",
+    "@memberjunction/actions-base": "^5.40.2",
+    "@memberjunction/esignature": "^5.40.2",
+    "@memberjunction/esignature-docusign": "^5.40.2",
+    "@memberjunction/esignature-pandadoc": "^5.40.2",
+    "@memberjunction/esignature-dropboxsign": "^5.40.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MemberJunction/bizapps-secure-messaging"
+  }
+}
