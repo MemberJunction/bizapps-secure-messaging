@@ -5,6 +5,7 @@ import { LoadSecureMessagingComponent } from './lib/secure-messaging-executive.r
 export * from './lib/secure-messaging.module';
 
 // Components & Application
+export * from './lib/secure-messaging.contracts';
 export * from './lib/secure-messaging-executive.component';
 export * from './lib/secure-messaging-client-workspace.component';
 export * from './lib/secure-messaging-action-panel.component';

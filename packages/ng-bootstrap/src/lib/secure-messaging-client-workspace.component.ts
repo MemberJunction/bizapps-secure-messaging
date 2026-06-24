@@ -1,7 +1,8 @@
-import { Component, OnInit, Input } from '@angular/core';
+import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
 import { Metadata, RunView, CompositeKey } from '@memberjunction/core';
 import { GraphQLDataProvider, GraphQLFileStorageClient, GraphQLActionClient } from '@memberjunction/graphql-dataprovider';
 import { mjBizAppsCommonPersonEntity } from '@mj-biz-apps/common-entities';
+import { OpenThreadRequest, WorkspaceActionRequest } from './secure-messaging.contracts';
 
 /* ─────────────────────────── Interfaces ─────────────────────────── */
 
@@ -382,6 +383,18 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
   @Input() contactTitle = '';
   @Input() contactPhone = '';
 
+  /** Embeddability knobs (defaults preserve standalone behavior). */
+  @Input() initialMode: 'basic' | 'advanced' | null = null;   // overrides the persisted preference
+  @Input() suppressToasts = false;                            // host owns user feedback
+  @Input() persistModePreference = true;                      // disable localStorage when embedded multiple times
+
+  /** Host-coordination events (consumed by SecureMessagingResource in standalone, or an external host). */
+  @Output() openThreadRequested = new EventEmitter<OpenThreadRequest>();
+  @Output() actionRequested = new EventEmitter<WorkspaceActionRequest>();
+  @Output() actionCompleted = new EventEmitter<WorkspaceActionRequest>();
+  @Output() modeChanged = new EventEmitter<'basic' | 'advanced'>();
+  @Output() closeRequested = new EventEmitter<void>();
+
   mode: WorkspaceMode = 'basic';
   tab: WorkspaceTab = 'threads';
   loading = true;
@@ -407,14 +420,21 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
   private threadIds: string[] = [];
 
   async ngOnInit(): Promise<void> {
-    this.applyMode(this.readSavedAdvanced());
+    // initialMode (host override) wins over the persisted preference.
+    const advanced = this.initialMode != null ? this.initialMode === 'advanced' : this.readSavedAdvanced();
+    this.applyMode(advanced);
     await this.loadAll();
   }
 
   /* ───────── Advanced mode (per-user sticky) ───────── */
 
+  /** Per-contact key so multiple embedded instances don't fight over one global preference. */
+  private get modePrefKey(): string {
+    return this.contactId ? `${ADV_PREF_KEY}.${this.contactId}` : ADV_PREF_KEY;
+  }
   private readSavedAdvanced(): boolean {
-    try { return localStorage.getItem(ADV_PREF_KEY) === '1'; } catch { return false; }
+    if (!this.persistModePreference) return false;
+    try { return localStorage.getItem(this.modePrefKey) === '1'; } catch { return false; }
   }
   private applyMode(advanced: boolean): void {
     this.mode = advanced ? 'advanced' : 'basic';
@@ -427,8 +447,11 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
   }
   toggleMode(): void {
     const advanced = this.mode !== 'advanced';
-    try { localStorage.setItem(ADV_PREF_KEY, advanced ? '1' : '0'); } catch { /* ignore */ }
+    if (this.persistModePreference) {
+      try { localStorage.setItem(this.modePrefKey, advanced ? '1' : '0'); } catch { /* ignore */ }
+    }
     this.applyMode(advanced);
+    this.modeChanged.emit(advanced ? 'advanced' : 'basic');
     this.toast(advanced ? 'Advanced mode on — session, compliance & audit shown' : 'Back to the basic view');
   }
   setTab(t: WorkspaceTab): void {
@@ -746,11 +769,18 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
   }
 
   openThread(t: ThreadRow): void {
-    this.toast(`Opening: ${t.title}`);
-    // TODO: route into the conversation view for this thread (inbox detail pane).
+    // Hand the thread to the host (coordinator or external) to open in a conversation view.
+    if (this.openThreadRequested.observed) {
+      this.openThreadRequested.emit({ threadId: t.threadId, contactId: this.contactId, title: t.title });
+    } else {
+      this.toast(`Opening: ${t.title}`);
+    }
   }
 
   act(kind: 'message' | 'request' | 'signature'): void {
+    // Notify the host of the intent (lets it observe/override; harmless if unobserved).
+    this.actionRequested.emit({ kind, contactId: this.contactId, threadId: this.session.threadId });
+
     if (kind === 'message') {
       // Compose is a separate surface (Phase 2) — not part of the request/signature panel.
       this.toast('Opening compose…');
@@ -765,8 +795,10 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
 
   /** Called when the shared action panel completes; refresh requests so the new row shows. */
   onActionDone(): void {
+    const kind = this.actionPanel; // 'request' | 'signature'
     this.actionPanel = null;
     void this.loadRequestsAndSignatures();
+    if (kind) this.actionCompleted.emit({ kind, contactId: this.contactId, threadId: this.session.threadId });
     this.toast('Done.');
   }
 
@@ -916,6 +948,7 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
   }
 
   private toast(msg: string): void {
+    if (this.suppressToasts) return; // host owns user feedback when embedded
     this.toastMsg = msg;
     this.toastShown = true;
     clearTimeout(this.toastTimer);

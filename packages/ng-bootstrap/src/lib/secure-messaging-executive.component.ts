@@ -1,8 +1,9 @@
-import { Component, OnInit, Input } from '@angular/core';
+import { Component, OnInit, OnChanges, SimpleChanges, Input, Output, EventEmitter } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Metadata, RunView } from '@memberjunction/core';
 import { GraphQLDataProvider, GraphQLFileStorageClient } from '@memberjunction/graphql-dataprovider';
 import { mjBizAppsCommonPersonEntity } from '@mj-biz-apps/common-entities';
+import { ContactSelection } from './secure-messaging.contracts';
 
 /* ─── Interfaces ─── */
 
@@ -1457,8 +1458,14 @@ interface WorkspaceNavItem {
 }
   `]
 })
-export class SecureMessagingExecutiveComponent implements OnInit {
+export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
   @Input() navigationConfig: Record<string, unknown> | null = null;
+
+  /** When set, the inbox loads + selects this thread (used to focus a thread opened from the workspace). */
+  @Input() focusThreadId: string | null = null;
+
+  /** Emitted when a contact is chosen to open their 360 workspace (consumed by the coordinator/host). */
+  @Output() contactSelected = new EventEmitter<ContactSelection>();
 
   /* ─── Sidebar state ─── */
   isSidebarCollapsed = false;
@@ -1541,6 +1548,26 @@ export class SecureMessagingExecutiveComponent implements OnInit {
   }
 
   selectWorkspace(key: string | null): void {
+    // "All contacts" (null) clears the in-inbox filter.
+    if (key === null) {
+      this.activeWorkspace = null;
+      this.applyFilter();
+      return;
+    }
+
+    // A specific contact: if it resolves to a real PersonID, ask the coordinator/host to open
+    // that contact's 360 workspace. Email-only groups (no PersonID) can't be workspace-scoped,
+    // so they fall back to the original in-inbox filter behavior.
+    const rep = this.messages.find(m => this.workspaceKeyOf(m) === key);
+    if (rep?.personId && this.contactSelected.observed) {
+      this.contactSelected.emit({
+        contactId: rep.personId,
+        contactName: rep.senderName,
+        contactEmail: rep.senderEmail,
+      });
+      return;
+    }
+
     this.activeWorkspace = this.activeWorkspace === key ? null : key;
     this.applyFilter();
   }
@@ -1797,7 +1824,53 @@ export class SecureMessagingExecutiveComponent implements OnInit {
     } finally {
       this.isLoading = false;
       this.applyFilter();
+      // Honor a pending focus request (deep-link or workspace→inbox jump) once data is present.
+      if (this.focusThreadId) void this.tryFocusThread(this.focusThreadId);
     }
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['focusThreadId'] && this.focusThreadId) {
+      void this.tryFocusThread(this.focusThreadId);
+    }
+  }
+
+  /**
+   * Select the thread's message in the list; if it isn't in the currently-loaded set
+   * (e.g. older/archived), load that one thread's newest message and select it.
+   */
+  private async tryFocusThread(threadId: string): Promise<void> {
+    if (this.isLoading) return; // loadMessages() re-invokes this in its finally block
+    let msg = this.messages.find(m => m.threadId === threadId);
+    if (!msg) {
+      const loaded = await this.loadSingleThreadMessage(threadId);
+      if (loaded) {
+        this.messages = [loaded, ...this.messages];
+        this.applyFilter();
+        msg = loaded;
+      }
+    }
+    if (msg) this.selectMessage(msg);
+  }
+
+  /** Load the newest message for a single thread (for threads not in the main IsSecure list). */
+  private async loadSingleThreadMessage(threadId: string): Promise<SecureMessageItem | null> {
+    try {
+      const rv = new RunView();
+      const result = await rv.RunView({
+        EntityName: 'Channel Messages',
+        ExtraFilter: `ThreadID = '${threadId.replace(/'/g, "''")}'`,
+        OrderBy: 'ReceivedAt DESC',
+        MaxRows: 1,
+        ResultType: 'simple',
+      });
+      if (result.Success && result.Results && result.Results.length > 0) {
+        return this.mapToMessageItem(result.Results[0] as Record<string, unknown>);
+      }
+    } catch (e) {
+      console.error('Failed to load single thread message', e);
+    }
+    return null;
   }
 
   /**

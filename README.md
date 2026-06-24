@@ -39,6 +39,47 @@ After installation, **Secure Messages** appears as a first-class application in 
 - Attachment display
 - Inline reply bar
 
+## Client Workspace (contact 360)
+
+Alongside the inbox, staff get a per-contact **Client Workspace** — a "client 360" unifying that contact's conversations, file requests, signatures, documents, session/security controls, and audit trail, with a basic/advanced progressive-disclosure toggle. From the inbox, clicking a contact opens their workspace; clicking a thread inside the workspace returns to the inbox focused on that conversation (with a "Back to {contact} workspace" control). It's the same app, one nav item — the navigation is coordinated internally, so the app stays drop-in.
+
+### Embedding the Client Workspace in your own app
+
+The workspace is also a general-purpose Angular component any MJ host app can embed to show a contact's secure-messaging 360 inside its own screens. Import the module and bind the contract:
+
+```typescript
+import { SecureMessagingModule } from '@mj-biz-apps/secure-messaging-ng-bootstrap';
+// in your module: imports: [ SecureMessagingModule ]
+```
+
+```html
+<mj-secure-messaging-client-workspace
+  [contactId]="person.ID"
+  [suppressToasts]="true"
+  [persistModePreference]="false"
+  (openThreadRequested)="openConversation($event)"
+  (actionCompleted)="refreshSomething($event)"
+  (modeChanged)="onModeChanged($event)">
+</mj-secure-messaging-client-workspace>
+```
+
+| Input | Purpose |
+|-------|---------|
+| `contactId` | The `MJ_BizApps_Common: People.ID` the workspace is scoped to (required) |
+| `contactName/Email/Title/Phone` | Optional display overrides (resolved from the Person entity if omitted) |
+| `initialMode` | `'basic'` \| `'advanced'` — overrides the persisted preference |
+| `suppressToasts` | When `true`, the host owns user feedback (no internal toasts) |
+| `persistModePreference` | When `false`, don't read/write the basic/advanced preference (use for multiple embeds on one page) |
+
+| Output | Fires when |
+|--------|-----------|
+| `openThreadRequested: OpenThreadRequest` | A thread row is clicked — host decides how to open it |
+| `actionRequested / actionCompleted: WorkspaceActionRequest` | A request/signature action is started / completed |
+| `modeChanged: 'basic' \| 'advanced'` | The user toggles advanced mode |
+| `closeRequested` | The workspace asks to be dismissed |
+
+Contract types (`OpenThreadRequest`, `WorkspaceActionRequest`, `ContactSelection`) are exported from the same package. The component self-loads its data via MJ's `Metadata`/`RunView`, so the host only needs a live MJ provider — no other wiring.
+
 ## Installation
 
 ```bash
