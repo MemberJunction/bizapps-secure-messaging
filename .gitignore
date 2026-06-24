@@ -1,5 +1,6 @@
 node_modules/
 dist/
+out-tsc/
 build/
 *.js.map
 .angular/

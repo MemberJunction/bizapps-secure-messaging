@@ -3,7 +3,7 @@
   "name": "mj-secure-messaging",
   "displayName": "MJ Secure Messaging",
   "description": "A secure web messaging portal that allows external contacts to communicate with organizations through an embeddable Angular Element widget. Integrates with MJ's channel system for AI-powered responses and approval workflows.",
-  "version": "1.1.0",
+  "version": "1.0.0",
   "publisher": {
     "name": "MemberJunction",
     "email": "dev@memberjunction.com",
@@ -29,26 +29,30 @@
     "registry": "https://registry.npmjs.org",
     "server": [
       {
-        "name": "@mj-biz-apps/secure-messaging-bootstrap",
+        "name": "@mj-biz-apps/secure-messaging-server",
         "role": "bootstrap",
-        "startupExport": "LoadSecureMessaging"
+        "startupExport": "LoadSecureMessagingServer"
       }
     ],
     "client": [
       {
-        "name": "@mj-biz-apps/secure-messaging-ng-bootstrap",
+        "name": "@mj-biz-apps/secure-messaging-ng",
         "role": "bootstrap",
         "startupExport": "LoadSecureMessagingClient"
       }
     ],
     "shared": [
       {
-        "name": "@mj-biz-apps/secure-messaging-server",
+        "name": "@mj-biz-apps/secure-messaging-entities",
         "role": "library"
       },
       {
-        "name": "@mj-biz-apps/secure-messaging-ng",
+        "name": "@mj-biz-apps/secure-messaging-core",
         "role": "library"
+      },
+      {
+        "name": "@mj-biz-apps/secure-messaging-element",
+        "role": "widget"
       }
     ]
   },

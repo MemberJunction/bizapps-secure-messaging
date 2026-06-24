@@ -1,0 +1,48 @@
+{
+  "name": "@mj-biz-apps/secure-messaging-ng",
+  "version": "1.0.0",
+  "description": "MJ Secure Messaging Angular components - Executive Inbox, Client Workspace, action panel, and the shared conversation UI. Includes the client bootstrap for MJ Explorer.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["/dist"],
+  "scripts": {
+    "build": "ngc",
+    "dev": "ngc --watch"
+  },
+  "dependencies": {
+    "@mj-biz-apps/secure-messaging-entities": "1.0.0",
+    "@mj-biz-apps/secure-messaging-core": "1.0.0"
+  },
+  "peerDependencies": {
+    "@angular/common": ">=21.0.0",
+    "@angular/core": ">=21.0.0",
+    "@angular/forms": ">=21.0.0",
+    "@memberjunction/core": "^5.40.2",
+    "@memberjunction/core-entities": "^5.40.2",
+    "@memberjunction/global": "^5.40.2",
+    "@memberjunction/graphql-dataprovider": "^5.40.2",
+    "@memberjunction/ng-base-application": "^5.40.2",
+    "@memberjunction/ng-shared": "^5.40.2",
+    "@mj-biz-apps/common-entities": "^5.30.0"
+  },
+  "devDependencies": {
+    "@angular/common": "^21.0.0",
+    "@angular/compiler": "^21.0.0",
+    "@angular/compiler-cli": "^21.0.0",
+    "@angular/core": "^21.0.0",
+    "@angular/forms": "^21.0.0",
+    "@angular/platform-browser": "^21.0.0",
+    "@memberjunction/core": "^5.40.2",
+    "@memberjunction/core-entities": "^5.40.2",
+    "@memberjunction/global": "^5.40.2",
+    "@memberjunction/graphql-dataprovider": "^5.40.2",
+    "@memberjunction/ng-base-application": "^5.40.2",
+    "@memberjunction/ng-shared": "^5.40.2",
+    "@mj-biz-apps/common-entities": "^5.30.0",
+    "typescript": "^5.9.3"
+  }
+}
