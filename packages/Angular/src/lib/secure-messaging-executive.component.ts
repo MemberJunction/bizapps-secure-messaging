@@ -258,6 +258,9 @@ interface WorkspaceNavItem {
             <button class="detail-action-btn" [title]="isSelectedArchived ? 'Unarchive' : 'Archive'" (click)="onArchive()">
               <i class="fa-solid" [class.fa-box-archive]="!isSelectedArchived" [class.fa-box-open]="isSelectedArchived"></i>
             </button>
+            <button class="detail-action-btn" [title]="isSelectedDeleted ? 'Restore' : 'Delete'" (click)="onDelete()">
+              <i class="fa-solid" [class.fa-trash]="!isSelectedDeleted" [class.fa-trash-arrow-up]="isSelectedDeleted"></i>
+            </button>
             <button class="detail-action-btn" title="Star" (click)="toggleStar(selectedMessage, $event)">
               <i [class.fa-solid]="selectedMessage.isStarred" [class.fa-regular]="!selectedMessage.isStarred" class="fa-star"></i>
             </button>
@@ -1667,6 +1670,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
     { id: 'escalated', label: 'Escalated', icon: 'fa-solid fa-triangle-exclamation' },
     { id: 'documents', label: 'Documents', icon: 'fa-solid fa-folder' },
     { id: 'archived', label: 'Archived', icon: 'fa-solid fa-box-archive' },
+    { id: 'trash', label: 'Trash', icon: 'fa-solid fa-trash' },
     { id: 'notifications', label: 'Notifications', icon: 'fa-solid fa-bell' }
   ];
 
@@ -1935,9 +1939,15 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
    * - archived: messages whose thread is archived
    * - notifications: system messages (none in the owned store yet — empty by design)
    *
+   * Soft-deleted threads are hidden from every category EXCEPT 'trash'.
    * Archived threads are hidden from every category EXCEPT 'archived'.
    */
   private matchesNavCategory(m: SecureMessageItem): boolean {
+    // Soft-delete is the outermost gate: a deleted thread shows ONLY in Trash.
+    const deleted = !!m.threadId && this.deletedThreadIds.has(m.threadId);
+    if (this.activeNav === 'trash') return deleted;
+    if (deleted) return false;
+
     const archived = !!m.threadId && this.archivedThreadIds.has(m.threadId);
     if (this.activeNav === 'archived') return archived;
     if (archived) return false;
@@ -1966,6 +1976,8 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
   private fileRequestThreadIds = new Set<string>();
   /** Thread IDs whose conversation is archived — hidden from the inbox, shown under Archived. */
   private archivedThreadIds = new Set<string>();
+  /** Thread IDs whose conversation is soft-deleted — hidden everywhere except Trash. */
+  private deletedThreadIds = new Set<string>();
 
   /* ─── Message selection ─── */
 
@@ -2087,11 +2099,54 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
 
   onReply(): void { /* Phase 2 */ }
   onForward(): void { /* Phase 2 */ }
-  onDelete(): void { /* Phase 2 */ }
+  /**
+   * Soft-delete (or restore) the selected message's conversation. Like Archive, this is a
+   * thread-level flag on the PortalSession — but it's a SOFT delete: the thread is hidden
+   * everywhere except Trash and is recoverable. Records are never hard-deleted (compliance).
+   */
+  async onDelete(): Promise<void> {
+    const threadId = this.selectedMessage?.threadId;
+    if (!threadId) return;
+    const deleting = !this.deletedThreadIds.has(threadId);
+    if (deleting && !confirm('Move this conversation to Trash? It will be hidden but can be restored.')) return;
+    try {
+      const rv = new RunView();
+      const res = await rv.RunView<mjBizAppsSecureMessagingPortalSessionEntity>({
+        EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
+        ExtraFilter: `ThreadID = '${threadId.replace(/'/g, "''")}'`,
+        MaxRows: 1,
+        ResultType: 'entity_object',
+      });
+      const session = res.Success ? res.Results?.[0] : undefined;
+      if (!session) return;
+
+      session.IsDeleted = deleting;
+      if (!(await session.Save())) {
+        console.error('Failed to update delete state:', session.LatestResult?.CompleteMessage);
+        return;
+      }
+
+      if (deleting) this.deletedThreadIds.add(threadId);
+      else this.deletedThreadIds.delete(threadId);
+
+      this.selectedMessage = null;
+      this.threadMessages = [];
+      this.updateInboxCount();
+      this.applyFilter();
+      this.cdr.detectChanges();
+    } catch (e) {
+      console.error('Delete/restore failed', e);
+    }
+  }
 
   /** Whether the currently-selected message's thread is archived (drives the Archive/Unarchive toggle). */
   get isSelectedArchived(): boolean {
     return !!this.selectedMessage?.threadId && this.archivedThreadIds.has(this.selectedMessage.threadId);
+  }
+
+  /** Whether the currently-selected message's thread is soft-deleted (drives the Delete/Restore toggle). */
+  get isSelectedDeleted(): boolean {
+    return !!this.selectedMessage?.threadId && this.deletedThreadIds.has(this.selectedMessage.threadId);
   }
 
   /**
@@ -2352,6 +2407,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
     setCount(this.primaryNavItems, 'sent', this.messages.filter(m => m.direction === 'Outbound').length);
     setCount(this.categoryNavItems, 'documents', this.fileRequestThreadIds.size);
     setCount(this.categoryNavItems, 'archived', this.archivedThreadIds.size);
+    setCount(this.categoryNavItems, 'trash', this.deletedThreadIds.size);
     setCount(this.categoryNavItems, 'escalated', this.messages.filter(m => m.statusBadge?.type === 'escalated').length);
   }
 
@@ -2371,6 +2427,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
         await this.resolvePersonNames();
         await this.loadFileRequestThreads();
         await this.loadArchivedThreads();
+        await this.loadDeletedThreads();
         this.buildWorkspaces();
         this.updateInboxCount();
       }
@@ -2428,6 +2485,28 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
       }
     } catch (e) {
       console.error('Failed to load archived threads', e);
+    }
+  }
+
+  /** Load the set of thread IDs whose conversation is soft-deleted (drives the Trash nav + filtering). */
+  private async loadDeletedThreads(): Promise<void> {
+    this.deletedThreadIds = new Set<string>();
+    try {
+      const rv = new RunView();
+      const result = await rv.RunView({
+        EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
+        ExtraFilter: 'IsDeleted = 1',
+        MaxRows: 1000,
+        ResultType: 'simple',
+      });
+      if (result.Success && result.Results) {
+        for (const r of result.Results) {
+          const tid = (r as Record<string, unknown>)['ThreadID'] as string;
+          if (tid) this.deletedThreadIds.add(tid);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load deleted threads', e);
     }
   }
 

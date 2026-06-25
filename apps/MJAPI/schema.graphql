@@ -5423,6 +5423,7 @@ input CreatemjBizAppsSecureMessagingPortalSessionInput {
   ExpiresAt: Timestamp
   ID: String
   IsArchived: Boolean
+  IsDeleted: Boolean
   LastAccessedAt: Timestamp
   RestoreContext___: RestoreContextInput
   Status: String
@@ -33932,6 +33933,7 @@ input UpdatemjBizAppsSecureMessagingPortalSessionInput {
   ExpiresAt: Timestamp
   ID: String!
   IsArchived: Boolean
+  IsDeleted: Boolean
   LastAccessedAt: Timestamp
   OldValues___: [KeyValuePairInput!]
   RestoreContext___: RestoreContextInput
@@ -34092,6 +34094,11 @@ type mjBizAppsSecureMessagingPortalSession_ {
   When 1, this conversation (thread) is archived: hidden from the staff inbox default view and shown under the Archived category. Staff-toggled; does not affect contact access.
   """
   IsArchived: Boolean!
+
+  """
+  When 1, this conversation (thread) is soft-deleted: hidden from the inbox and all categories except Trash, from which it can be restored. Records are never hard-deleted (compliance/audit). Staff-toggled.
+  """
+  IsDeleted: Boolean!
 
   """
   Last time the session was accessed. Used for session extension and cleanup.

@@ -248,6 +248,12 @@ export const mjBizAppsSecureMessagingPortalSessionSchema = z.object({
         * * SQL Data Type: bit
         * * Default Value: 0
         * * Description: When 1, this conversation (thread) is archived: hidden from the staff inbox default view and shown under the Archived category. Staff-toggled; does not affect contact access.`),
+    IsDeleted: z.boolean().describe(`
+        * * Field Name: IsDeleted
+        * * Display Name: Is Deleted
+        * * SQL Data Type: bit
+        * * Default Value: 0
+        * * Description: When 1, this conversation (thread) is soft-deleted: hidden from the inbox and all categories except Trash, from which it can be restored. Records are never hard-deleted (compliance/audit). Staff-toggled.`),
 });
 
 export type mjBizAppsSecureMessagingPortalSessionEntityType = z.infer<typeof mjBizAppsSecureMessagingPortalSessionSchema>;
@@ -1026,6 +1032,20 @@ export class mjBizAppsSecureMessagingPortalSessionEntity extends BaseEntity<mjBi
     }
     set IsArchived(value: boolean) {
         this.Set('IsArchived', value);
+    }
+
+    /**
+    * * Field Name: IsDeleted
+    * * Display Name: Is Deleted
+    * * SQL Data Type: bit
+    * * Default Value: 0
+    * * Description: When 1, this conversation (thread) is soft-deleted: hidden from the inbox and all categories except Trash, from which it can be restored. Records are never hard-deleted (compliance/audit). Staff-toggled.
+    */
+    get IsDeleted(): boolean {
+        return this.Get('IsDeleted');
+    }
+    set IsDeleted(value: boolean) {
+        this.Set('IsDeleted', value);
     }
 }
 

@@ -647,6 +647,9 @@ export class mjBizAppsSecureMessagingPortalSession_ {
     @Field(() => Boolean, {description: `When 1, this conversation (thread) is archived: hidden from the staff inbox default view and shown under the Archived category. Staff-toggled; does not affect contact access.`}) 
     IsArchived: boolean;
         
+    @Field(() => Boolean, {description: `When 1, this conversation (thread) is soft-deleted: hidden from the inbox and all categories except Trash, from which it can be restored. Records are never hard-deleted (compliance/audit). Staff-toggled.`}) 
+    IsDeleted: boolean;
+        
     @Field(() => [mjBizAppsSecureMessagingPortalMagicLink_])
     mjBizAppsSecureMessagingMJ_BizApps_SecureMessaging_PortalMagicLinks_PortalSessionIDArray: mjBizAppsSecureMessagingPortalMagicLink_[]; // Link to mjBizAppsSecureMessagingMJ_BizApps_SecureMessaging_PortalMagicLinks
     
@@ -690,6 +693,9 @@ export class CreatemjBizAppsSecureMessagingPortalSessionInput {
     @Field(() => Boolean, { nullable: true })
     IsArchived?: boolean;
 
+    @Field(() => Boolean, { nullable: true })
+    IsDeleted?: boolean;
+
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
 }
@@ -726,6 +732,9 @@ export class UpdatemjBizAppsSecureMessagingPortalSessionInput {
 
     @Field(() => Boolean, { nullable: true })
     IsArchived?: boolean;
+
+    @Field(() => Boolean, { nullable: true })
+    IsDeleted?: boolean;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];
