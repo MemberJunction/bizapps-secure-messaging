@@ -246,9 +246,6 @@ interface WorkspaceNavItem {
             <div class="detail-date">{{ formatDetailDate(selectedMessage.receivedAt) }}</div>
           </div>
           <div class="detail-actions">
-            <button class="detail-action-btn" title="Reply" (click)="onReply()">
-              <i class="fa-solid fa-reply"></i>
-            </button>
             <button class="detail-action-btn" title="Request files" (click)="openRequestFiles()">
               <i class="fa-solid fa-folder-plus"></i>
             </button>
@@ -263,9 +260,6 @@ interface WorkspaceNavItem {
             </button>
             <button class="detail-action-btn" title="Star" (click)="toggleStar(selectedMessage, $event)">
               <i [class.fa-solid]="selectedMessage.isStarred" [class.fa-regular]="!selectedMessage.isStarred" class="fa-star"></i>
-            </button>
-            <button class="detail-action-btn" title="More">
-              <i class="fa-solid fa-ellipsis"></i>
             </button>
           </div>
         </div>
@@ -1662,16 +1656,14 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
   primaryNavItems: SecureMessageNavItem[] = [
     { id: 'inbox', label: 'Inbox', icon: 'fa-solid fa-inbox' },
     { id: 'starred', label: 'Starred', icon: 'fa-solid fa-star' },
-    { id: 'sent', label: 'Sent', icon: 'fa-solid fa-paper-plane' },
-    { id: 'drafts', label: 'Drafts', icon: 'fa-solid fa-file' }
+    { id: 'sent', label: 'Sent', icon: 'fa-solid fa-paper-plane' }
   ];
 
   categoryNavItems: SecureMessageNavItem[] = [
     { id: 'escalated', label: 'Escalated', icon: 'fa-solid fa-triangle-exclamation' },
     { id: 'documents', label: 'Documents', icon: 'fa-solid fa-folder' },
     { id: 'archived', label: 'Archived', icon: 'fa-solid fa-box-archive' },
-    { id: 'trash', label: 'Trash', icon: 'fa-solid fa-trash' },
-    { id: 'notifications', label: 'Notifications', icon: 'fa-solid fa-bell' }
+    { id: 'trash', label: 'Trash', icon: 'fa-solid fa-trash' }
   ];
 
   /* ─── Staff user — the signed-in MJ user (resolved from the metadata provider + auth). ─── */
@@ -1891,7 +1883,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
   applyFilter(): void {
     let result = [...this.messages];
 
-    // Nav category filter (Inbox / Starred / Sent / Drafts / Escalated / Documents / Notifications).
+    // Nav category filter (Inbox / Starred / Sent / Escalated / Documents / Archived / Trash).
     result = result.filter(m => this.matchesNavCategory(m));
 
     if (this.activeWorkspace) {
@@ -1933,11 +1925,10 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
    * - inbox: everything from contacts (Inbound)
    * - sent: replies to contacts (Outbound)
    * - starred: user-starred messages
-   * - drafts: unsent drafts (none in the owned store yet — empty by design)
    * - escalated: messages whose status badge flags review (Failed)
    * - documents: threads that have a file request or an attachment
    * - archived: messages whose thread is archived
-   * - notifications: system messages (none in the owned store yet — empty by design)
+   * - trash: messages whose thread is soft-deleted
    *
    * Soft-deleted threads are hidden from every category EXCEPT 'trash'.
    * Archived threads are hidden from every category EXCEPT 'archived'.
@@ -1959,14 +1950,10 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
         return m.direction === 'Outbound';
       case 'starred':
         return m.isStarred;
-      case 'drafts':
-        return false;
       case 'escalated':
         return m.statusBadge?.type === 'escalated';
       case 'documents':
         return m.attachmentCount > 0 || (!!m.threadId && this.fileRequestThreadIds.has(m.threadId));
-      case 'notifications':
-        return m.statusBadge?.type === 'system';
       default:
         return true;
     }
@@ -2097,8 +2084,6 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
 
   /* ─── Detail actions (stubs for Phase 1) ─── */
 
-  onReply(): void { /* Phase 2 */ }
-  onForward(): void { /* Phase 2 */ }
   /**
    * Soft-delete (or restore) the selected message's conversation. Like Archive, this is a
    * thread-level flag on the PortalSession — but it's a SOFT delete: the thread is hidden
