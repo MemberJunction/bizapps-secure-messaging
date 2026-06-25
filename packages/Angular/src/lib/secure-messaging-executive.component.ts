@@ -207,11 +207,10 @@ interface WorkspaceNavItem {
             }
             <div class="msg-indicators">
               <i
-                class="msg-star"
+                class="msg-star fa-star"
                 [class.fa-solid]="msg.isStarred"
                 [class.fa-regular]="!msg.isStarred"
                 [class.starred]="msg.isStarred"
-                class="fa-star"
                 (click)="toggleStar(msg, $event)"
               ></i>
             </div>
@@ -2054,7 +2053,27 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
 
   toggleStar(message: SecureMessageItem, event: Event): void {
     event.stopPropagation();
-    message.isStarred = !message.isStarred;
+    message.isStarred = !message.isStarred;        // optimistic
+    // If the Starred filter is active, the message may drop out of view — re-filter.
+    if (this.activeNav === 'starred') this.applyFilter();
+    void this.persistStar(message);
+  }
+
+  /** Persist a message's star state to the owned SecureMessage record so it survives reload. */
+  private async persistStar(message: SecureMessageItem): Promise<void> {
+    try {
+      const md = new Metadata();
+      const rec = await md.GetEntityObject<mjBizAppsSecureMessagingSecureMessageEntity>('MJ_BizApps_SecureMessaging: Secure Messages');
+      if (!(await rec.Load(message.id))) return;
+      if (rec.IsStarred === message.isStarred) return;
+      rec.IsStarred = message.isStarred;
+      if (!(await rec.Save())) {
+        console.error('Failed to persist star:', rec.LatestResult?.CompleteMessage);
+        message.isStarred = !message.isStarred; // revert optimistic change on failure
+      }
+    } catch (e) {
+      console.error('Failed to persist star', e);
+    }
   }
 
   markAsRead(message: SecureMessageItem): void {
@@ -2526,7 +2545,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
       bodyHtml: this.sanitizer.bypassSecurityTrustHtml(content),
       receivedAt: new Date(r['ReceivedAt'] as string),
       isRead: status === 'Read' || status === 'Replied' || direction === 'Outbound',
-      isStarred: false,
+      isStarred: !!(r['IsStarred']),
       isSecure: !!(r['IsSecure']),
       statusBadge: this.resolveStatusBadge(status, direction),
       attachmentCount: 0,

@@ -338,6 +338,12 @@ export const mjBizAppsSecureMessagingSecureMessageSchema = z.object({
         * * Display Name: Updated At
         * * SQL Data Type: datetimeoffset
         * * Default Value: getutcdate()`),
+    IsStarred: z.boolean().describe(`
+        * * Field Name: IsStarred
+        * * Display Name: Is Starred
+        * * SQL Data Type: bit
+        * * Default Value: 0
+        * * Description: When 1, this message is starred/flagged by staff for quick retrieval (shown under the Starred category). Per-message, staff-toggled.`),
 });
 
 export type mjBizAppsSecureMessagingSecureMessageEntityType = z.infer<typeof mjBizAppsSecureMessagingSecureMessageSchema>;
@@ -1260,5 +1266,19 @@ export class mjBizAppsSecureMessagingSecureMessageEntity extends BaseEntity<mjBi
     */
     get __mj_UpdatedAt(): Date {
         return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: IsStarred
+    * * Display Name: Is Starred
+    * * SQL Data Type: bit
+    * * Default Value: 0
+    * * Description: When 1, this message is starred/flagged by staff for quick retrieval (shown under the Starred category). Per-message, staff-toggled.
+    */
+    get IsStarred(): boolean {
+        return this.Get('IsStarred');
+    }
+    set IsStarred(value: boolean) {
+        this.Set('IsStarred', value);
     }
 }

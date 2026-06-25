@@ -903,6 +903,9 @@ export class mjBizAppsSecureMessagingSecureMessage_ {
     @Field() 
     _mj__UpdatedAt: Date;
         
+    @Field(() => Boolean, {description: `When 1, this message is starred/flagged by staff for quick retrieval (shown under the Starred category). Per-message, staff-toggled.`}) 
+    IsStarred: boolean;
+        
     @Field(() => [mjBizAppsSecureMessagingMessageFile_])
     mjBizAppsSecureMessagingMJ_BizApps_SecureMessaging_MessageFiles_SecureMessageIDArray: mjBizAppsSecureMessagingMessageFile_[]; // Link to mjBizAppsSecureMessagingMJ_BizApps_SecureMessaging_MessageFiles
     
@@ -952,6 +955,9 @@ export class CreatemjBizAppsSecureMessagingSecureMessageInput {
     @Field({ nullable: true })
     ReceivedAt?: Date;
 
+    @Field(() => Boolean, { nullable: true })
+    IsStarred?: boolean;
+
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
 }
@@ -1000,6 +1006,9 @@ export class UpdatemjBizAppsSecureMessagingSecureMessageInput {
 
     @Field({ nullable: true })
     ReceivedAt?: Date;
+
+    @Field(() => Boolean, { nullable: true })
+    IsStarred?: boolean;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];

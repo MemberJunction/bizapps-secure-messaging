@@ -5422,6 +5422,7 @@ input CreatemjBizAppsSecureMessagingPortalSessionInput {
   ContactID: String
   ExpiresAt: Timestamp
   ID: String
+  IsArchived: Boolean
   LastAccessedAt: Timestamp
   RestoreContext___: RestoreContextInput
   Status: String
@@ -5435,6 +5436,7 @@ input CreatemjBizAppsSecureMessagingSecureMessageInput {
   ExternalMessageID: String
   ID: String
   IsSecure: Boolean
+  IsStarred: Boolean
   PersonID: String
   PortalSessionID: String
   ReceivedAt: Timestamp
@@ -21728,11 +21730,7 @@ type Mutation {
   DeleteMJWorkspaceItem(ID: String!, options___: DeleteOptionsInput!): MJWorkspaceItem_!
   DeleteQuerySystemResolver(ID: String!, options: DeleteOptionsInput): DeleteQueryResultType!
   DeleteStorageObject(input: DeleteStorageObjectInput!): Boolean!
-  DeletemjBizAppsSecureMessagingFileRequest(ID: String!, options___: DeleteOptionsInput!): mjBizAppsSecureMessagingFileRequest_!
   DeletemjBizAppsSecureMessagingMessageFile(ID: String!, options___: DeleteOptionsInput!): mjBizAppsSecureMessagingMessageFile_!
-  DeletemjBizAppsSecureMessagingPortalMagicLink(ID: String!, options___: DeleteOptionsInput!): mjBizAppsSecureMessagingPortalMagicLink_!
-  DeletemjBizAppsSecureMessagingPortalSession(ID: String!, options___: DeleteOptionsInput!): mjBizAppsSecureMessagingPortalSession_!
-  DeletemjBizAppsSecureMessagingSecureMessage(ID: String!, options___: DeleteOptionsInput!): mjBizAppsSecureMessagingSecureMessage_!
   EmbedText(modelSize: String!, textToEmbed: [String!]!): EmbedTextResult!
   ExecuteMCPTool(input: ExecuteMCPToolInput!): ExecuteMCPToolResult!
   ExecuteSimplePrompt(messages: String, modelPower: String, preferredModels: [String!], responseFormat: String, systemPrompt: String!): SimplePromptResult!
@@ -33933,6 +33931,7 @@ input UpdatemjBizAppsSecureMessagingPortalSessionInput {
   ContactID: String
   ExpiresAt: Timestamp
   ID: String!
+  IsArchived: Boolean
   LastAccessedAt: Timestamp
   OldValues___: [KeyValuePairInput!]
   RestoreContext___: RestoreContextInput
@@ -33947,6 +33946,7 @@ input UpdatemjBizAppsSecureMessagingSecureMessageInput {
   ExternalMessageID: String
   ID: String!
   IsSecure: Boolean
+  IsStarred: Boolean
   OldValues___: [KeyValuePairInput!]
   PersonID: String
   PortalSessionID: String
@@ -34089,6 +34089,11 @@ type mjBizAppsSecureMessagingPortalSession_ {
   ID: String!
 
   """
+  When 1, this conversation (thread) is archived: hidden from the staff inbox default view and shown under the Archived category. Staff-toggled; does not affect contact access.
+  """
+  IsArchived: Boolean!
+
+  """
   Last time the session was accessed. Used for session extension and cleanup.
   """
   LastAccessedAt: Timestamp!
@@ -34127,6 +34132,11 @@ type mjBizAppsSecureMessagingSecureMessage_ {
   ExternalMessageID: String
   ID: String!
   IsSecure: Boolean!
+
+  """
+  When 1, this message is starred/flagged by staff for quick retrieval (shown under the Starred category). Per-message, staff-toggled.
+  """
+  IsStarred: Boolean!
 
   """
   Soft reference to the person (e.g. MJ_BizApps_Common.People.ID). Not a hard FK so the schema stays standalone.
