@@ -3,6 +3,13 @@
 > Status: living document. Captures the product vision plus the verified state of the
 > codebase as of this writing, so we stop rediscovering the design piecemeal.
 > Sibling reference: `plans/` (the conformance-refactor plan, now complete).
+>
+> **Build status (latest commit `f77e33e`):** core conversation lifecycle complete &
+> verified end-to-end — staff reply, compose-new-thread (the "switch to secure channel"
+> flow), file requests, e-signatures, Archive, Star, Soft-delete/Trash, full thread view,
+> and the full contact-widget round-trip (magic link → portal → read/send/upload). Open
+> items: live contact notification (notify hook unwired — pull-only today), and Izzy-side
+> thread-promotion/registration (§8–§9). All work is on branch `claude/amazing-volta-6L54v`.
 
 ## 1. Vision
 
@@ -257,17 +264,31 @@ stateDiagram-v2
 
 
 - **Executive Inbox** — triage list with search, sort (Date/Sender/Status), left-nav categories
-  (Inbox/Sent/Starred/Drafts/Escalated/Documents/Notifications), per-contact Workspaces grouping,
-  and a reading pane. Header shows the **signed-in MJ user** (name/email/avatar from the user record).
+  (Inbox/Starred/Sent · Escalated/Documents/Archived/Trash), per-contact Workspaces grouping,
+  and a reading pane that shows the **full thread as a conversation**. Header shows the
+  **signed-in MJ user** (name/email/avatar from the user record).
 - **Client Workspace** — per-contact 360°: conversations, requests & signatures, documents,
   session & security, compliance badges, audit trail; basic/advanced progressive disclosure; a
   back button returns to the inbox.
 
-**Implemented:** read/triage, nav filters + live counts, read-state persistence, contact 360 data
-loading, **Request Files**, **Send for Signature**, file download, session revoke.
+**Implemented & verified end-to-end:**
+- Read / triage, nav filters + live counts, read-state persistence
+- **Full thread conversation view** in the reading pane (inbound left / outbound right)
+- **Reply** (`Send Secure Message` action → outbound row → contact's widget sees it)
+- **Compose new thread** (`Start Secure Thread` action → Person find-or-create + thread +
+  session + magic link + first message → copyable link; the "switch to secure channel" flow)
+- **Request Files**, **Send for Signature**, file download, session revoke
+- **Archive / Unarchive** (per-thread, `PortalSession.IsArchived`, Archived category)
+- **Star** (per-message, `SecureMessage.IsStarred`, persists across reload, Starred category)
+- **Soft-delete / Restore** (per-thread, `PortalSession.IsDeleted`, Trash category; records
+  never hard-deleted — compliance)
+- Contact 360 data loading; real-user header/avatar; dark-theme design tokens throughout
 
-**Not yet implemented (stubs):** **compose / reply / send** (`onCompose`, `onSendReply`, `onReply`,
-`onForward`), Archive/Delete, Star persistence (no column yet), Drafts/Notifications sources. See §9.
+**Not implemented (deliberately deferred):**
+- `onForward` — removed (no clear secure-messaging meaning)
+- Drafts / Notifications categories — removed (no backing data source yet)
+- A live **notify** to the contact on a new message — the notify hook fires (§5) but no
+  notifier is wired; delivery stays pull-only until a host registers one. See §9.
 
 ## 7. Contact experience (the widget)
 
@@ -355,25 +376,30 @@ sequenceDiagram
     SM-->>C: imported thread(s) — reply / upload / sign
 ```
 
-## 9. Open product decisions (blockers for the send feature)
+## 9. Product decisions
 
-These must be decided before building compose/reply/send:
+**Resolved & built:**
+1. ✅ **Starting a new thread vs. replying.** Reply appends to the existing thread (`Send Secure
+   Message` action). Compose-new mints Person + ThreadID + PortalSession + magic link + first
+   message (`Start Secure Thread` action).
+2. ✅ **Outbound `Sender` identity** — the individual signed-in staff user's email.
+3. ✅ **Star** — per-message `SecureMessage.IsStarred` (additive migration); persists.
+4. ✅ **Archive** — per-thread `PortalSession.IsArchived`; hidden from inbox, Archived category.
+5. ✅ **Delete** — per-thread soft-delete `PortalSession.IsDeleted`; Trash category + Restore;
+   records never hard-deleted (compliance).
 
-1. **Contact notification on a staff reply.** Pull-only (contact sees it on next visit) — or does a
-   staff reply trigger an outbound email/magic-link nudge? If the latter, who sends the email
-   (this app has no mailer) — the org's comms, or a pluggable hook?
-2. **Starting a new thread vs. replying.** Reply appends to an existing thread (has a PortalSession).
-   Compose-new needs to mint a ThreadID + (optionally) a PortalSession + magic link. Define that flow.
-3. **Outbound `Sender` identity.** The firm/org address, or the individual staff user's address?
-4. **Star/flag persistence** needs a new `SecureMessage` column (additive migration) if we want it.
-5. **Archive/Delete semantics** — no Archive status exists today; decide whether to add one or drop
-   the action.
-6. **Contact registration on first magic-link redemption** (needed for the §8.3 switch flow). Today
-   a link mints a session; the promotion flow wants a first-time **registration** step before the
-   contact reaches their secure inbox. Define what "registration" collects/verifies.
-7. **Thread import/promote operation** (§8.3) — the bulk "import these messages into a new secure
-   thread (UUID) and scope a contact's inbox to promoted threads" capability the app must expose for
-   Izzy to call. Define its contract (what's copied vs. referenced, dedup, who can invoke).
+**Still open:**
+6. **Contact notification on a new message.** Currently **pull-only** (contact sees it next visit).
+   The notify hook (`setMessageNotifier` / `notifyMessage`, §5) fires on every message but **no
+   notifier is wired** — and this app has no mailer. Decide who sends the nudge (org comms / a host
+   hook / Izzy) and wire it.
+7. **Contact registration on first magic-link redemption** (for the §8.3 switch flow). Today a link
+   mints a session directly; the promotion flow wants a first-time **registration** step. Define what
+   it collects/verifies. (Izzy-driven; not blocking the standalone app.)
+8. **Thread import/promote operation** (§8.3) — bulk "import these messages into a new secure thread
+   and scope a contact's inbox to promoted threads" for Izzy. Note: `Start Secure Thread` already
+   covers the create-thread-from-scratch case; promotion adds *importing existing messages*. Define
+   what's copied vs. referenced and who may invoke. (Izzy-side; app-side is mostly the existing action.)
 
 ## 10. Engineering standards (established this session)
 
