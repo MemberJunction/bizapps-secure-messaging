@@ -1,5 +1,6 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { CompositeKey, Metadata, RunView, UserInfo } from '@memberjunction/core';
+import { BaseSingleton } from '@memberjunction/global';
 
 /** Prefix for session tokens */
 const SESSION_TOKEN_PREFIX = 'sm_';
@@ -50,6 +51,42 @@ export interface StartSecureThreadResult {
 }
 
 /**
+ * One historical message being imported into a secure thread during promotion (PRD §10.1).
+ * These are COPIES of prior insecure-channel messages, preserved so the contact sees the full
+ * history once authenticated. They are flagged imported + tagged with their source channel.
+ */
+export interface PromotedMessageInput {
+    /** Inbound = from the contact; Outbound = from staff/Izzy. Preserved from the source thread. */
+    direction: 'Inbound' | 'Outbound';
+    /** The original sender (email/phone/display) on the insecure channel. */
+    sender: string;
+    /** The original recipient, when known. */
+    recipient?: string;
+    content: string;
+    subject?: string;
+    /** Original timestamp on the insecure channel; preserved so the imported history is ordered correctly. */
+    receivedAt?: string;
+}
+
+/**
+ * Input for promoting an existing insecure (Email/SMS) thread into a secure thread (PRD §10.1).
+ * Provisions a contact + secure thread + session + magic link, then the caller bulk-imports the
+ * prior messages. Backs both the Izzy action-diff "switch to secure channel" flow and the
+ * Outlook "Secure Send" add-in.
+ */
+export interface PromoteThreadInput extends StartSecureThreadInput {
+    /** The insecure channel the thread is being promoted from (e.g. 'Email', 'SMS'). */
+    sourceChannel: string;
+    /** The prior messages to copy into the secure thread, oldest-first. */
+    messages: PromotedMessageInput[];
+}
+
+/** Result of promoting a thread: the provisioned secure thread + how many messages were imported. */
+export interface PromoteThreadResult extends StartSecureThreadResult {
+    importedCount: number;
+}
+
+/**
  * Generates a cryptographically random token with the given prefix.
  */
 function generateToken(prefix: string): string {
@@ -67,10 +104,11 @@ function hashToken(rawToken: string): string {
 /**
  * Service for managing portal session authentication.
  * Handles session creation, validation, and magic link flows.
+ *
+ * Extends {@link BaseSingleton} so there is exactly one instance per process even when
+ * bundlers duplicate this module across execution paths (per MJ singleton policy).
  */
-export class PortalAuthService {
-    private static _instance: PortalAuthService | null = null;
-
+export class PortalAuthService extends BaseSingleton<PortalAuthService> {
     /**
      * The entity name used to look up contacts. Defaults to the app-agnostic
      * BizAppsCommon People entity, which stores Email as a direct column and is the
@@ -84,11 +122,13 @@ export class PortalAuthService {
      */
     static contactEmailField = 'Email';
 
+    // BaseSingleton requires a protected constructor.
+    protected constructor() {
+        super();
+    }
+
     static get Instance(): PortalAuthService {
-        if (!PortalAuthService._instance) {
-            PortalAuthService._instance = new PortalAuthService();
-        }
-        return PortalAuthService._instance;
+        return super.getInstance<PortalAuthService>('PortalAuthService');
     }
 
     /**
@@ -234,6 +274,24 @@ export class PortalAuthService {
         }
 
         return { threadId, sessionId, contactId, magicLinkToken: link.rawToken };
+    }
+
+    /**
+     * Provisions a secure thread for a contact the same way {@link startSecureThread} does, as the
+     * destination for an existing insecure (Email/SMS) thread being promoted (PRD §10.1). The
+     * actual copying of `input.messages` into the thread is the caller's job (via the message
+     * store's bulk import) — this service stays free of a store dependency. `importedCount` echoes
+     * how many messages the caller is expected to import, for convenience.
+     */
+    async promoteThread(
+        input: PromoteThreadInput,
+        systemUser: UserInfo
+    ): Promise<PromoteThreadResult> {
+        const provisioned = await this.startSecureThread(
+            { contactEmail: input.contactEmail, contactName: input.contactName },
+            systemUser
+        );
+        return { ...provisioned, importedCount: input.messages.length };
     }
 
     /**

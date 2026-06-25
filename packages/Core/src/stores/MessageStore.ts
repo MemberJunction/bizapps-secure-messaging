@@ -1,5 +1,5 @@
 import { UserInfo } from '@memberjunction/core';
-import { PortalSessionContext } from '../services/PortalAuthService.js';
+import { PortalSessionContext, PromotedMessageInput } from '../services/PortalAuthService.js';
 
 /**
  * A message as returned to API callers (widget / inbox). Implementations map their
@@ -34,6 +34,28 @@ export interface CreateMessageInput {
 
 export interface CreateMessageResult {
     messageId: string;
+}
+
+/**
+ * Payload for bulk-importing prior insecure-channel messages into a secure thread during
+ * promotion (PRD §10.1). Each message is copied verbatim, flagged imported, and tagged with the
+ * source channel. The thread + session are already provisioned (by {@link MessageStore} callers /
+ * PortalAuthService.promoteThread) before this is invoked.
+ */
+export interface ImportMessagesInput {
+    threadId: string;
+    /** The portal session the imported messages belong to. */
+    sessionId: string;
+    /** The contact Person these messages are associated with. */
+    contactId: string;
+    /** The insecure channel they came from (e.g. 'Email', 'SMS'). */
+    sourceChannel: string;
+    messages: PromotedMessageInput[];
+}
+
+export interface ImportMessagesResult {
+    /** IDs of the imported message rows, in input order. */
+    messageIds: string[];
 }
 
 /**
@@ -98,6 +120,17 @@ export interface MessageStore {
         input: CreateOutboundMessageInput,
         systemUser: UserInfo
     ): Promise<CreateMessageResult>;
+
+    /**
+     * Bulk-import prior insecure-channel messages into a secure thread during promotion
+     * (PRD §10.1). Each row is flagged imported + tagged with the source channel; original
+     * direction, sender, and timestamp are preserved so the imported history reads correctly.
+     * Does NOT fire the notifier (these are historical copies, not new live messages).
+     */
+    importMessages(
+        input: ImportMessagesInput,
+        systemUser: UserInfo
+    ): Promise<ImportMessagesResult>;
 }
 
 /* ─── Notifier registry (pluggable, no-op by default) ─── */

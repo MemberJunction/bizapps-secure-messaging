@@ -10,6 +10,8 @@ import {
     CreateMessageInput,
     CreateMessageResult,
     CreateOutboundMessageInput,
+    ImportMessagesInput,
+    ImportMessagesResult,
     notifyMessage,
 } from './MessageStore.js';
 
@@ -140,5 +142,47 @@ export class OwnedMessageStore implements MessageStore {
         });
 
         return { messageId: entity.ID };
+    }
+
+    async importMessages(
+        input: ImportMessagesInput,
+        systemUser: UserInfo
+    ): Promise<ImportMessagesResult> {
+        const md = new Metadata();
+        const messageIds: string[] = [];
+
+        // Copy each prior message verbatim into the secure thread, preserving direction / sender /
+        // timestamp and flagging it imported. No notifier fires — these are historical copies, not
+        // new live messages (PRD §10.1).
+        for (const msg of input.messages) {
+            const entity = await md.GetEntityObject<mjBizAppsSecureMessagingSecureMessageEntity>(
+                'MJ_BizApps_SecureMessaging: Secure Messages',
+                systemUser
+            );
+            entity.NewRecord();
+            entity.PortalSessionID = input.sessionId;
+            entity.ThreadID = input.threadId;
+            entity.PersonID = input.contactId;
+            entity.Direction = msg.direction;
+            entity.Sender = msg.sender;
+            entity.Recipient = msg.recipient ?? '';
+            entity.Content = msg.content;
+            entity.IsSecure = true;
+            entity.IsImported = true;
+            entity.SourceChannel = input.sourceChannel;
+            // Imported history starts already-read on the staff side; it is not new work.
+            entity.Status = 'Read';
+            entity.ReceivedAt = msg.receivedAt ? new Date(msg.receivedAt) : new Date();
+            if (msg.subject) {
+                entity.Subject = msg.subject;
+            }
+
+            if (!(await entity.Save())) {
+                throw new Error(entity.LatestResult?.CompleteMessage || 'Failed to import message');
+            }
+            messageIds.push(entity.ID);
+        }
+
+        return { messageIds };
     }
 }

@@ -915,6 +915,13 @@ export class mjBizAppsSecureMessagingSecureMessage_ {
     @Field(() => Boolean, {description: `When 1, this message is starred/flagged by staff for quick retrieval (shown under the Starred category). Per-message, staff-toggled.`}) 
     IsStarred: boolean;
         
+    @Field(() => Boolean, {description: `When 1, this message was imported (copied) into the secure thread during a promotion/bridge from an insecure channel, rather than originating natively in the secure channel. Imported messages predate the switch to secure.`}) 
+    IsImported: boolean;
+        
+    @Field({nullable: true, description: `For imported messages, the insecure channel the message originated from (e.g. Email, SMS). NULL for messages that originated natively in the secure channel.`}) 
+    @MaxLength(50)
+    SourceChannel?: string;
+        
     @Field(() => [mjBizAppsSecureMessagingMessageFile_])
     mjBizAppsSecureMessagingMJ_BizApps_SecureMessaging_MessageFiles_SecureMessageIDArray: mjBizAppsSecureMessagingMessageFile_[]; // Link to mjBizAppsSecureMessagingMJ_BizApps_SecureMessaging_MessageFiles
     
@@ -967,6 +974,12 @@ export class CreatemjBizAppsSecureMessagingSecureMessageInput {
     @Field(() => Boolean, { nullable: true })
     IsStarred?: boolean;
 
+    @Field(() => Boolean, { nullable: true })
+    IsImported?: boolean;
+
+    @Field({ nullable: true })
+    SourceChannel: string | null;
+
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
 }
@@ -1018,6 +1031,12 @@ export class UpdatemjBizAppsSecureMessagingSecureMessageInput {
 
     @Field(() => Boolean, { nullable: true })
     IsStarred?: boolean;
+
+    @Field(() => Boolean, { nullable: true })
+    IsImported?: boolean;
+
+    @Field({ nullable: true })
+    SourceChannel?: string | null;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];

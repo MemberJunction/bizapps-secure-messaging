@@ -280,5 +280,153 @@
       "lastModified": "2026-06-25T15:28:14.650Z",
       "checksum": "4accdefedf520fcbb507a8fd352ca71f238064162c3f35106e94cf2389345b45"
     }
+  },
+  {
+    "fields": {
+      "Name": "Promote Thread",
+      "Description": "Promotes an existing insecure (Email/SMS) thread into a secure thread: find-or-create the contact Person, mint thread + portal session + single-use magic link, then COPY the prior insecure messages into the secure thread (flagged IsImported, tagged with SourceChannel) so the contact sees the full history once authenticated. One-way visibility: imported messages live only on the secure side. Shared backbone of both channel bridges (Izzy action-diff 'switch to secure channel' and the Outlook 'Secure Send' add-in). Returns the magic-link token for out-of-band delivery (?ml=<token>).",
+      "Type": "Custom",
+      "DriverClass": "__PromoteThread",
+      "CategoryID": "@lookup:MJ: Action Categories.Name=Secure Messaging",
+      "Status": "Active",
+      "CodeApprovalStatus": "Approved"
+    },
+    "relatedEntities": {
+      "MJ: Action Params": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "ContactEmail",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsRequired": true,
+            "IsArray": false,
+            "Description": "The external contact's email. A matching Person is used, else one is created."
+          },
+          "primaryKey": {
+            "ID": "A13A2014-5A9F-4BB2-AC5F-8CCA31B6B390"
+          },
+          "sync": {
+            "lastModified": "2026-06-25T18:53:41.138Z",
+            "checksum": "641aef3bd75f90dcc5616078642ba6f1dff2b45c45bd35481cc231cb97f9a2be"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "SourceChannel",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsRequired": true,
+            "IsArray": false,
+            "Description": "The insecure channel the thread is being promoted from (e.g. 'Email', 'SMS'). Stored on each imported message as SourceChannel."
+          },
+          "primaryKey": {
+            "ID": "C2475E5C-9A0E-4543-A791-D29843AA8FAD"
+          },
+          "sync": {
+            "lastModified": "2026-06-25T18:53:41.162Z",
+            "checksum": "e875938fbaf906b2c8b09bb4ece2a8706f38b64f332f3ce0e1e13b06f33ab393"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "MessagesJSON",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsRequired": true,
+            "IsArray": false,
+            "Description": "JSON array of the prior messages to import, oldest-first. Each item: { direction: 'Inbound'|'Outbound', sender: string, recipient?: string, content: string, subject?: string, receivedAt?: string }."
+          },
+          "primaryKey": {
+            "ID": "3DE0F7CF-3320-432B-A64C-9D166B130594"
+          },
+          "sync": {
+            "lastModified": "2026-06-25T18:53:41.182Z",
+            "checksum": "02982f1931703ca41bddaa537a23ed0b1491b7354ae80c5234bd2cbff2549d18"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "ContactName",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsRequired": false,
+            "IsArray": false,
+            "Description": "Display name, used only when creating a new Person."
+          },
+          "primaryKey": {
+            "ID": "095D63BF-BCDB-42E0-85A1-84A66C8CD155"
+          },
+          "sync": {
+            "lastModified": "2026-06-25T18:53:41.200Z",
+            "checksum": "a2fb29874022c8806e945a3ab0ffbd66459b6ccfe95140f03ad1e137341141b1"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "ThreadID",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsRequired": false,
+            "IsArray": false,
+            "Description": "The new secure thread id."
+          },
+          "primaryKey": {
+            "ID": "E43F878F-B77D-4A6B-ABB4-B2B1F9DC0CED"
+          },
+          "sync": {
+            "lastModified": "2026-06-25T18:53:41.218Z",
+            "checksum": "646c966e2d18e8188f7b8c9de0279d0951160cbe7c5f9257be25dd9fcb6dcaa5"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "MagicLinkToken",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsRequired": false,
+            "IsArray": false,
+            "Description": "Single-use magic-link token; deliver to the contact as ?ml=<token>."
+          },
+          "primaryKey": {
+            "ID": "685DD5C8-49E2-462A-8DEE-39BDFFF9382C"
+          },
+          "sync": {
+            "lastModified": "2026-06-25T18:53:41.235Z",
+            "checksum": "0448a7e6bf7eb87a85628b9c664bb9be0cf18c16ceb95bbb8c586c4f9881a921"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "ImportedCount",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsRequired": false,
+            "IsArray": false,
+            "Description": "How many prior messages were imported into the secure thread."
+          },
+          "primaryKey": {
+            "ID": "B4D2E25D-263F-4FAD-82BD-4B3ED8FDAB40"
+          },
+          "sync": {
+            "lastModified": "2026-06-25T18:53:41.254Z",
+            "checksum": "6639c48fef9cad83565badbc40862af27afbc8b92c80a6a695037a1d63ced4ba"
+          }
+        }
+      ]
+    },
+    "primaryKey": {
+      "ID": "7FDA4426-08ED-4E06-806D-D1BDDEEB3B9C"
+    },
+    "sync": {
+      "lastModified": "2026-06-25T18:53:41.111Z",
+      "checksum": "900b740fa392de78d3ef23aa01da284aa0d1abbe5a6b4953de3999c2a33fede1"
+    }
   }
 ]

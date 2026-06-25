@@ -6,6 +6,7 @@ import { getThreadMessages, createThreadMessage } from './handlers/messages.js';
 import { getThreadAttachments, uploadAttachment, downloadAttachment } from './handlers/attachments.js';
 import { getFileRequests, createFileRequest, fulfillFileRequest } from './handlers/fileRequests.js';
 import { getSignatureRequests, createSignatureRequest, refreshSignatureStatus, voidSignatureRequest, downloadSignedDocument } from './handlers/signatures.js';
+import { promoteThread, captureRawBody } from './handlers/promote.js';
 import { MAX_FILE_BYTES } from '@mj-biz-apps/secure-messaging-core';
 
 /**
@@ -52,13 +53,20 @@ export function createSecureMessagingRouter(): Router {
     // CORS — widget is embedded on external sites
     router.use(corsMiddleware);
 
-    // JSON body parsing for all routes on this router
-    router.use(json());
+    // JSON body parsing for all routes on this router. The verify hook stashes the raw body so
+    // the /promote handler can HMAC-verify the exact bytes the caller signed (harmless elsewhere).
+    router.use(json({ verify: captureRawBody }));
 
     // --- Auth routes (public — no session token required) ---
     router.post('/auth/validate', validateToken);
     router.post('/auth/magic-link', requestMagicLink);
     router.post('/auth/magic-link/redeem', redeemMagicLink);
+
+    // --- Promote (server-to-server: Izzy / Outlook add-in backend) ---
+    // Self-guarded by an HMAC signing secret (NOT a portal token — promotion CREATES the contact
+    // session), so it sits on the public side, before portalAuthMiddleware. The router-wide json()
+    // above captured rawBody for the signature check.
+    router.post('/promote', promoteThread);
 
     // --- Protected routes (require valid portal session token) ---
     router.use(portalAuthMiddleware);

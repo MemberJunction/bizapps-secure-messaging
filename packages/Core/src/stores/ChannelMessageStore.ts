@@ -6,6 +6,8 @@ import {
     CreateMessageInput,
     CreateMessageResult,
     CreateOutboundMessageInput,
+    ImportMessagesInput,
+    ImportMessagesResult,
     notifyMessage,
 } from './MessageStore.js';
 
@@ -135,5 +137,44 @@ export class ChannelMessageStore implements MessageStore {
         });
 
         return { messageId: entity.Get('ID') as string };
+    }
+
+    async importMessages(
+        input: ImportMessagesInput,
+        systemUser: UserInfo
+    ): Promise<ImportMessagesResult> {
+        const md = new Metadata();
+        const messageIds: string[] = [];
+
+        // Copy each prior message into the channel-backed secure thread, preserving direction /
+        // sender / timestamp. Channel Messages is an external (Izzy) entity, so we use untyped
+        // .Set() here as elsewhere in this adapter. No notifier fires (historical copies).
+        for (const msg of input.messages) {
+            const entity = await md.GetEntityObject('Channel Messages', systemUser);
+            entity.NewRecord();
+            // Channel-backed promotion is the optional path (owned store is default). We group
+            // imported rows by the secure session id since this input carries no Izzy ChannelID.
+            entity.Set('ChannelID', input.sessionId);
+            entity.Set('ThreadID', input.threadId);
+            entity.Set('Sender', msg.sender);
+            entity.Set('Recipient', msg.recipient ?? '');
+            entity.Set('MessageContent', msg.content);
+            entity.Set('ReceivedAt', msg.receivedAt ?? new Date().toISOString());
+            entity.Set('IsSecure', true);
+            entity.Set('IsImported', true);
+            entity.Set('SourceChannel', input.sourceChannel);
+            entity.Set('PersonID', input.contactId);
+            entity.Set('MessageFormat', 'text');
+            if (msg.subject) {
+                entity.Set('Subject', msg.subject);
+            }
+
+            if (!(await entity.Save())) {
+                throw new Error(entity.LatestResult?.CompleteMessage || 'Failed to import message');
+            }
+            messageIds.push(entity.Get('ID') as string);
+        }
+
+        return { messageIds };
     }
 }

@@ -537,15 +537,41 @@ button + the REST call to the promote/import endpoint. It ships as its **own dow
 (like the Element widget is separate), not inside the core 6 packages. Gmail (Workspace Add-on,
 CardService) is the symmetric second target once Outlook proves the pattern.
 
-### 10.3 Build order
+### 10.3 The `PromoteThread` backbone (built)
 
-1. **Backbone first:** the `PromoteThread` import/promote operation (Core service + Action + REST
-   endpoint) + the imported-message provenance flag + first-click registration. App-side, no add-in
-   dependency — unblocks *both* bridges and is testable in isolation.
+The shared promote/import backbone is implemented across all four layers:
+
+- **Migration** — `SecureMessage.IsImported` (BIT) + `SourceChannel` (NVARCHAR) provenance columns.
+- **Core** — `PortalAuthService.promoteThread()` provisions the contact + secure thread + session +
+  magic link (reusing `startSecureThread`); `MessageStore.importMessages()` bulk-copies the prior
+  messages (typed in `OwnedMessageStore`: `IsImported=true`, `SourceChannel`, preserved
+  direction/sender/timestamp, `Status='Read'`, **no notifier** — historical copies).
+- **Action** — `Promote Thread` (`__PromoteThread`), the GraphQL `RunAction` surface for Izzy/MCP
+  (PRD §8 OrganizationAction). Takes `ContactEmail`, `SourceChannel`, `MessagesJSON`, `ContactName?`;
+  returns `ThreadID`, `MagicLinkToken`, `ImportedCount`.
+- **REST** — `POST /secure-messaging/api/v1/promote` for the server-to-server callers (Izzy / the
+  Outlook add-in backend), authed the **MJ-Slack way**:
+  - **HMAC-SHA256 signing secret** (`SECURE_MESSAGING_PROMOTE_SECRET`), verified over
+    `v0:${timestamp}:${rawBody}` in `x-sm-signature` with a 5-minute replay window + timing-safe
+    compare — mirroring MJ's `verifySlackSignature`. Empty secret ⇒ route returns **503** (no
+    insecure default). It sits on the **public** side of the router (before the portal-token
+    middleware) because promotion *creates* the contact session.
+  - **Run-as identity** by `initiatedByEmail` → `UserCache` → real MJ user, falling back to the
+    system user — mirroring MJ messaging-adapters' `resolveContextUser`, so imported/seed messages
+    attribute to the actual staff member.
+
+> Researched MJ Core's Slack/Teams messaging adapters
+> (`packages/MessagingAdapters`) to adopt the blessed inbound-integration pattern rather than
+> invent one: signature-verify → email→user resolution → do the work.
+
+### 10.4 Remaining build order
+
+1. ✅ **Backbone** — `PromoteThread` (Core + Action + REST) + provenance flag. **Done** (§10.3).
 2. **Wire a notifier** (§9 item 6) so the email-nudge receive path works for staff and contacts.
-3. **Outlook Office Add-in** (separate package) — the "Secure Send" button → promote endpoint +
+3. **First-click contact registration** (§9 item 7) on magic-link redemption.
+4. **Outlook Office Add-in** (separate package) — the "Secure Send" button → promote endpoint +
    block-native-send.
-4. **Later:** Gmail Add-on; native-mailbox folder/label write-back sync.
+5. **Later:** Gmail Add-on; native-mailbox folder/label write-back sync.
 
 ## 11. Engineering standards (established this session)
 

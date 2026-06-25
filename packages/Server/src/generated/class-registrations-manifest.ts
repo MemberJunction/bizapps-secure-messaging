@@ -11,9 +11,10 @@
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-// @mj-biz-apps/secure-messaging-actions (3 classes)
+// @mj-biz-apps/secure-messaging-actions (4 classes)
 import {
     IssuePortalMagicLinkAction,
+    PromoteThreadAction,
     SendSecureMessageAction,
     StartSecureThreadAction,
 } from '@mj-biz-apps/secure-messaging-actions';
@@ -34,6 +35,7 @@ import {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const CLASS_REGISTRATIONS: any[] = [
     IssuePortalMagicLinkAction,
+    PromoteThreadAction,
     SendSecureMessageAction,
     StartSecureThreadAction,
     mjBizAppsSecureMessagingFileRequestEntity,
@@ -47,7 +49,7 @@ export const CLASS_REGISTRATIONS: any[] = [
 export const CLASS_REGISTRATIONS_MANIFEST_LOADED = true;
 
 /** Total @RegisterClass decorated classes discovered in dependency tree */
-export const CLASS_REGISTRATIONS_COUNT = 8;
+export const CLASS_REGISTRATIONS_COUNT = 9;
 
 /** Packages imported by this manifest */
 export const CLASS_REGISTRATIONS_PACKAGES = [

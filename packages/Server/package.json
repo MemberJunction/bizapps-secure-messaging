@@ -35,6 +35,7 @@
     "@memberjunction/global": "^5.40.2",
     "@memberjunction/communication-types": "^5.40.2",
     "@memberjunction/server": "^5.40.2",
+    "@memberjunction/sqlserver-dataprovider": "^5.40.2",
     "@memberjunction/storage": "^5.40.2",
     "@memberjunction/actions": "^5.40.2",
     "@memberjunction/actions-base": "^5.40.2",

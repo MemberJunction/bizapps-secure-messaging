@@ -17,16 +17,28 @@ export interface SecureMessagingConfig {
      * - 'channel' — mirror into the 'Channel Messages' entity (requires that entity to exist)
      */
     messageBackend: MessageBackend;
+
+    /**
+     * Shared signing secret for the server-to-server **promote** endpoint (PRD §10). When set,
+     * inbound promote calls (Izzy / the Outlook add-in backend) must present a valid
+     * HMAC-SHA256 signature over `${timestamp}:${rawBody}` in the `x-sm-signature` header
+     * (mirroring MJ's Slack signing-secret pattern). When empty, the promote REST route is
+     * **disabled** (returns 503) — promotion is then only reachable via the authenticated
+     * GraphQL RunAction surface. There is no insecure default.
+     */
+    promoteSecret: string;
 }
 
 /**
  * Reads config from environment variables with app-agnostic defaults.
  *   SECURE_MESSAGING_MESSAGE_BACKEND = 'owned' | 'channel'  (default 'owned')
+ *   SECURE_MESSAGING_PROMOTE_SECRET  = <shared signing secret>  (default '' → promote REST disabled)
  */
 export function loadSecureMessagingConfig(): SecureMessagingConfig {
     const backend = (process.env.SECURE_MESSAGING_MESSAGE_BACKEND || '').toLowerCase();
     return {
         messageBackend: backend === 'channel' ? 'channel' : 'owned',
+        promoteSecret: process.env.SECURE_MESSAGING_PROMOTE_SECRET || '',
     };
 }
 

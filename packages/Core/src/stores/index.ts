@@ -9,6 +9,8 @@ export type {
     CreateMessageInput,
     CreateMessageResult,
     CreateOutboundMessageInput,
+    ImportMessagesInput,
+    ImportMessagesResult,
     MessageNotifier,
     MessageNotification,
 } from './MessageStore.js';

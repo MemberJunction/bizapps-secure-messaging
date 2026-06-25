@@ -350,6 +350,17 @@ export const mjBizAppsSecureMessagingSecureMessageSchema = z.object({
         * * SQL Data Type: bit
         * * Default Value: 0
         * * Description: When 1, this message is starred/flagged by staff for quick retrieval (shown under the Starred category). Per-message, staff-toggled.`),
+    IsImported: z.boolean().describe(`
+        * * Field Name: IsImported
+        * * Display Name: Is Imported
+        * * SQL Data Type: bit
+        * * Default Value: 0
+        * * Description: When 1, this message was imported (copied) into the secure thread during a promotion/bridge from an insecure channel, rather than originating natively in the secure channel. Imported messages predate the switch to secure.`),
+    SourceChannel: z.string().nullable().describe(`
+        * * Field Name: SourceChannel
+        * * Display Name: Source Channel
+        * * SQL Data Type: nvarchar(50)
+        * * Description: For imported messages, the insecure channel the message originated from (e.g. Email, SMS). NULL for messages that originated natively in the secure channel.`),
 });
 
 export type mjBizAppsSecureMessagingSecureMessageEntityType = z.infer<typeof mjBizAppsSecureMessagingSecureMessageSchema>;
@@ -1300,5 +1311,32 @@ export class mjBizAppsSecureMessagingSecureMessageEntity extends BaseEntity<mjBi
     }
     set IsStarred(value: boolean) {
         this.Set('IsStarred', value);
+    }
+
+    /**
+    * * Field Name: IsImported
+    * * Display Name: Is Imported
+    * * SQL Data Type: bit
+    * * Default Value: 0
+    * * Description: When 1, this message was imported (copied) into the secure thread during a promotion/bridge from an insecure channel, rather than originating natively in the secure channel. Imported messages predate the switch to secure.
+    */
+    get IsImported(): boolean {
+        return this.Get('IsImported');
+    }
+    set IsImported(value: boolean) {
+        this.Set('IsImported', value);
+    }
+
+    /**
+    * * Field Name: SourceChannel
+    * * Display Name: Source Channel
+    * * SQL Data Type: nvarchar(50)
+    * * Description: For imported messages, the insecure channel the message originated from (e.g. Email, SMS). NULL for messages that originated natively in the secure channel.
+    */
+    get SourceChannel(): string | null {
+        return this.Get('SourceChannel');
+    }
+    set SourceChannel(value: string | null) {
+        this.Set('SourceChannel', value);
     }
 }

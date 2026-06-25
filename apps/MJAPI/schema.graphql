@@ -5436,6 +5436,7 @@ input CreatemjBizAppsSecureMessagingSecureMessageInput {
   Direction: String
   ExternalMessageID: String
   ID: String
+  IsImported: Boolean
   IsSecure: Boolean
   IsStarred: Boolean
   PersonID: String
@@ -5444,6 +5445,7 @@ input CreatemjBizAppsSecureMessagingSecureMessageInput {
   Recipient: String
   RestoreContext___: RestoreContextInput
   Sender: String
+  SourceChannel: String
   Status: String
   Subject: String
   ThreadID: String
@@ -33947,6 +33949,7 @@ input UpdatemjBizAppsSecureMessagingSecureMessageInput {
   Direction: String
   ExternalMessageID: String
   ID: String!
+  IsImported: Boolean
   IsSecure: Boolean
   IsStarred: Boolean
   OldValues___: [KeyValuePairInput!]
@@ -33956,6 +33959,7 @@ input UpdatemjBizAppsSecureMessagingSecureMessageInput {
   Recipient: String
   RestoreContext___: RestoreContextInput
   Sender: String
+  SourceChannel: String
   Status: String
   Subject: String
   ThreadID: String
@@ -34138,6 +34142,11 @@ type mjBizAppsSecureMessagingSecureMessage_ {
   """
   ExternalMessageID: String
   ID: String!
+
+  """
+  When 1, this message was imported (copied) into the secure thread during a promotion/bridge from an insecure channel, rather than originating natively in the secure channel. Imported messages predate the switch to secure.
+  """
+  IsImported: Boolean!
   IsSecure: Boolean!
 
   """
@@ -34153,6 +34162,11 @@ type mjBizAppsSecureMessagingSecureMessage_ {
   ReceivedAt: Timestamp!
   Recipient: String!
   Sender: String!
+
+  """
+  For imported messages, the insecure channel the message originated from (e.g. Email, SMS). NULL for messages that originated natively in the secure channel.
+  """
+  SourceChannel: String
   Status: String!
   Subject: String
   ThreadID: String!

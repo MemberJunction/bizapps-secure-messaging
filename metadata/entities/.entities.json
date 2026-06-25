@@ -33,7 +33,7 @@
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_SecureMessaging: Portal Magic Links"
     },
     "sync": {
-      "lastModified": "2026-06-24T20:44:22.399Z",
+      "lastModified": "2026-06-25T18:53:40.833Z",
       "checksum": "fa763b3d6e75b0e52824d248a90714bd04cbbc2d6da28ae9225ec9813542f5f7"
     }
   },
@@ -86,7 +86,7 @@
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_SecureMessaging: File Requests"
     },
     "sync": {
-      "lastModified": "2026-06-24T20:44:22.448Z",
+      "lastModified": "2026-06-25T18:53:40.855Z",
       "checksum": "a220a3e59fc5221f5b7d9186aa1920423408b984c4087e6690f5101cb6ae898e"
     }
   }
