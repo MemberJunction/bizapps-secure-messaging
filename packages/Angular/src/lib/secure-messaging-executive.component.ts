@@ -6,7 +6,7 @@ import { MJAuthBase } from '@memberjunction/ng-auth-services';
 import { GraphQLDataProvider, GraphQLFileStorageClient, GraphQLActionClient } from '@memberjunction/graphql-dataprovider';
 import { ActionResult, ActionParam } from '@memberjunction/actions-base';
 import { mjBizAppsCommonPersonEntity } from '@mj-biz-apps/common-entities';
-import { mjBizAppsSecureMessagingSecureMessageEntity } from '@mj-biz-apps/secure-messaging-entities';
+import { mjBizAppsSecureMessagingSecureMessageEntity, mjBizAppsSecureMessagingPortalSessionEntity } from '@mj-biz-apps/secure-messaging-entities';
 import { ContactSelection } from './secure-messaging.contracts';
 
 /* ─── Interfaces ─── */
@@ -256,8 +256,8 @@ interface WorkspaceNavItem {
             <button class="detail-action-btn" title="Send for signature" (click)="openSendForSignature()">
               <i class="fa-solid fa-file-signature"></i>
             </button>
-            <button class="detail-action-btn" title="Archive" (click)="onArchive()">
-              <i class="fa-solid fa-box-archive"></i>
+            <button class="detail-action-btn" [title]="isSelectedArchived ? 'Unarchive' : 'Archive'" (click)="onArchive()">
+              <i class="fa-solid" [class.fa-box-archive]="!isSelectedArchived" [class.fa-box-open]="isSelectedArchived"></i>
             </button>
             <button class="detail-action-btn" title="Star" (click)="toggleStar(selectedMessage, $event)">
               <i [class.fa-solid]="selectedMessage.isStarred" [class.fa-regular]="!selectedMessage.isStarred" class="fa-star"></i>
@@ -1667,6 +1667,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
   categoryNavItems: SecureMessageNavItem[] = [
     { id: 'escalated', label: 'Escalated', icon: 'fa-solid fa-triangle-exclamation' },
     { id: 'documents', label: 'Documents', icon: 'fa-solid fa-folder' },
+    { id: 'archived', label: 'Archived', icon: 'fa-solid fa-box-archive' },
     { id: 'notifications', label: 'Notifications', icon: 'fa-solid fa-bell' }
   ];
 
@@ -1932,9 +1933,16 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
    * - drafts: unsent drafts (none in the owned store yet — empty by design)
    * - escalated: messages whose status badge flags review (Failed)
    * - documents: threads that have a file request or an attachment
+   * - archived: messages whose thread is archived
    * - notifications: system messages (none in the owned store yet — empty by design)
+   *
+   * Archived threads are hidden from every category EXCEPT 'archived'.
    */
   private matchesNavCategory(m: SecureMessageItem): boolean {
+    const archived = !!m.threadId && this.archivedThreadIds.has(m.threadId);
+    if (this.activeNav === 'archived') return archived;
+    if (archived) return false;
+
     switch (this.activeNav) {
       case 'inbox':
         return m.direction === 'Inbound';
@@ -1957,6 +1965,8 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
 
   /** Thread IDs that have at least one file request — drives the Documents nav category. */
   private fileRequestThreadIds = new Set<string>();
+  /** Thread IDs whose conversation is archived — hidden from the inbox, shown under Archived. */
+  private archivedThreadIds = new Set<string>();
 
   /* ─── Message selection ─── */
 
@@ -2058,8 +2068,53 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
 
   onReply(): void { /* Phase 2 */ }
   onForward(): void { /* Phase 2 */ }
-  onArchive(): void { /* Phase 2 */ }
   onDelete(): void { /* Phase 2 */ }
+
+  /** Whether the currently-selected message's thread is archived (drives the Archive/Unarchive toggle). */
+  get isSelectedArchived(): boolean {
+    return !!this.selectedMessage?.threadId && this.archivedThreadIds.has(this.selectedMessage.threadId);
+  }
+
+  /**
+   * Archive (or unarchive) the selected message's conversation. Archiving is a thread-level
+   * flag on the PortalSession — a simple status toggle on a record staff owns, so it's done
+   * via the typed entity directly (no Action needed; Izzy doesn't archive). The thread then
+   * drops out of the inbox and appears under the Archived category.
+   */
+  async onArchive(): Promise<void> {
+    const threadId = this.selectedMessage?.threadId;
+    if (!threadId) return;
+    const archiving = !this.archivedThreadIds.has(threadId);
+    try {
+      const rv = new RunView();
+      const res = await rv.RunView<mjBizAppsSecureMessagingPortalSessionEntity>({
+        EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
+        ExtraFilter: `ThreadID = '${threadId.replace(/'/g, "''")}'`,
+        MaxRows: 1,
+        ResultType: 'entity_object',
+      });
+      const session = res.Success ? res.Results?.[0] : undefined;
+      if (!session) return;
+
+      session.IsArchived = archiving;
+      if (!(await session.Save())) {
+        console.error('Failed to archive thread:', session.LatestResult?.CompleteMessage);
+        return;
+      }
+
+      if (archiving) this.archivedThreadIds.add(threadId);
+      else this.archivedThreadIds.delete(threadId);
+
+      // The archived thread leaves the current (non-archived) view; clear the detail pane.
+      this.selectedMessage = null;
+      this.threadMessages = [];
+      this.updateInboxCount();
+      this.applyFilter();
+      this.cdr.detectChanges();
+    } catch (e) {
+      console.error('Archive failed', e);
+    }
+  }
 
   /**
    * Send a staff reply into the selected thread. Invokes the server-side 'Send Secure Message'
@@ -2277,6 +2332,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
     setCount(this.primaryNavItems, 'inbox', this.messages.filter(m => m.direction === 'Inbound' && !m.isRead).length);
     setCount(this.primaryNavItems, 'sent', this.messages.filter(m => m.direction === 'Outbound').length);
     setCount(this.categoryNavItems, 'documents', this.fileRequestThreadIds.size);
+    setCount(this.categoryNavItems, 'archived', this.archivedThreadIds.size);
     setCount(this.categoryNavItems, 'escalated', this.messages.filter(m => m.statusBadge?.type === 'escalated').length);
   }
 
@@ -2295,6 +2351,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
         this.messages = result.Results.map(r => this.mapToMessageItem(r as Record<string, unknown>));
         await this.resolvePersonNames();
         await this.loadFileRequestThreads();
+        await this.loadArchivedThreads();
         this.buildWorkspaces();
         this.updateInboxCount();
       }
@@ -2330,6 +2387,28 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
       }
     } catch (e) {
       console.error('Failed to load file requests for Documents nav', e);
+    }
+  }
+
+  /** Load the set of thread IDs whose conversation is archived (drives the Archived nav + filtering). */
+  private async loadArchivedThreads(): Promise<void> {
+    this.archivedThreadIds = new Set<string>();
+    try {
+      const rv = new RunView();
+      const result = await rv.RunView({
+        EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
+        ExtraFilter: 'IsArchived = 1',
+        MaxRows: 1000,
+        ResultType: 'simple',
+      });
+      if (result.Success && result.Results) {
+        for (const r of result.Results) {
+          const tid = (r as Record<string, unknown>)['ThreadID'] as string;
+          if (tid) this.archivedThreadIds.add(tid);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load archived threads', e);
     }
   }
 

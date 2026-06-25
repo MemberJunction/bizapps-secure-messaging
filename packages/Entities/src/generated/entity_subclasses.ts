@@ -242,6 +242,12 @@ export const mjBizAppsSecureMessagingPortalSessionSchema = z.object({
         * * Display Name: Updated At
         * * SQL Data Type: datetimeoffset
         * * Default Value: getutcdate()`),
+    IsArchived: z.boolean().describe(`
+        * * Field Name: IsArchived
+        * * Display Name: Is Archived
+        * * SQL Data Type: bit
+        * * Default Value: 0
+        * * Description: When 1, this conversation (thread) is archived: hidden from the staff inbox default view and shown under the Archived category. Staff-toggled; does not affect contact access.`),
 });
 
 export type mjBizAppsSecureMessagingPortalSessionEntityType = z.infer<typeof mjBizAppsSecureMessagingPortalSessionSchema>;
@@ -366,6 +372,18 @@ export class mjBizAppsSecureMessagingFileRequestEntity extends BaseEntity<mjBizA
         const compositeKey: CompositeKey = new CompositeKey();
         compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
         return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * MJ_BizApps_SecureMessaging: File Requests - AllowDeleteAPI is set to 0 in the database.  Delete is not allowed, so this method is generated to override the base class method and throw an error. To enable delete for this entity, set AllowDeleteAPI to 1 in the database.
+    * @public
+    * @method
+    * @override
+    * @memberof mjBizAppsSecureMessagingFileRequestEntity
+    * @throws {Error} - Delete is not allowed for MJ_BizApps_SecureMessaging: File Requests, to enable it set AllowDeleteAPI to 1 in the database.
+    */
+    public override async Delete(): Promise<boolean> {
+        throw new Error('Delete is not allowed for MJ_BizApps_SecureMessaging: File Requests, to enable it set AllowDeleteAPI to 1 in the database.');
     }
 
     /**
@@ -702,6 +720,18 @@ export class mjBizAppsSecureMessagingPortalMagicLinkEntity extends BaseEntity<mj
     }
 
     /**
+    * MJ_BizApps_SecureMessaging: Portal Magic Links - AllowDeleteAPI is set to 0 in the database.  Delete is not allowed, so this method is generated to override the base class method and throw an error. To enable delete for this entity, set AllowDeleteAPI to 1 in the database.
+    * @public
+    * @method
+    * @override
+    * @memberof mjBizAppsSecureMessagingPortalMagicLinkEntity
+    * @throws {Error} - Delete is not allowed for MJ_BizApps_SecureMessaging: Portal Magic Links, to enable it set AllowDeleteAPI to 1 in the database.
+    */
+    public override async Delete(): Promise<boolean> {
+        throw new Error('Delete is not allowed for MJ_BizApps_SecureMessaging: Portal Magic Links, to enable it set AllowDeleteAPI to 1 in the database.');
+    }
+
+    /**
     * * Field Name: ID
     * * Display Name: ID
     * * SQL Data Type: uniqueidentifier
@@ -838,6 +868,18 @@ export class mjBizAppsSecureMessagingPortalSessionEntity extends BaseEntity<mjBi
     }
 
     /**
+    * MJ_BizApps_SecureMessaging: Portal Sessions - AllowDeleteAPI is set to 0 in the database.  Delete is not allowed, so this method is generated to override the base class method and throw an error. To enable delete for this entity, set AllowDeleteAPI to 1 in the database.
+    * @public
+    * @method
+    * @override
+    * @memberof mjBizAppsSecureMessagingPortalSessionEntity
+    * @throws {Error} - Delete is not allowed for MJ_BizApps_SecureMessaging: Portal Sessions, to enable it set AllowDeleteAPI to 1 in the database.
+    */
+    public override async Delete(): Promise<boolean> {
+        throw new Error('Delete is not allowed for MJ_BizApps_SecureMessaging: Portal Sessions, to enable it set AllowDeleteAPI to 1 in the database.');
+    }
+
+    /**
     * * Field Name: ID
     * * Display Name: ID
     * * SQL Data Type: uniqueidentifier
@@ -965,6 +1007,20 @@ export class mjBizAppsSecureMessagingPortalSessionEntity extends BaseEntity<mjBi
     get __mj_UpdatedAt(): Date {
         return this.Get('__mj_UpdatedAt');
     }
+
+    /**
+    * * Field Name: IsArchived
+    * * Display Name: Is Archived
+    * * SQL Data Type: bit
+    * * Default Value: 0
+    * * Description: When 1, this conversation (thread) is archived: hidden from the staff inbox default view and shown under the Archived category. Staff-toggled; does not affect contact access.
+    */
+    get IsArchived(): boolean {
+        return this.Get('IsArchived');
+    }
+    set IsArchived(value: boolean) {
+        this.Set('IsArchived', value);
+    }
 }
 
 
@@ -996,6 +1052,18 @@ export class mjBizAppsSecureMessagingSecureMessageEntity extends BaseEntity<mjBi
         const compositeKey: CompositeKey = new CompositeKey();
         compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
         return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * MJ_BizApps_SecureMessaging: Secure Messages - AllowDeleteAPI is set to 0 in the database.  Delete is not allowed, so this method is generated to override the base class method and throw an error. To enable delete for this entity, set AllowDeleteAPI to 1 in the database.
+    * @public
+    * @method
+    * @override
+    * @memberof mjBizAppsSecureMessagingSecureMessageEntity
+    * @throws {Error} - Delete is not allowed for MJ_BizApps_SecureMessaging: Secure Messages, to enable it set AllowDeleteAPI to 1 in the database.
+    */
+    public override async Delete(): Promise<boolean> {
+        throw new Error('Delete is not allowed for MJ_BizApps_SecureMessaging: Secure Messages, to enable it set AllowDeleteAPI to 1 in the database.');
     }
 
     /**

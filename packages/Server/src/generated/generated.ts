@@ -219,13 +219,6 @@ export class mjBizAppsSecureMessagingFileRequestResolver extends ResolverBase {
         return this.UpdateRecord('MJ_BizApps_SecureMessaging: File Requests', input, provider, userPayload, pubSub);
     }
     
-    @Mutation(() => mjBizAppsSecureMessagingFileRequest_)
-    async DeletemjBizAppsSecureMessagingFileRequest(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadWriteProvider(providers);
-        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
-        return this.DeleteRecord('MJ_BizApps_SecureMessaging: File Requests', key, options, provider, userPayload, pubSub);
-    }
-    
 }
 
 //****************************************************************************
@@ -608,13 +601,6 @@ export class mjBizAppsSecureMessagingPortalMagicLinkResolver extends ResolverBas
         return this.UpdateRecord('MJ_BizApps_SecureMessaging: Portal Magic Links', input, provider, userPayload, pubSub);
     }
     
-    @Mutation(() => mjBizAppsSecureMessagingPortalMagicLink_)
-    async DeletemjBizAppsSecureMessagingPortalMagicLink(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadWriteProvider(providers);
-        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
-        return this.DeleteRecord('MJ_BizApps_SecureMessaging: Portal Magic Links', key, options, provider, userPayload, pubSub);
-    }
-    
 }
 
 //****************************************************************************
@@ -658,6 +644,9 @@ export class mjBizAppsSecureMessagingPortalSession_ {
     @Field() 
     _mj__UpdatedAt: Date;
         
+    @Field(() => Boolean, {description: `When 1, this conversation (thread) is archived: hidden from the staff inbox default view and shown under the Archived category. Staff-toggled; does not affect contact access.`}) 
+    IsArchived: boolean;
+        
     @Field(() => [mjBizAppsSecureMessagingPortalMagicLink_])
     mjBizAppsSecureMessagingMJ_BizApps_SecureMessaging_PortalMagicLinks_PortalSessionIDArray: mjBizAppsSecureMessagingPortalMagicLink_[]; // Link to mjBizAppsSecureMessagingMJ_BizApps_SecureMessaging_PortalMagicLinks
     
@@ -698,6 +687,9 @@ export class CreatemjBizAppsSecureMessagingPortalSessionInput {
     @Field({ nullable: true })
     LastAccessedAt?: Date;
 
+    @Field(() => Boolean, { nullable: true })
+    IsArchived?: boolean;
+
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
 }
@@ -731,6 +723,9 @@ export class UpdatemjBizAppsSecureMessagingPortalSessionInput {
 
     @Field({ nullable: true })
     LastAccessedAt?: Date;
+
+    @Field(() => Boolean, { nullable: true })
+    IsArchived?: boolean;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];
@@ -844,13 +839,6 @@ export class mjBizAppsSecureMessagingPortalSessionResolver extends ResolverBase 
     ) {
         const provider = GetReadWriteProvider(providers);
         return this.UpdateRecord('MJ_BizApps_SecureMessaging: Portal Sessions', input, provider, userPayload, pubSub);
-    }
-    
-    @Mutation(() => mjBizAppsSecureMessagingPortalSession_)
-    async DeletemjBizAppsSecureMessagingPortalSession(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadWriteProvider(providers);
-        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
-        return this.DeleteRecord('MJ_BizApps_SecureMessaging: Portal Sessions', key, options, provider, userPayload, pubSub);
     }
     
 }
@@ -1105,13 +1093,6 @@ export class mjBizAppsSecureMessagingSecureMessageResolver extends ResolverBase 
     ) {
         const provider = GetReadWriteProvider(providers);
         return this.UpdateRecord('MJ_BizApps_SecureMessaging: Secure Messages', input, provider, userPayload, pubSub);
-    }
-    
-    @Mutation(() => mjBizAppsSecureMessagingSecureMessage_)
-    async DeletemjBizAppsSecureMessagingSecureMessage(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadWriteProvider(providers);
-        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
-        return this.DeleteRecord('MJ_BizApps_SecureMessaging: Secure Messages', key, options, provider, userPayload, pubSub);
     }
     
 }
