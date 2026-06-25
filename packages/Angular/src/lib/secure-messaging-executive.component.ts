@@ -83,7 +83,7 @@ interface WorkspaceNavItem {
       } @else if (avatarIconClass) {
         <div class="profile-avatar"><i [class]="avatarIconClass"></i></div>
       } @else {
-        <div class="profile-avatar">{{ getInitials(userName) }}</div>
+        <div class="profile-avatar">{{ userInitials }}</div>
       }
       <div class="profile-info">
         <div class="profile-name">{{ userName }}</div>
@@ -232,7 +232,7 @@ interface WorkspaceNavItem {
     @if (selectedMessage) {
       <div class="detail-header">
         <div class="detail-header-top">
-          <div class="detail-avatar">{{ getInitials(selectedMessage.senderName) }}</div>
+          <div class="detail-avatar">{{ selectedInitials }}</div>
           <div class="detail-header-info">
             <div class="detail-subject">{{ selectedMessage.senderName }}</div>
             <div class="detail-from">
@@ -1669,6 +1669,10 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
   /* ─── Staff user — the signed-in MJ user (resolved from the metadata provider + auth). ─── */
   userName = '';
   userEmail = '';
+  /** Precomputed avatar initials, set when userName/selectedMessage are assigned so the template
+   * binds a stable value (avoids NG0100 when they resolve async). */
+  userInitials = '?';
+  selectedInitials = '?';
   /** Profile picture (cached UserImageURL, else auth-provider photo); empty falls back to icon/initials. */
   avatarUrl = '';
   /** Font Awesome class from the user record (UserImageIconClass); used when there's no image. */
@@ -1732,6 +1736,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
     const user = Metadata.Provider?.CurrentUser;
     if (!user) return;
     this.userName = user.FirstLast || user.Name || user.Email || '';
+    this.userInitials = this.computeInitials(this.userName);
     this.userEmail = user.Email || '';
     void this.loadAvatar(user.ID);
   }
@@ -1834,9 +1839,18 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
     }
   }
 
-  /** Best-effort portal base URL for the magic link (host overrides via window config if present). */
+  /**
+   * Base URL of the contact-facing WIDGET (a separate app, served at its own origin root — NOT a
+   * sub-path of the staff app). Magic links are built as `${base}/?ml=<token>`. Resolution order:
+   *   1. PortalBaseUrl @Input (host wires it explicitly), else
+   *   2. window.__SECURE_MESSAGING_PORTAL_URL__ global (host config, no code change), else
+   *   3. dev default — the widget dev server on :4400.
+   * Trailing slashes are trimmed so the link never doubles `//`.
+   */
   private portalBaseUrl(): string {
-    return this.PortalBaseUrl || `${window.location.origin}/secure-messaging`;
+    const w = window as unknown as { __SECURE_MESSAGING_PORTAL_URL__?: string };
+    const base = this.PortalBaseUrl || w.__SECURE_MESSAGING_PORTAL_URL__ || 'http://localhost:4400';
+    return base.replace(/\/+$/, '');
   }
 
   /* ─── Search & Sort ─── */
@@ -1970,6 +1984,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
 
   selectMessage(message: SecureMessageItem): void {
     this.selectedMessage = message;
+    this.selectedInitials = this.computeInitials(message?.senderName || '');
     if (!message.isRead) {
       message.isRead = true;
       this.updateInboxCount();
@@ -2334,13 +2349,12 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
 
   /* ─── Helpers ─── */
 
-  getInitials(name: string): string {
-    return name
-      .split(' ')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
+  /** Null-safe initials. Private — callers bind precomputed properties (userInitials /
+   * selectedInitials) so the template never recomputes mid-CD (avoids NG0100). */
+  private computeInitials(name: string): string {
+    const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '?';
+    return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
   }
 
   formatTime(date: Date): string {

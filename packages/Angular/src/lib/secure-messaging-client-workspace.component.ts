@@ -2,6 +2,7 @@ import { Component, OnInit, Input, Output, EventEmitter, ChangeDetectorRef } fro
 import { Metadata, RunView } from '@memberjunction/core';
 import { MJFileEntity } from '@memberjunction/core-entities';
 import { GraphQLDataProvider, GraphQLFileStorageClient, GraphQLActionClient } from '@memberjunction/graphql-dataprovider';
+import { ActionResult, ActionParam } from '@memberjunction/actions-base';
 import { mjBizAppsCommonPersonEntity } from '@mj-biz-apps/common-entities';
 import { mjBizAppsSecureMessagingPortalSessionEntity } from '@mj-biz-apps/secure-messaging-entities';
 import { OpenThreadRequest, WorkspaceActionRequest } from './secure-messaging.contracts';
@@ -83,7 +84,7 @@ const ADV_PREF_KEY = 'sm.workspace.advanced';
       <button class="ch-back" (click)="back()" title="Back to inbox">
         <i class="fa-solid fa-arrow-left"></i>
       </button>
-      <div class="avatar">{{ getInitials(contactName) }}</div>
+      <div class="avatar">{{ initials }}</div>
       <div class="ch-id">
         <div class="ch-name">{{ contactName || 'Contact' }}</div>
         <div class="ch-meta">
@@ -178,6 +179,13 @@ const ADV_PREF_KEY = 'sm.workspace.advanced';
               <button class="btn btn-secondary btn-sm" [disabled]="!session.id || sessionBusy" (click)="sendNewLink()"><i class="fa-solid fa-wand-magic-sparkles"></i> Send new link</button>
               <button class="btn btn-sm btn-danger" [disabled]="!session.id || session.status === 'Revoked' || sessionBusy" (click)="revoke()"><i class="fa-solid fa-ban"></i> Revoke</button>
             </div>
+            @if (newLink) {
+              <div class="sec-link-row">
+                <input class="sec-link" type="text" [value]="newLink" readonly (focus)="$any($event.target).select()">
+                <button class="btn btn-secondary btn-sm" (click)="copyNewLink()"><i class="fa-solid fa-copy"></i> Copy</button>
+              </div>
+              <p class="sec-link-hint">Send this single-use link to the contact. It re-activates their secure session.</p>
+            }
           </div>
           <div class="panel">
             <div class="panel-head"><i class="fa-solid fa-certificate ok-i"></i><h3>Compliance</h3></div>
@@ -351,6 +359,9 @@ const ADV_PREF_KEY = 'sm.workspace.advanced';
 .sec-key { font-family:ui-monospace,Consolas,monospace; font-size:11px; background:var(--mj-bg-surface-sunken); padding:2px 7px; border-radius:4px; color:var(--mj-text-secondary); }
 .sec-actions { display:flex; gap:8px; padding:14px 18px; }
 .btn-danger { background:var(--mj-status-error-bg); color:var(--mj-status-error-text); border:1px solid var(--mj-status-error-border); }
+.sec-link-row { display:flex; gap:8px; padding:0 18px 6px; }
+.sec-link { flex:1; min-width:0; font-family:monospace; font-size:12px; padding:7px 10px; border:1px solid var(--mj-border-default); border-radius:6px; background:var(--mj-bg-surface-sunken); color:var(--mj-text-primary); }
+.sec-link-hint { margin:0; padding:0 18px 14px; font-size:11px; color:var(--mj-text-muted); }
 
 .compliance { display:flex; flex-wrap:wrap; gap:8px; padding:14px 18px; }
 .comp-badge { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:var(--mj-status-success-text); background:var(--mj-status-success-bg); border:1px solid var(--mj-status-success-border); padding:5px 10px; border-radius:999px; }
@@ -385,7 +396,16 @@ const ADV_PREF_KEY = 'sm.workspace.advanced';
 export class SecureMessagingClientWorkspaceComponent implements OnInit {
   /** The contact (MJ_BizApps_Common: People.ID) this workspace is scoped to. */
   @Input() contactId = '';
-  @Input() contactName = '';
+  private _contactName = '';
+  /** Avatar initials, precomputed in the contactName setter so the template binds a stable
+   * value (avoids NG0100 when contactName resolves async from '' → a real name). */
+  initials = '?';
+  @Input()
+  set contactName(value: string) {
+    this._contactName = value || '';
+    this.initials = this.computeInitials(this._contactName);
+  }
+  get contactName(): string { return this._contactName; }
   @Input() contactEmail = '';
   @Input() contactTitle = '';
   @Input() contactPhone = '';
@@ -394,6 +414,12 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
   @Input() initialMode: 'basic' | 'advanced' | null = null;   // overrides the persisted preference
   @Input() suppressToasts = false;                            // host owns user feedback
   @Input() persistModePreference = true;                      // disable localStorage when embedded multiple times
+
+  /** Base URL where the contact-facing widget is hosted; magic links are built as `${this}/?ml=<token>`. */
+  @Input() PortalBaseUrl = '';
+
+  /** The most recently issued magic link (surfaced for staff to copy/send). Empty when none. */
+  newLink = '';
 
   /** Host-coordination events (consumed by SecureMessagingResource in standalone, or an external host). */
   @Output() openThreadRequested = new EventEmitter<OpenThreadRequest>();
@@ -704,7 +730,10 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
       ]);
 
       if (result?.Success) {
-        this.toast('New magic link issued for the contact');
+        // Output params come back on result.Result (numeric-keyed), NOT result.Params.
+        const token = this.extractOutputParams(result).find(p => p.Name === 'MagicLinkToken')?.Value as string | undefined;
+        this.newLink = token ? `${this.portalBaseUrl()}/?ml=${encodeURIComponent(token)}` : '';
+        this.toast(this.newLink ? 'New magic link issued — copy it to the contact' : 'Magic link issued');
         await this.loadAudit();
       } else {
         this.toast(result?.Message || 'Could not issue a magic link');
@@ -714,6 +743,7 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
       this.toast('Could not issue a magic link');
     } finally {
       this.sessionBusy = false;
+      this.cdr.detectChanges();
     }
   }
 
@@ -752,7 +782,47 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
       this.toast('Could not revoke the session');
     } finally {
       this.sessionBusy = false;
+      this.cdr.detectChanges();
     }
+  }
+
+  /** Copy the most recently issued magic link to the clipboard. */
+  copyNewLink(): void {
+    if (this.newLink && navigator.clipboard) {
+      void navigator.clipboard.writeText(this.newLink);
+      this.toast('Magic link copied');
+    }
+  }
+
+  /**
+   * Base URL of the contact-facing WIDGET (a separate app, served at its own origin root — NOT a
+   * sub-path of the staff app). Magic links are built as `${base}/?ml=<token>`. Resolution order:
+   *   1. PortalBaseUrl @Input (host wires it explicitly), else
+   *   2. window.__SECURE_MESSAGING_PORTAL_URL__ global (host config, no code change), else
+   *   3. dev default — the widget dev server on :4400.
+   * Trailing slashes are trimmed so the link never doubles `//`.
+   */
+  private portalBaseUrl(): string {
+    const w = window as unknown as { __SECURE_MESSAGING_PORTAL_URL__?: string };
+    const base = this.PortalBaseUrl || w.__SECURE_MESSAGING_PORTAL_URL__ || 'http://localhost:4400';
+    return base.replace(/\/+$/, '');
+  }
+
+  /**
+   * Action output params are returned on result.Result as a numeric-keyed object (not result.Params).
+   * Normalize to ActionParam[]. (Same helper as the executive component.)
+   */
+  private extractOutputParams(result: ActionResult): ActionParam[] {
+    const raw: unknown = result.Result;
+    if (Array.isArray(raw)) return raw as ActionParam[];
+    if (raw && typeof raw === 'object') {
+      const keys = Object.keys(raw as object);
+      if (keys.length > 0 && keys.every(k => /^\d+$/.test(k))) {
+        const obj = raw as Record<string, ActionParam>;
+        return keys.sort((a, b) => +a - +b).map(k => obj[k]);
+      }
+    }
+    return [];
   }
 
   /* ───────── Documents ───────── */
@@ -895,7 +965,7 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
     return 'ic-generic';
   }
 
-  getInitials(name: string): string {
+  private computeInitials(name: string): string {
     const parts = (name || '').trim().split(/\s+/).filter(Boolean);
     if (parts.length === 0) return '?';
     return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
@@ -974,7 +1044,8 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
     if (this.suppressToasts) return; // host owns user feedback when embedded
     this.toastMsg = msg;
     this.toastShown = true;
+    this.cdr.detectChanges();
     clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => { this.toastShown = false; }, 2600);
+    this.toastTimer = setTimeout(() => { this.toastShown = false; this.cdr.detectChanges(); }, 2600);
   }
 }

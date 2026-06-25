@@ -9,10 +9,18 @@ import { createMJServer } from '@memberjunction/server-bootstrap';
 // portal REST API pre-auth). RESOLVER_PATHS feeds the host's schema build.
 import { RESOLVER_PATHS as SECURE_MESSAGING_RESOLVER_PATHS, LoadSecureMessagingServer } from '@mj-biz-apps/secure-messaging-server';
 
-// Anchor the bootstrap so every @RegisterClass side-effect is guaranteed to fire.
+// BizAppsCommon server: registers the shared common entities (People, etc.) and serves their
+// GraphQL resolvers. Secure Messaging references MJ_BizApps_Common: People, so the host MUST
+// load these resolvers or client-side Person.Load() fails with "Cannot query field
+// mjBizAppsCommonPerson on type Query".
+import { RESOLVER_PATHS as COMMON_RESOLVER_PATHS, LoadBizAppsCommonServer } from '@mj-biz-apps/common-server';
+
+// Anchor the bootstraps so every @RegisterClass side-effect is guaranteed to fire.
 LoadSecureMessagingServer();
+LoadBizAppsCommonServer();
 
 const RESOLVER_PATHS = [
+  ...COMMON_RESOLVER_PATHS,
   ...SECURE_MESSAGING_RESOLVER_PATHS,
 ];
 

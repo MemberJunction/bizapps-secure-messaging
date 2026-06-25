@@ -84,9 +84,8 @@ import {
             </div>
 
             <sm-compose-box
-                [uploading]="uploading"
+                [sending]="sending"
                 (messageSent)="onMessageSent($event)"
-                (fileSelected)="onFileSelected($event)"
             ></sm-compose-box>
         </div>
     `,
@@ -245,8 +244,10 @@ export class ConversationComponent implements OnInit {
     fileRequests: FileRequest[] = [];
     signatureRequests: SignatureRequest[] = [];
     loading = false;
-    uploading = false;
+    uploading = false;        // file-request fulfillment upload in flight
+    sending = false;          // compose send (message + staged attachments) in flight
     downloadingId: string | null = null;
+    private optimisticSeq = 0; // unique id suffix for optimistic (pending) message bubbles
 
     /** The file request currently being fulfilled (set when the user clicks Upload on a banner). */
     private fulfillingRequest: FileRequest | null = null;
@@ -302,26 +303,61 @@ export class ConversationComponent implements OnInit {
         this.cdr.detectChanges();
     }
 
-    async onMessageSent(content: string): Promise<void> {
+    /**
+     * Commit a composed message + its staged attachments together (like MJ chat / Slack). Renders
+     * the message OPTIMISTICALLY — the bubble appears instantly and the compose box frees up — then
+     * uploads files + sends text + reconciles with the server in the background. Files are NEVER
+     * uploaded on pick, only here on Send.
+     */
+    async onMessageSent(payload: { text: string; files: File[] }): Promise<void> {
+        const { text, files } = payload;
+        if (!text && files.length === 0) return;
+
+        // 1. Optimistic render: show the outbound bubble immediately (sender = contact = outbound).
+        let optimistic: ThreadMessage | null = null;
+        if (text) {
+            optimistic = {
+                id: `pending-${this.optimisticSeq++}`,
+                sender: this.contactEmail,
+                recipient: '',
+                subject: null,
+                content: text,
+                receivedAt: new Date().toISOString(),
+                generationStatus: '',
+                generatedReply: null,
+                approvalStatus: null,
+                approvedReply: null,
+                sentContent: null,
+                sentAt: null,
+                parentId: null,
+                messageFormat: null,
+            };
+            this.messages = [...this.messages, optimistic];
+        }
+        // Don't block the compose box on the network — it already cleared its draft.
+        this.scrollToBottom();
+        this.cdr.detectChanges();
+
+        // 2. Commit in the background.
         try {
-            await this.api.sendMessage(this.threadId, content);
+            for (const file of files) {
+                const result = await this.api.uploadFile(this.threadId, file);
+                this.fileUploaded.emit({ attachmentId: result.attachmentId, filename: result.filename });
+            }
+            if (text) {
+                await this.api.sendMessage(this.threadId, text);
+            }
+            // 3. Reconcile with the server (replaces the optimistic row with the persisted one).
             await this.loadMessages();
+            if (files.length > 0) {
+                await this.loadSidecars();
+            }
         } catch (error) {
             console.error('Failed to send message:', error);
-        }
-    }
-
-    async onFileSelected(file: File): Promise<void> {
-        this.uploading = true;
-        this.cdr.detectChanges();
-        try {
-            const result = await this.api.uploadFile(this.threadId, file);
-            this.fileUploaded.emit({ attachmentId: result.attachmentId, filename: result.filename });
-            await this.loadSidecars();
-        } catch (error) {
-            console.error('Failed to upload file:', error);
-        } finally {
-            this.uploading = false;
+            // Roll the optimistic bubble back so the user knows it didn't send.
+            if (optimistic) {
+                this.messages = this.messages.filter(m => m.id !== optimistic!.id);
+            }
             this.cdr.detectChanges();
         }
     }

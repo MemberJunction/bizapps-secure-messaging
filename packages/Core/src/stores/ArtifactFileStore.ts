@@ -1,10 +1,9 @@
 import { Metadata, RunView, UserInfo } from '@memberjunction/core';
-import { FileStorageEngine, createDownloadUrl } from '@memberjunction/storage';
+import { FileStorageEngine } from '@memberjunction/storage';
 import type {
     MJArtifactEntity,
     MJArtifactVersionEntity,
     MJFileEntity,
-    MJFileStorageProviderEntity,
 } from '@memberjunction/core-entities';
 
 /** Maximum upload size, mirroring the cap MJ's attachment pipeline uses. */
@@ -244,17 +243,18 @@ export class ArtifactFileStore {
             throw new Error('Underlying file record not found');
         }
 
+        // Use the engine's INITIALIZED driver (built with the account's decrypted credential),
+        // exactly as getFileBytes does. The standalone createDownloadUrl(provider, …) util builds
+        // a credential-less, uninitialized driver (its `_client` is undefined) — which crashes on
+        // providers like Box that need an authenticated client to resolve the path.
         const engine = FileStorageEngine.Instance;
         await engine.Config(false, systemUser);
-        const provider = engine.GetProviderById(file.ProviderID) as MJFileStorageProviderEntity | undefined;
-        if (!provider) {
-            throw new Error('Storage provider for this file is not configured');
+        const resolved = engine.ResolveStorageAccount();
+        if (!resolved) {
+            throw new Error('No file storage account is configured');
         }
-
-        return createDownloadUrl(provider, file.ProviderKey || file.Name, {
-            userID: systemUser.ID,
-            contextUser: systemUser,
-        });
+        const driver = await engine.GetDriver(resolved.account.ID, systemUser);
+        return driver.CreatePreAuthDownloadUrl(file.ProviderKey || file.Name);
     }
 }
 

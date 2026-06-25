@@ -42,6 +42,7 @@
     "@memberjunction/core-entities": "^5.40.2",
     "@memberjunction/global": "^5.40.2",
     "@memberjunction/graphql-dataprovider": "^5.40.2",
+    "@memberjunction/actions-base": "^5.40.2",
     "@memberjunction/ng-base-application": "^5.40.2",
     "@memberjunction/ng-shared": "^5.40.2",
     "@memberjunction/ng-auth-services": "^5.40.2",
