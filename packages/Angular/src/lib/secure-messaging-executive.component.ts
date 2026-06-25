@@ -4,6 +4,7 @@ import { Metadata, RunView } from '@memberjunction/core';
 import { MJUserEntity } from '@memberjunction/core-entities';
 import { MJAuthBase } from '@memberjunction/ng-auth-services';
 import { GraphQLDataProvider, GraphQLFileStorageClient, GraphQLActionClient } from '@memberjunction/graphql-dataprovider';
+import { ActionResult, ActionParam } from '@memberjunction/actions-base';
 import { mjBizAppsCommonPersonEntity } from '@mj-biz-apps/common-entities';
 import { mjBizAppsSecureMessagingSecureMessageEntity } from '@mj-biz-apps/secure-messaging-entities';
 import { ContactSelection } from './secure-messaging.contracts';
@@ -345,6 +346,54 @@ interface WorkspaceNavItem {
       </div>
     }
   </div>
+
+  <!-- COMPOSE: start a new secure thread -->
+  @if (composeOpen) {
+    <div class="compose-overlay" (click)="closeCompose()">
+      <div class="compose-modal" (click)="$event.stopPropagation()">
+        <div class="compose-modal__head">
+          <h3>New secure conversation</h3>
+          <button class="compose-modal__close" (click)="closeCompose()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        @if (!composeLink) {
+          <div class="compose-modal__body">
+            <label class="compose-field">
+              <span>Contact email</span>
+              <input type="email" [(ngModel)]="composeEmail" placeholder="contact@example.com" [disabled]="composeBusy">
+            </label>
+            <label class="compose-field">
+              <span>Contact name <em>(optional)</em></span>
+              <input type="text" [(ngModel)]="composeName" placeholder="Jane Doe" [disabled]="composeBusy">
+            </label>
+            <label class="compose-field">
+              <span>Message</span>
+              <textarea rows="4" [(ngModel)]="composeMessage" placeholder="Write the first message…" [disabled]="composeBusy"></textarea>
+            </label>
+            @if (composeError) { <div class="compose-error">{{ composeError }}</div> }
+          </div>
+          <div class="compose-modal__foot">
+            <button class="compose-submit" (click)="submitCompose()" [disabled]="!composeEmail.trim() || !composeMessage.trim() || composeBusy">
+              {{ composeBusy ? 'Starting…' : 'Start secure conversation' }}
+            </button>
+            <button class="compose-cancel" (click)="closeCompose()">Cancel</button>
+          </div>
+        } @else {
+          <div class="compose-modal__body">
+            <div class="compose-success"><i class="fa-solid fa-circle-check"></i> Secure conversation started.</div>
+            <p class="compose-hint">Send this secure link to the contact so they can access the conversation:</p>
+            <div class="compose-link-row">
+              <input class="compose-link" type="text" [value]="composeLink" readonly>
+              <button class="compose-copy" (click)="copyComposeLink()"><i class="fa-solid fa-copy"></i> Copy</button>
+            </div>
+          </div>
+          <div class="compose-modal__foot">
+            <button class="compose-submit" (click)="closeCompose()">Done</button>
+          </div>
+        }
+      </div>
+    </div>
+  }
 
 </div>
   `,
@@ -1436,6 +1485,75 @@ interface WorkspaceNavItem {
   font-size: 12px;
 }
 
+/* Compose modal */
+.compose-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: var(--mj-bg-overlay, rgba(0,0,0,0.4));
+  display: flex; align-items: center; justify-content: center;
+}
+.compose-modal {
+  width: 480px; max-width: calc(100vw - 32px);
+  background: var(--mj-bg-surface);
+  border: 1px solid var(--mj-border-default);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+  overflow: hidden;
+}
+.compose-modal__head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-bottom: 1px solid var(--mj-border-default);
+}
+.compose-modal__head h3 { margin: 0; font-size: 16px; color: var(--mj-text-primary); }
+.compose-modal__close {
+  border: none; background: none; cursor: pointer; font-size: 16px;
+  color: var(--mj-text-muted);
+}
+.compose-modal__close:hover { color: var(--mj-text-primary); }
+.compose-modal__body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.compose-field { display: flex; flex-direction: column; gap: 6px; }
+.compose-field span { font-size: 12px; font-weight: 600; color: var(--mj-text-secondary); }
+.compose-field em { font-weight: 400; color: var(--mj-text-muted); font-style: normal; }
+.compose-field input, .compose-field textarea {
+  border: 1px solid var(--mj-border-default); border-radius: 8px; padding: 10px 12px;
+  font-size: 14px; color: var(--mj-text-primary); background: var(--mj-bg-surface);
+  font-family: inherit; resize: vertical;
+}
+.compose-field input:focus, .compose-field textarea:focus {
+  outline: none; border-color: var(--mj-brand-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mj-brand-primary) 15%, transparent);
+}
+.compose-error { color: var(--mj-status-error-text); font-size: 13px; }
+.compose-modal__foot {
+  display: flex; gap: 10px; padding: 16px 20px;
+  border-top: 1px solid var(--mj-border-default);
+}
+.compose-submit {
+  background: var(--mj-brand-primary); color: var(--mj-brand-on-primary);
+  border: none; border-radius: 8px; padding: 10px 18px; font-size: 14px;
+  font-weight: 600; cursor: pointer;
+}
+.compose-submit:hover:not(:disabled) { background: var(--mj-brand-primary-hover); }
+.compose-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+.compose-cancel {
+  background: none; border: 1px solid var(--mj-border-default); border-radius: 8px;
+  padding: 10px 18px; font-size: 14px; color: var(--mj-text-secondary); cursor: pointer;
+}
+.compose-cancel:hover { background: var(--mj-bg-surface-hover); }
+.compose-success { color: var(--mj-status-success-text); font-weight: 600; }
+.compose-hint { font-size: 13px; color: var(--mj-text-secondary); margin: 0; }
+.compose-link-row { display: flex; gap: 8px; }
+.compose-link {
+  flex: 1; border: 1px solid var(--mj-border-default); border-radius: 8px;
+  padding: 10px 12px; font-size: 13px; color: var(--mj-text-primary);
+  background: var(--mj-bg-surface-sunken);
+}
+.compose-copy {
+  background: var(--mj-bg-surface-card); border: 1px solid var(--mj-border-default);
+  border-radius: 8px; padding: 10px 14px; font-size: 13px; cursor: pointer;
+  color: var(--mj-text-primary); white-space: nowrap;
+}
+.compose-copy:hover { background: var(--mj-bg-surface-hover); }
+
 /* No-selection state */
 
 .no-selection {
@@ -1529,6 +1647,9 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
   /** When set, the inbox loads + selects this thread (used to focus a thread opened from the workspace). */
   @Input() focusThreadId: string | null = null;
 
+  /** Base URL where the contact-facing widget is hosted; magic links are built as `${this}/?ml=<token>`. */
+  @Input() PortalBaseUrl = '';
+
   /** Emitted when a contact is chosen to open their 360 workspace (consumed by the coordinator/host). */
   @Output() contactSelected = new EventEmitter<ContactSelection>();
 
@@ -1575,6 +1696,16 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
   replyText = '';
   /** True while an outbound reply is being sent (disables the Send control). */
   sendingReply = false;
+
+  /* ─── Compose (start a new secure thread) ─── */
+  composeOpen = false;
+  composeEmail = '';
+  composeName = '';
+  composeMessage = '';
+  composeBusy = false;
+  composeError = '';
+  /** The magic-link URL to hand the contact after a successful compose (out-of-band delivery). */
+  composeLink = '';
 
   /* ─── Action panel (Request files / Send for signature) ─── */
   // Which mode the shared <mj-secure-messaging-action-panel> opens in (null = closed).
@@ -1644,8 +1775,72 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
     this.applyFilter();
   }
 
+  /** Open the compose dialog to start a brand-new secure thread with a contact. */
   onCompose(): void {
-    // Phase 2: open compose view
+    this.composeOpen = true;
+    this.composeEmail = '';
+    this.composeName = '';
+    this.composeMessage = '';
+    this.composeError = '';
+    this.composeLink = '';
+  }
+
+  closeCompose(): void {
+    this.composeOpen = false;
+  }
+
+  /**
+   * Start a new secure thread: invokes the 'Start Secure Thread' MJ Action (find-or-create
+   * Person, mint thread + portal session + magic link, seed the first message), then shows the
+   * magic-link URL for the staff member to deliver to the contact out-of-band.
+   */
+  async submitCompose(): Promise<void> {
+    const email = this.composeEmail.trim();
+    const message = this.composeMessage.trim();
+    if (!email || !message || this.composeBusy) return;
+
+    this.composeBusy = true;
+    this.composeError = '';
+    try {
+      const actionId = await this.resolveActionId('Start Secure Thread');
+      if (!actionId) {
+        this.composeError = 'The compose action is not available in this environment.';
+        return;
+      }
+      const client = new GraphQLActionClient(Metadata.Provider as unknown as GraphQLDataProvider);
+      const result = await client.RunAction(actionId, [
+        { Name: 'ContactEmail', Value: email, Type: 'Input' },
+        { Name: 'ContactName', Value: this.composeName.trim(), Type: 'Input' },
+        { Name: 'FirstMessage', Value: message, Type: 'Input' },
+      ]);
+      if (!result?.Success) {
+        this.composeError = result?.Message || 'Failed to start the secure thread.';
+        return;
+      }
+
+      const token = this.extractOutputParams(result).find(p => p.Name === 'MagicLinkToken')?.Value as string | undefined;
+      // Build a portal URL the staff member can send. The widget reads ?ml=<token>.
+      this.composeLink = token ? `${this.portalBaseUrl()}/?ml=${encodeURIComponent(token)}` : '';
+      void this.loadMessages(); // refresh inbox so the new thread's first message appears
+    } catch (e) {
+      console.error('Compose failed', e);
+      this.composeError = 'Something went wrong. Please try again.';
+    } finally {
+      this.composeBusy = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  /** Copy the generated magic link to the clipboard. */
+  copyComposeLink(): void {
+    if (this.composeLink && navigator.clipboard) {
+      void navigator.clipboard.writeText(this.composeLink);
+    }
+  }
+
+  /** Best-effort portal base URL for the magic link (host overrides via window config if present). */
+  private portalBaseUrl(): string {
+    return this.PortalBaseUrl || `${window.location.origin}/secure-messaging`;
   }
 
   /* ─── Search & Sort ─── */
@@ -1897,7 +2092,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
       // Optimistically append the sent message to the open conversation.
       const me = Metadata.Provider?.CurrentUser;
       this.threadMessages = [...this.threadMessages, {
-        id: (result.Params?.find(p => p.Name === 'MessageID')?.Value as string) || `tmp-${threadId}-${this.threadMessages.length}`,
+        id: (this.extractOutputParams(result).find(p => p.Name === 'MessageID')?.Value as string) || `tmp-${threadId}-${this.threadMessages.length}`,
         senderName: me?.FirstLast || me?.Name || 'You',
         senderEmail: me?.Email || '',
         subject: '',
@@ -1933,6 +2128,25 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
     });
     if (!res.Success || res.Results.length === 0) return null;
     return String((res.Results as Record<string, unknown>[])[0].ID);
+  }
+
+  /**
+   * Extract an MJ Action's OUTPUT params from a GraphQLActionClient result. Over GraphQL the
+   * outputs arrive on `result.Result` (not `result.Params`), and CopyScalarsAndArrays may turn
+   * the array into a numeric-keyed object — restore both shapes. (Canonical helper, mirrors
+   * MJ's DatabaseDesigner service.)
+   */
+  private extractOutputParams(result: ActionResult): ActionParam[] {
+    const raw: unknown = result.Result;
+    if (Array.isArray(raw)) return raw as ActionParam[];
+    if (raw && typeof raw === 'object') {
+      const keys = Object.keys(raw as object);
+      if (keys.length > 0 && keys.every(k => /^\d+$/.test(k))) {
+        const obj = raw as Record<string, ActionParam>;
+        return keys.sort((a, b) => +a - +b).map(k => obj[k]);
+      }
+    }
+    return [];
   }
 
   /* ─── File request / signature actions ─── */

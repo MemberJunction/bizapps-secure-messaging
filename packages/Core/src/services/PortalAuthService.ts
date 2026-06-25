@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { CompositeKey, Metadata, RunView, UserInfo } from '@memberjunction/core';
 
 /** Prefix for session tokens */
@@ -27,6 +27,26 @@ export interface MagicLinkResult {
 export interface MagicLinkRedemptionResult {
     sessionContext: PortalSessionContext;
     newSessionToken: string;
+}
+
+/**
+ * Input for provisioning a brand-new secure thread for a contact (session + magic link).
+ * Writing the first message is the caller's job (avoids a Core service↔store cycle).
+ */
+export interface StartSecureThreadInput {
+    /** The external contact's email. A matching Person is found, else created. */
+    contactEmail: string;
+    /** Optional display name, used only when creating a new Person. */
+    contactName?: string;
+}
+
+/** Result of provisioning a new secure thread. The magic link is delivered out-of-band. */
+export interface StartSecureThreadResult {
+    threadId: string;
+    sessionId: string;
+    contactId: string;
+    /** Raw, single-use magic link token — give the contact a URL with ?ml=<token>. */
+    magicLinkToken: string;
 }
 
 /**
@@ -189,6 +209,65 @@ export class PortalAuthService {
         }
 
         return { success: true, rawToken };
+    }
+
+    /**
+     * Provisions a brand-new secure thread for a contact: finds-or-creates the Person by
+     * email, mints a fresh thread + channel id, opens a portal session, and issues a magic
+     * link. The caller writes the first message (via the message store) — this keeps the
+     * service free of a store dependency. This single operation backs both staff "compose"
+     * and Izzy's thread-promotion (§8.3 in the PRD).
+     */
+    async startSecureThread(
+        input: StartSecureThreadInput,
+        systemUser: UserInfo
+    ): Promise<StartSecureThreadResult> {
+        const contactId = await this.findOrCreatePerson(input.contactEmail, input.contactName, systemUser);
+        const threadId = randomUUID();
+        const channelId = randomUUID(); // logical grouping id (no FK in the standalone app)
+
+        const { sessionId } = await this.createSession(channelId, contactId, threadId, systemUser);
+
+        const link = await this.generateMagicLink(sessionId, systemUser);
+        if (!link.success || !link.rawToken) {
+            throw new Error(link.errorMessage || 'Failed to issue magic link for the new thread');
+        }
+
+        return { threadId, sessionId, contactId, magicLinkToken: link.rawToken };
+    }
+
+    /**
+     * Returns the ID of the contact Person matching the email (case-insensitive), creating a
+     * minimal Person record if none exists. Uses the configured contact entity.
+     */
+    private async findOrCreatePerson(email: string, name: string | undefined, systemUser: UserInfo): Promise<string> {
+        const trimmed = email.trim();
+        const rv = new RunView();
+        const found = await rv.RunView({
+            EntityName: PortalAuthService.contactEntityName,
+            ExtraFilter: `${PortalAuthService.contactEmailField} = '${trimmed.replace(/'/g, "''")}'`,
+            MaxRows: 1,
+        }, systemUser);
+        if (found.Success && found.Results.length > 0) {
+            return (found.Results[0] as Record<string, string>).ID;
+        }
+
+        // Create a minimal Person. Split a provided display name into first/last; fall back to
+        // the email local-part so the required name fields are never blank.
+        const md = new Metadata();
+        const person = await md.GetEntityObject(PortalAuthService.contactEntityName, systemUser);
+        person.NewRecord();
+        const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+        const first = parts[0] || trimmed.split('@')[0];
+        const last = parts.slice(1).join(' ') || '(external)';
+        person.Set('FirstName', first);
+        person.Set('LastName', last);
+        person.Set(PortalAuthService.contactEmailField, trimmed);
+        person.Set('Status', 'Active');
+        if (!(await person.Save())) {
+            throw new Error(person.LatestResult?.CompleteMessage || 'Failed to create contact Person');
+        }
+        return person.Get('ID');
     }
 
     /**

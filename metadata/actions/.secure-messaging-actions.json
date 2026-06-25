@@ -150,5 +150,135 @@
       "lastModified": "2026-06-25T15:10:57.338Z",
       "checksum": "6c26724a9a6d6ed99161964246a010944c36c0e99252696ec96ba4b7ef228165"
     }
+  },
+  {
+    "fields": {
+      "Name": "Start Secure Thread",
+      "Description": "Starts a brand-new secure thread with a contact (find-or-create Person by email, mint thread + portal session + single-use magic link) and seeds it with a first outbound message. Backs staff 'compose' and Izzy's thread-promotion / 'switch to secure channel' flow. Returns the magic-link token for out-of-band delivery (?ml=<token>).",
+      "Type": "Custom",
+      "DriverClass": "__StartSecureThread",
+      "CategoryID": "@lookup:MJ: Action Categories.Name=Secure Messaging",
+      "Status": "Active",
+      "CodeApprovalStatus": "Approved"
+    },
+    "relatedEntities": {
+      "MJ: Action Params": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "ContactEmail",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsRequired": true,
+            "IsArray": false,
+            "Description": "The external contact's email. A matching Person is used, else one is created."
+          },
+          "primaryKey": {
+            "ID": "A220CBAD-5BE1-42AB-9AA5-B8D1772B6381"
+          },
+          "sync": {
+            "lastModified": "2026-06-25T15:28:14.668Z",
+            "checksum": "641aef3bd75f90dcc5616078642ba6f1dff2b45c45bd35481cc231cb97f9a2be"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "FirstMessage",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsRequired": true,
+            "IsArray": false,
+            "Description": "The first outbound message body to seed the thread with."
+          },
+          "primaryKey": {
+            "ID": "CA57EAA1-CD55-4873-8E5F-7D9EB8E1731C"
+          },
+          "sync": {
+            "lastModified": "2026-06-25T15:28:14.693Z",
+            "checksum": "ebe2a2faa3d278e84e58fa35a586d91d069bb2d5c47db2fa4b5a15b511f74fe4"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "ContactName",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsRequired": false,
+            "IsArray": false,
+            "Description": "Display name, used only when creating a new Person."
+          },
+          "primaryKey": {
+            "ID": "ACE50709-129C-4F6C-B69F-7138215482D3"
+          },
+          "sync": {
+            "lastModified": "2026-06-25T15:28:14.713Z",
+            "checksum": "a2fb29874022c8806e945a3ab0ffbd66459b6ccfe95140f03ad1e137341141b1"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "ThreadID",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsRequired": false,
+            "IsArray": false,
+            "Description": "The new secure thread id."
+          },
+          "primaryKey": {
+            "ID": "6CDA63B6-643F-44C9-83F7-E830BDBDB58B"
+          },
+          "sync": {
+            "lastModified": "2026-06-25T15:28:14.731Z",
+            "checksum": "646c966e2d18e8188f7b8c9de0279d0951160cbe7c5f9257be25dd9fcb6dcaa5"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "MagicLinkToken",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsRequired": false,
+            "IsArray": false,
+            "Description": "Single-use magic-link token; deliver to the contact as ?ml=<token>."
+          },
+          "primaryKey": {
+            "ID": "B27C2758-A4B8-4B2B-99C5-06643DC64751"
+          },
+          "sync": {
+            "lastModified": "2026-06-25T15:28:14.751Z",
+            "checksum": "0448a7e6bf7eb87a85628b9c664bb9be0cf18c16ceb95bbb8c586c4f9881a921"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "MessageID",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsRequired": false,
+            "IsArray": false,
+            "Description": "The first message's id."
+          },
+          "primaryKey": {
+            "ID": "15CF826D-E13E-4A28-9F0F-F19C4B7460C7"
+          },
+          "sync": {
+            "lastModified": "2026-06-25T15:28:14.772Z",
+            "checksum": "c28352663a018ad9132710d23ca6583a0829dca8488e322d8fda13935b5ed0e3"
+          }
+        }
+      ]
+    },
+    "primaryKey": {
+      "ID": "59C91825-70E2-4E6A-9799-A68F1516B92E"
+    },
+    "sync": {
+      "lastModified": "2026-06-25T15:28:14.650Z",
+      "checksum": "4accdefedf520fcbb507a8fd352ca71f238064162c3f35106e94cf2389345b45"
+    }
   }
 ]
