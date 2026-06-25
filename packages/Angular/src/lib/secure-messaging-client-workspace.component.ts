@@ -1,4 +1,4 @@
-import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, Input, Output, EventEmitter, ChangeDetectorRef } from '@angular/core';
 import { Metadata, RunView } from '@memberjunction/core';
 import { MJFileEntity } from '@memberjunction/core-entities';
 import { GraphQLDataProvider, GraphQLFileStorageClient, GraphQLActionClient } from '@memberjunction/graphql-dataprovider';
@@ -80,6 +80,9 @@ const ADV_PREF_KEY = 'sm.workspace.advanced';
 
     <!-- CLIENT HEADER -->
     <div class="client-head">
+      <button class="ch-back" (click)="back()" title="Back to inbox">
+        <i class="fa-solid fa-arrow-left"></i>
+      </button>
       <div class="avatar">{{ getInitials(contactName) }}</div>
       <div class="ch-id">
         <div class="ch-name">{{ contactName || 'Contact' }}</div>
@@ -273,6 +276,8 @@ const ADV_PREF_KEY = 'sm.workspace.advanced';
 
 .avatar { width:64px; height:64px; border-radius:50%; background:var(--mj-status-warning); color:var(--mj-text-inverse); display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:700; flex-shrink:0; }
 .client-head { background:var(--mj-bg-surface); border:1px solid var(--mj-border-default); border-radius:16px; box-shadow:0 1px 2px rgba(0,0,0,.04); padding:22px 24px; display:flex; align-items:center; gap:20px; }
+.ch-back { flex-shrink:0; width:36px; height:36px; border-radius:50%; border:1px solid var(--mj-border-default); background:var(--mj-bg-surface); color:var(--mj-text-secondary); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:15px; }
+.ch-back:hover { background:var(--mj-bg-surface-hover); color:var(--mj-text-primary); }
 .ch-name { font-size:22px; font-weight:800; letter-spacing:-.01em; }
 .ch-meta { display:flex; align-items:center; gap:16px; margin-top:6px; font-size:13px; color:var(--mj-text-muted); flex-wrap:wrap; }
 .ch-meta span { display:inline-flex; align-items:center; gap:6px; }
@@ -421,11 +426,16 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
   /** Thread IDs belonging to this contact's portal sessions. */
   private threadIds: string[] = [];
 
+  constructor(private cdr: ChangeDetectorRef) {}
+
   async ngOnInit(): Promise<void> {
     // initialMode (host override) wins over the persisted preference.
     const advanced = this.initialMode != null ? this.initialMode === 'advanced' : this.readSavedAdvanced();
     this.applyMode(advanced);
     await this.loadAll();
+    // loadAll() is async (outside the initial CD pass) — re-render so the populated
+    // contact header, threads, requests, and session render without a user interaction.
+    this.cdr.detectChanges();
   }
 
   /* ───────── Advanced mode (per-user sticky) ───────── */
@@ -459,6 +469,11 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
   setTab(t: WorkspaceTab): void {
     if (this.mode !== 'advanced' && ADVANCED_TABS.includes(t)) return; // guard hidden tabs
     this.tab = t;
+  }
+
+  /** Return to the Executive Inbox (the host/coordinator clears the contact context). */
+  back(): void {
+    this.closeRequested.emit();
   }
 
   /* ───────── Data loading ───────── */

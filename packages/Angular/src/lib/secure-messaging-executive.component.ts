@@ -1,4 +1,4 @@
-import { Component, OnInit, OnChanges, SimpleChanges, Input, Output, EventEmitter, Optional } from '@angular/core';
+import { Component, OnInit, OnChanges, SimpleChanges, Input, Output, EventEmitter, Optional, ChangeDetectorRef } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Metadata, RunView } from '@memberjunction/core';
 import { MJAuthBase } from '@memberjunction/ng-auth-services';
@@ -1526,6 +1526,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
 
   constructor(
     private sanitizer: DomSanitizer,
+    private cdr: ChangeDetectorRef,
     @Optional() private authService: MJAuthBase | null = null,
   ) {}
 
@@ -1903,6 +1904,9 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
     } finally {
       this.isLoading = false;
       this.applyFilter();
+      // The load is async (outside Angular's initial CD pass), so re-render explicitly —
+      // otherwise the list/badges/workspaces stay blank until the next user interaction.
+      this.cdr.detectChanges();
       // Honor a pending focus request (deep-link or workspace→inbox jump) once data is present.
       if (this.focusThreadId) void this.tryFocusThread(this.focusThreadId);
     }
