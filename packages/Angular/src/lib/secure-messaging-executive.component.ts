@@ -191,7 +191,6 @@ interface WorkspaceNavItem {
             <div class="msg-sender">{{ msg.senderName }}</div>
             <div class="msg-time">{{ formatTime(msg.receivedAt) }}</div>
           </div>
-          <div class="msg-subject">{{ msg.subject }}</div>
           <div class="msg-preview">{{ msg.preview }}</div>
           <div class="msg-meta">
             @if (msg.statusBadge) {
@@ -235,9 +234,8 @@ interface WorkspaceNavItem {
         <div class="detail-header-top">
           <div class="detail-avatar">{{ getInitials(selectedMessage.senderName) }}</div>
           <div class="detail-header-info">
-            <div class="detail-subject">{{ selectedMessage.subject }}</div>
+            <div class="detail-subject">{{ selectedMessage.senderName }}</div>
             <div class="detail-from">
-              <strong>{{ selectedMessage.senderName }}</strong>
               &lt;{{ selectedMessage.senderEmail }}&gt;
               @if (selectedMessage.statusBadge) {
                 <span class="status-badge" [ngClass]="'status-' + selectedMessage.statusBadge.type">
@@ -288,7 +286,16 @@ interface WorkspaceNavItem {
       }
 
       <div class="detail-body">
-        <div class="message-content" [innerHTML]="selectedMessage.bodyHtml"></div>
+        <!-- Full conversation thread, oldest-first. Outbound (staff) align right; inbound (contact) left. -->
+        @for (m of threadMessages; track m.id) {
+          <div class="thread-msg" [class.thread-msg--out]="m.direction === 'Outbound'">
+            <div class="thread-msg__meta">
+              <span class="thread-msg__sender">{{ m.direction === 'Outbound' ? (m.senderName || 'You') : m.senderName }}</span>
+              <span class="thread-msg__time">{{ formatDetailDate(m.receivedAt) }}</span>
+            </div>
+            <div class="thread-msg__bubble" [innerHTML]="m.bodyHtml"></div>
+          </div>
+        }
 
         @if (selectedMessage.attachments.length > 0) {
           <div class="attachments-section">
@@ -1179,6 +1186,48 @@ interface WorkspaceNavItem {
   border-radius: 4px;
 }
 
+/* Conversation thread bubbles in the detail pane */
+.thread-msg {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  max-width: 78%;
+}
+.thread-msg--out {
+  align-items: flex-end;
+  margin-left: auto;
+}
+.thread-msg__meta {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 4px;
+  padding: 0 4px;
+}
+.thread-msg__sender {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--mj-text-secondary);
+}
+.thread-msg__time {
+  font-size: 11px;
+  color: var(--mj-text-muted);
+}
+.thread-msg__bubble {
+  background: var(--mj-bg-surface-card);
+  border: 1px solid var(--mj-border-default);
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--mj-text-primary);
+}
+.thread-msg--out .thread-msg__bubble {
+  background: color-mix(in srgb, var(--mj-brand-primary) 12%, var(--mj-bg-surface));
+  border-color: color-mix(in srgb, var(--mj-brand-primary) 25%, transparent);
+}
+
 .message-content {
   background: var(--mat-sys-surface-container-lowest, var(--mj-bg-surface));
   border-radius: var(--mat-sys-corner-medium, 12px);
@@ -1521,6 +1570,8 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
 
   /* ─── Detail panel state ─── */
   selectedMessage: SecureMessageItem | null = null;
+  /** All messages in the selected message's thread, oldest-first (the conversation view). */
+  threadMessages: SecureMessageItem[] = [];
   replyText = '';
 
   /* ─── Action panel (Request files / Send for signature) ─── */
@@ -1721,7 +1772,30 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
     }
     this.replyText = '';
     this.closeActionPanel();
+    // Seed the conversation view with the clicked message, then load the full thread.
+    this.threadMessages = message.threadId ? [message] : [];
+    void this.loadThread(message);
     void this.loadAttachments(message);
+  }
+
+  /** Load every message in the selected message's thread (oldest-first) for the conversation view. */
+  private async loadThread(message: SecureMessageItem): Promise<void> {
+    if (!message.threadId) { this.threadMessages = [message]; return; }
+    try {
+      const rv = new RunView();
+      const result = await rv.RunView({
+        EntityName: 'MJ_BizApps_SecureMessaging: Secure Messages',
+        ExtraFilter: `ThreadID = '${message.threadId.replace(/'/g, "''")}'`,
+        OrderBy: 'ReceivedAt ASC',
+        ResultType: 'simple',
+      });
+      if (result.Success && result.Results && this.selectedMessage?.id === message.id) {
+        this.threadMessages = result.Results.map(r => this.mapToMessageItem(r as Record<string, unknown>));
+        this.cdr.detectChanges();
+      }
+    } catch (e) {
+      console.error('Failed to load thread', e);
+    }
   }
 
   /**
