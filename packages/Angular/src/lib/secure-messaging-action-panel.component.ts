@@ -73,9 +73,9 @@ import { GraphQLDataProvider, GraphQLActionClient } from '@memberjunction/graphq
 .action-panel {
   margin: 12px 0;
   padding: 14px;
-  border: 1px solid var(--mat-sys-outline-variant, #e2e8f0);
+  border: 1px solid var(--mj-border-default);
   border-radius: var(--mat-sys-corner-medium, 12px);
-  background: var(--mat-sys-surface-container-low, #f8fafc);
+  background: var(--mj-bg-surface-card);
 }
 .action-panel-header {
   display: flex;
@@ -84,14 +84,14 @@ import { GraphQLDataProvider, GraphQLActionClient } from '@memberjunction/graphq
   font-weight: 600;
   font-size: 13px;
   margin-bottom: 10px;
-  color: var(--mat-sys-on-surface, #1e293b);
+  color: var(--mj-text-primary);
 }
 .action-panel-close {
   margin-left: auto;
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--mat-sys-on-surface-variant, #64748b);
+  color: var(--mj-text-muted);
   font-size: 14px;
 }
 .action-panel-input {
@@ -99,17 +99,17 @@ import { GraphQLDataProvider, GraphQLActionClient } from '@memberjunction/graphq
   box-sizing: border-box;
   margin-bottom: 8px;
   padding: 8px 10px;
-  border: 1px solid var(--mat-sys-outline-variant, #e2e8f0);
+  border: 1px solid var(--mj-border-default);
   border-radius: var(--mat-sys-corner-small, 8px);
-  background: var(--mat-sys-surface-container-lowest, #ffffff);
-  color: var(--mat-sys-on-surface, #1e293b);
+  background: var(--mj-bg-surface);
+  color: var(--mj-text-primary);
   font-family: inherit;
   font-size: 13px;
   resize: vertical;
 }
 .action-panel-input:focus {
   outline: none;
-  border-color: var(--mat-sys-primary, #3b82f6);
+  border-color: var(--mj-brand-primary);
 }
 .action-panel-label {
   display: block;
@@ -117,17 +117,17 @@ import { GraphQLDataProvider, GraphQLActionClient } from '@memberjunction/graphq
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.4px;
-  color: var(--mat-sys-on-surface-variant, #64748b);
+  color: var(--mj-text-muted);
   margin-bottom: 4px;
 }
 .action-panel-hint {
   font-size: 12px;
-  color: var(--mat-sys-on-surface-variant, #64748b);
+  color: var(--mj-text-muted);
   margin-bottom: 8px;
 }
 .action-panel-error {
   font-size: 12px;
-  color: var(--mat-sys-error, #dc2626);
+  color: var(--mj-status-error-text);
   margin-bottom: 8px;
 }
 .action-panel-footer {
@@ -138,8 +138,8 @@ import { GraphQLDataProvider, GraphQLActionClient } from '@memberjunction/graphq
   padding: 7px 16px;
   border: none;
   border-radius: var(--mat-sys-corner-small, 8px);
-  background: var(--mat-sys-primary, #3b82f6);
-  color: var(--mat-sys-on-primary, #ffffff);
+  background: var(--mj-brand-primary);
+  color: var(--mj-brand-on-primary);
   font-family: inherit;
   font-size: 13px;
   font-weight: 600;

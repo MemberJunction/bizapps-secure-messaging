@@ -39,6 +39,8 @@ type SmView = 'inbox' | 'workspace';
       <mj-secure-messaging-client-workspace
         class="sm-surface"
         [contactId]="selectedContactId"
+        [contactName]="selectedContactName"
+        [contactEmail]="selectedContactEmail"
         (openThreadRequested)="onOpenThread($event)"
         (closeRequested)="backToInbox()">
       </mj-secure-messaging-client-workspace>
@@ -52,16 +54,18 @@ type SmView = 'inbox' | 'workspace';
       display: flex; align-items: center; gap: 8px;
       height: 38px; box-sizing: border-box; padding: 0 16px;
       font-size: 13px; font-weight: 600; cursor: pointer;
-      color: var(--mat-sys-primary, #0076b6);
-      background: var(--mat-sys-surface-container-low, #f8fafc);
-      border-bottom: 1px solid var(--mat-sys-outline-variant, #e2e8f0);
+      color: var(--mj-brand-primary);
+      background: var(--mj-bg-surface-card);
+      border-bottom: 1px solid var(--mj-border-default);
     }
-    .sm-backbar:hover { background: var(--mat-sys-surface-container, #f1f5f9); }
+    .sm-backbar:hover { background: var(--mj-bg-surface-hover); }
   `]
 })
 export class SecureMessagingResource extends BaseResourceComponent {
   view: SmView = 'inbox';
   selectedContactId = '';
+  selectedContactName = '';
+  selectedContactEmail = '';
   contactLabel = '';
   focusThreadId: string | null = null;
 
@@ -84,6 +88,8 @@ export class SecureMessagingResource extends BaseResourceComponent {
   /** Inbox → open a contact's 360 workspace. */
   onContactSelected(c: ContactSelection): void {
     this.selectedContactId = c.contactId;
+    this.selectedContactName = c.contactName || '';
+    this.selectedContactEmail = c.contactEmail || '';
     this.contactLabel = c.contactName || c.contactEmail || '';
     this.focusThreadId = null;
     this.view = 'workspace';
