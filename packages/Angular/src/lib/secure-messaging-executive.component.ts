@@ -3,7 +3,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Metadata, RunView } from '@memberjunction/core';
 import { MJUserEntity } from '@memberjunction/core-entities';
 import { MJAuthBase } from '@memberjunction/ng-auth-services';
-import { GraphQLDataProvider, GraphQLFileStorageClient } from '@memberjunction/graphql-dataprovider';
+import { GraphQLDataProvider, GraphQLFileStorageClient, GraphQLActionClient } from '@memberjunction/graphql-dataprovider';
 import { mjBizAppsCommonPersonEntity } from '@mj-biz-apps/common-entities';
 import { mjBizAppsSecureMessagingSecureMessageEntity } from '@mj-biz-apps/secure-messaging-entities';
 import { ContactSelection } from './secure-messaging.contracts';
@@ -332,7 +332,7 @@ interface WorkspaceNavItem {
             (keyup.enter)="onSendReply()"
           >
         </div>
-        <button class="reply-send" (click)="onSendReply()" [disabled]="!replyText.trim()">
+        <button class="reply-send" (click)="onSendReply()" [disabled]="!replyText.trim() || sendingReply">
           <i class="fa-solid fa-paper-plane"></i>
           Send
         </button>
@@ -1573,6 +1573,8 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
   /** All messages in the selected message's thread, oldest-first (the conversation view). */
   threadMessages: SecureMessageItem[] = [];
   replyText = '';
+  /** True while an outbound reply is being sent (disables the Send control). */
+  sendingReply = false;
 
   /* ─── Action panel (Request files / Send for signature) ─── */
   // Which mode the shared <mj-secure-messaging-action-panel> opens in (null = closed).
@@ -1864,10 +1866,73 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
   onArchive(): void { /* Phase 2 */ }
   onDelete(): void { /* Phase 2 */ }
 
-  onSendReply(): void {
-    if (!this.replyText.trim()) return;
-    // Phase 2: send reply via API
-    this.replyText = '';
+  /**
+   * Send a staff reply into the selected thread. Invokes the server-side 'Send Secure Message'
+   * MJ Action (which persists the outbound row in Core's MessageStore + fires the notify hook),
+   * then optimistically appends it to the conversation view. The contact's widget shows it on
+   * its next load.
+   */
+  async onSendReply(): Promise<void> {
+    const body = this.replyText.trim();
+    const threadId = this.selectedMessage?.threadId;
+    if (!body || !threadId || this.sendingReply) return;
+
+    this.sendingReply = true;
+    try {
+      const actionId = await this.resolveActionId('Send Secure Message');
+      if (!actionId) {
+        console.error('Send Secure Message action is not available in this environment.');
+        return;
+      }
+      const client = new GraphQLActionClient(Metadata.Provider as unknown as GraphQLDataProvider);
+      const result = await client.RunAction(actionId, [
+        { Name: 'ThreadID', Value: threadId, Type: 'Input' },
+        { Name: 'Content', Value: body, Type: 'Input' },
+      ]);
+      if (!result?.Success) {
+        console.error('Failed to send reply:', result?.Message);
+        return;
+      }
+
+      // Optimistically append the sent message to the open conversation.
+      const me = Metadata.Provider?.CurrentUser;
+      this.threadMessages = [...this.threadMessages, {
+        id: (result.Params?.find(p => p.Name === 'MessageID')?.Value as string) || `tmp-${threadId}-${this.threadMessages.length}`,
+        senderName: me?.FirstLast || me?.Name || 'You',
+        senderEmail: me?.Email || '',
+        subject: '',
+        preview: body,
+        bodyHtml: this.sanitizer.bypassSecurityTrustHtml(body),
+        receivedAt: new Date(),
+        isRead: true,
+        isStarred: false,
+        isSecure: true,
+        attachmentCount: 0,
+        attachments: [],
+        threadId,
+        direction: 'Outbound',
+      }];
+      this.replyText = '';
+      this.cdr.detectChanges();
+    } catch (e) {
+      console.error('Failed to send reply', e);
+    } finally {
+      this.sendingReply = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  /** Resolve an Action's ID by name. */
+  private async resolveActionId(name: string): Promise<string | null> {
+    const rv = new RunView();
+    const res = await rv.RunView({
+      EntityName: 'MJ: Actions',
+      ExtraFilter: `Name = '${name.replace(/'/g, "''")}'`,
+      MaxRows: 1,
+      ResultType: 'simple',
+    });
+    if (!res.Success || res.Results.length === 0) return null;
+    return String((res.Results as Record<string, unknown>[])[0].ID);
   }
 
   /* ─── File request / signature actions ─── */

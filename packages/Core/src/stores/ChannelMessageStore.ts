@@ -5,6 +5,8 @@ import {
     SecureMessageView,
     CreateMessageInput,
     CreateMessageResult,
+    CreateOutboundMessageInput,
+    notifyMessage,
 } from './MessageStore.js';
 
 /**
@@ -80,6 +82,57 @@ export class ChannelMessageStore implements MessageStore {
         if (!saved) {
             throw new Error(entity.LatestResult?.CompleteMessage || 'Failed to create message');
         }
+
+        return { messageId: entity.Get('ID') as string };
+    }
+
+    async createOutboundMessage(
+        threadId: string,
+        input: CreateOutboundMessageInput,
+        systemUser: UserInfo
+    ): Promise<CreateMessageResult> {
+        // Resolve the thread's channel + contact from its newest ChannelMessage.
+        const rv = new RunView();
+        const ctx = await rv.RunView({
+            EntityName: 'Channel Messages',
+            ExtraFilter: `ThreadID = '${threadId.replace(/'/g, "''")}'`,
+            OrderBy: 'ReceivedAt DESC',
+            MaxRows: 1,
+        }, systemUser);
+        const ref = ctx.Success ? (ctx.Results?.[0] as Record<string, unknown> | undefined) : undefined;
+        if (!ref) {
+            throw new Error(`No channel message found for thread ${threadId}`);
+        }
+
+        const md = new Metadata();
+        const entity = await md.GetEntityObject('Channel Messages', systemUser);
+        entity.NewRecord();
+        entity.Set('ChannelID', ref.ChannelID);
+        entity.Set('ThreadID', threadId);
+        entity.Set('Sender', input.senderEmail);
+        entity.Set('Recipient', ref.Sender); // reply goes back to the contact who wrote in
+        entity.Set('MessageContent', input.content.trim());
+        entity.Set('ReceivedAt', new Date().toISOString());
+        entity.Set('SentContent', input.content.trim());
+        entity.Set('SentAt', new Date().toISOString());
+        entity.Set('IsSecure', true);
+        entity.Set('PersonID', ref.PersonID);
+        entity.Set('MessageFormat', 'text');
+        if (input.subject) {
+            entity.Set('Subject', input.subject.trim());
+        }
+
+        const saved = await entity.Save();
+        if (!saved) {
+            throw new Error(entity.LatestResult?.CompleteMessage || 'Failed to create outbound message');
+        }
+
+        await notifyMessage({
+            threadId,
+            messageId: entity.Get('ID') as string,
+            direction: 'Outbound',
+            contactEmail: ref.Sender as string | undefined,
+        });
 
         return { messageId: entity.Get('ID') as string };
     }

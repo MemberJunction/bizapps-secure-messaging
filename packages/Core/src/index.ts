@@ -3,8 +3,8 @@ export { PortalAuthService } from './services/PortalAuthService.js';
 export type { PortalSessionContext, MagicLinkResult, MagicLinkRedemptionResult } from './services/PortalAuthService.js';
 
 // Message stores (owned default + optional channel adapter) and the store abstraction
-export { getMessageStore, setMessageStore, OwnedMessageStore, ChannelMessageStore } from './stores/index.js';
-export type { MessageStore, SecureMessageView, CreateMessageInput, CreateMessageResult } from './stores/index.js';
+export { getMessageStore, setMessageStore, OwnedMessageStore, ChannelMessageStore, setMessageNotifier } from './stores/index.js';
+export type { MessageStore, SecureMessageView, CreateMessageInput, CreateMessageResult, CreateOutboundMessageInput, MessageNotifier, MessageNotification } from './stores/index.js';
 
 // File/artifact store (bytes in MJ Files, wrapped as MJ Artifacts)
 export { ArtifactFileStore, getFileStore, MAX_FILE_BYTES } from './stores/ArtifactFileStore.js';

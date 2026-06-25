@@ -8,7 +8,11 @@ export type {
     SecureMessageView,
     CreateMessageInput,
     CreateMessageResult,
+    CreateOutboundMessageInput,
+    MessageNotifier,
+    MessageNotification,
 } from './MessageStore.js';
+export { setMessageNotifier } from './MessageStore.js';
 export { OwnedMessageStore } from './OwnedMessageStore.js';
 export { ChannelMessageStore } from './ChannelMessageStore.js';
 

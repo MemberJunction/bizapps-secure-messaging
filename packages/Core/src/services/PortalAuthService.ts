@@ -255,7 +255,8 @@ export class PortalAuthService {
         };
     }
 
-    private async getContactEmail(contactId: string, systemUser: UserInfo): Promise<string> {
+    /** Resolve a contact's email from the configured People entity. Public — reused by stores. */
+    public async getContactEmail(contactId: string, systemUser: UserInfo): Promise<string> {
         const rv = new RunView();
         const result = await rv.RunView({
             EntityName: PortalAuthService.contactEntityName,

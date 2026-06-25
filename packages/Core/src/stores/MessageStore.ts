@@ -37,6 +37,37 @@ export interface CreateMessageResult {
 }
 
 /**
+ * Payload for an outbound (staff → contact) message. Unlike inbound, the sender is a staff
+ * member (not the contact), so the caller supplies the sender identity. The thread's portal
+ * session supplies the recipient + PersonID.
+ */
+export interface CreateOutboundMessageInput {
+    content: string;
+    subject?: string;
+    /** The signed-in staff member's email (becomes the message Sender). */
+    senderEmail: string;
+    /** Optional display name for the staff sender. */
+    senderName?: string;
+}
+
+/**
+ * Pluggable notification hook. Fired after a message is persisted so a host (the org's comms,
+ * or Izzy) can notify the other party out-of-band (e.g. email a magic link) — this app has no
+ * mailer of its own, so by default nothing happens. Register one via {@link setMessageNotifier}.
+ */
+export type MessageNotifier = (event: MessageNotification) => void | Promise<void>;
+
+export interface MessageNotification {
+    threadId: string;
+    messageId: string;
+    direction: 'Inbound' | 'Outbound';
+    /** The portal session this thread belongs to, when known. */
+    sessionId?: string;
+    /** The contact's email (the party to notify on an outbound message). */
+    contactEmail?: string;
+}
+
+/**
  * Abstraction over where secure messages live. This keeps the app **app-agnostic**:
  * the default {@link OwnedMessageStore} uses only the __mj_BizAppsSecureMessaging schema, so the
  * app runs in any MJ instance. The optional ChannelMessageStore adapter bridges to
@@ -57,4 +88,34 @@ export interface MessageStore {
         input: CreateMessageInput,
         systemUser: UserInfo
     ): Promise<CreateMessageResult>;
+
+    /**
+     * Create an outbound (staff → contact) message in a thread. The thread's portal session
+     * supplies the recipient + contact PersonID. Fires the registered notifier after save.
+     */
+    createOutboundMessage(
+        threadId: string,
+        input: CreateOutboundMessageInput,
+        systemUser: UserInfo
+    ): Promise<CreateMessageResult>;
+}
+
+/* ─── Notifier registry (pluggable, no-op by default) ─── */
+
+let _notifier: MessageNotifier | null = null;
+
+/** Register a host notifier (e.g. send an email/magic-link nudge). Replaces any previous one. */
+export function setMessageNotifier(notifier: MessageNotifier | null): void {
+    _notifier = notifier;
+}
+
+/** Invoke the registered notifier, if any. Best-effort — never throws into the caller. */
+export async function notifyMessage(event: MessageNotification): Promise<void> {
+    if (!_notifier) return;
+    try {
+        await _notifier(event);
+    } catch (e) {
+        // A failing host notifier must not break message persistence.
+        console.error('Secure Messaging notifier failed:', e instanceof Error ? e.message : String(e));
+    }
 }

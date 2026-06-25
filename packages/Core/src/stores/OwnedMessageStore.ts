@@ -1,10 +1,16 @@
 import { Metadata, RunView, UserInfo } from '@memberjunction/core';
-import { PortalSessionContext } from '../services/PortalAuthService.js';
+import {
+    mjBizAppsSecureMessagingSecureMessageEntity,
+    mjBizAppsSecureMessagingPortalSessionEntity,
+} from '@mj-biz-apps/secure-messaging-entities';
+import { PortalSessionContext, PortalAuthService } from '../services/PortalAuthService.js';
 import {
     MessageStore,
     SecureMessageView,
     CreateMessageInput,
     CreateMessageResult,
+    CreateOutboundMessageInput,
+    notifyMessage,
 } from './MessageStore.js';
 
 /**
@@ -45,28 +51,94 @@ export class OwnedMessageStore implements MessageStore {
         systemUser: UserInfo
     ): Promise<CreateMessageResult> {
         const md = new Metadata();
-        const entity = await md.GetEntityObject('MJ_BizApps_SecureMessaging: Secure Messages', systemUser);
+        const entity = await md.GetEntityObject<mjBizAppsSecureMessagingSecureMessageEntity>(
+            'MJ_BizApps_SecureMessaging: Secure Messages',
+            systemUser
+        );
         entity.NewRecord();
-        entity.Set('PortalSessionID', session.sessionId);
-        entity.Set('ThreadID', threadId);
-        entity.Set('PersonID', session.contactId);
-        entity.Set('Direction', 'Inbound');
-        entity.Set('Sender', session.contactEmail);
-        entity.Set('Recipient', '');
-        entity.Set('Content', input.content.trim());
-        entity.Set('IsSecure', true);
-        entity.Set('Status', 'New');
-        entity.Set('ReceivedAt', new Date().toISOString());
-
+        entity.PortalSessionID = session.sessionId;
+        entity.ThreadID = threadId;
+        entity.PersonID = session.contactId;
+        entity.Direction = 'Inbound';
+        entity.Sender = session.contactEmail;
+        entity.Recipient = '';
+        entity.Content = input.content.trim();
+        entity.IsSecure = true;
+        entity.Status = 'New';
+        entity.ReceivedAt = new Date();
         if (input.subject) {
-            entity.Set('Subject', input.subject.trim());
+            entity.Subject = input.subject.trim();
         }
 
-        const saved = await entity.Save();
-        if (!saved) {
+        if (!(await entity.Save())) {
             throw new Error(entity.LatestResult?.CompleteMessage || 'Failed to create message');
         }
 
-        return { messageId: entity.Get('ID') as string };
+        await notifyMessage({
+            threadId,
+            messageId: entity.ID,
+            direction: 'Inbound',
+            sessionId: session.sessionId,
+            contactEmail: session.contactEmail,
+        });
+
+        return { messageId: entity.ID };
+    }
+
+    async createOutboundMessage(
+        threadId: string,
+        input: CreateOutboundMessageInput,
+        systemUser: UserInfo
+    ): Promise<CreateMessageResult> {
+        const md = new Metadata();
+
+        // Resolve the thread's portal session for the recipient + contact PersonID.
+        const rv = new RunView();
+        const sessionResult = await rv.RunView<mjBizAppsSecureMessagingPortalSessionEntity>({
+            EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
+            ExtraFilter: `ThreadID = '${threadId.replace(/'/g, "''")}'`,
+            OrderBy: 'LastAccessedAt DESC',
+            MaxRows: 1,
+            ResultType: 'entity_object',
+        }, systemUser);
+        const portalSession = sessionResult.Success ? sessionResult.Results?.[0] : undefined;
+        if (!portalSession) {
+            throw new Error(`No portal session found for thread ${threadId}`);
+        }
+
+        const recipientEmail = await PortalAuthService.Instance.getContactEmail(portalSession.ContactID, systemUser);
+
+        const entity = await md.GetEntityObject<mjBizAppsSecureMessagingSecureMessageEntity>(
+            'MJ_BizApps_SecureMessaging: Secure Messages',
+            systemUser
+        );
+        entity.NewRecord();
+        entity.PortalSessionID = portalSession.ID;
+        entity.ThreadID = threadId;
+        entity.PersonID = portalSession.ContactID;
+        entity.Direction = 'Outbound';
+        entity.Sender = input.senderEmail;
+        entity.Recipient = recipientEmail;
+        entity.Content = input.content.trim();
+        entity.IsSecure = true;
+        entity.Status = 'Sent';
+        entity.ReceivedAt = new Date();
+        if (input.subject) {
+            entity.Subject = input.subject.trim();
+        }
+
+        if (!(await entity.Save())) {
+            throw new Error(entity.LatestResult?.CompleteMessage || 'Failed to create outbound message');
+        }
+
+        await notifyMessage({
+            threadId,
+            messageId: entity.ID,
+            direction: 'Outbound',
+            sessionId: portalSession.ID,
+            contactEmail: recipientEmail,
+        });
+
+        return { messageId: entity.ID };
     }
 }
