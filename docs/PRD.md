@@ -8,8 +8,10 @@
 > verified end-to-end — staff reply, compose-new-thread (the "switch to secure channel"
 > flow), file requests, e-signatures, Archive, Star, Soft-delete/Trash, full thread view,
 > and the full contact-widget round-trip (magic link → portal → read/send/upload). Open
-> items: live contact notification (notify hook unwired — pull-only today), and Izzy-side
-> thread-promotion/registration (§8–§9). All work is on branch `claude/amazing-volta-6L54v`.
+> items: live contact notification (notify hook unwired — pull-only today), and the two
+> **bridges** (§10) — Izzy email/SMS→secure promotion and the native-Outlook "Secure Send"
+> add-in — now designed (one-way visibility rule + `PromoteThread` backbone), not yet built.
+> All work is on branch `claude/amazing-volta-6L54v`.
 
 ## 1. Vision
 
@@ -305,6 +307,11 @@ Once Secure Messaging installs cleanly in any MJ instance, Izzy supports it **ex
 with **Credentials**. None of the below lives in the Secure Messaging app; it is Izzy-side behavior
 that _consumes_ this app's surface. It is recorded here because it shapes what the app must expose.
 
+> The Izzy email/SMS → secure **promotion** flow (action-diff + thread import) is one of the two
+> **bridges** detailed in §10, alongside the native-Outlook "Secure Send" bridge. §10 pins down the
+> **one-way visibility rule** (full history imports into secure; secure never flows back to the
+> insecure channel) and the shared `PromoteThread` backbone both bridges share. Read §10 with §8.2–8.3.
+
 ### 8.1 Per-channel action vocabularies
 
 In Izzy, **each channel has its own set of available actions** — SMS may differ from Email, and the
@@ -391,17 +398,156 @@ sequenceDiagram
 **Still open:**
 6. **Contact notification on a new message.** Currently **pull-only** (contact sees it next visit).
    The notify hook (`setMessageNotifier` / `notifyMessage`, §5) fires on every message but **no
-   notifier is wired** — and this app has no mailer. Decide who sends the nudge (org comms / a host
-   hook / Izzy) and wire it.
-7. **Contact registration on first magic-link redemption** (for the §8.3 switch flow). Today a link
-   mints a session directly; the promotion flow wants a first-time **registration** step. Define what
-   it collects/verifies. (Izzy-driven; not blocking the standalone app.)
-8. **Thread import/promote operation** (§8.3) — bulk "import these messages into a new secure thread
-   and scope a contact's inbox to promoted threads" for Izzy. Note: `Start Secure Thread` already
-   covers the create-thread-from-scratch case; promotion adds *importing existing messages*. Define
-   what's copied vs. referenced and who may invoke. (Izzy-side; app-side is mostly the existing action.)
+   notifier is wired** — and this app has no mailer. **Decided:** for the bridge flows (§10), the
+   nudge is a plain **notification email with a magic link** — the universal incumbent pattern (Cisco
+   /TitanFile/Virtru all do exactly this). Sent by whoever initiates (org comms / a host-registered
+   notifier / Izzy); we provide the link + portal, not the mailer. Same nudge surfaces a staff member's
+   new secure reply back in their native Outlook/Gmail inbox (§10.2).
+7. **Contact registration on first magic-link redemption** (for the §8.3 / §10.1 switch flow). Today a
+   link mints a session directly; the promotion flow wants a first-time **registration** step (create
+   uid/pwd). Define what it collects/verifies. (Izzy-driven; not blocking the standalone app.) See §10.1.
+8. **Thread import/promote operation** (§8.3 / §10.1) — bulk "import these messages into a new secure
+   thread and scope a contact's inbox to promoted threads." `Start Secure Thread` already covers the
+   create-thread-from-scratch case; promotion adds *importing existing messages* with a **one-way
+   visibility rule** (§10.1). Define what's copied vs. referenced and who may invoke. This is the
+   shared backbone both bridges in §10 depend on.
 
-## 10. Engineering standards (established this session)
+## 10. Bridges to existing channels
+
+Two bridges connect Secure Messaging to where conversations *already happen* — Izzy's
+email/SMS channels, and staff members' native Outlook/Gmail clients. Both reduce to the same
+backbone: **promote/import an existing thread into a secure thread, then issue a magic link.**
+They differ only in *where the bridge UI lives* (Izzy's LLM vs. an Outlook add-in).
+
+### Research: how the incumbents do it (Cisco Secure Email, TitanFile, Virtru, MS Purview)
+
+The market is strikingly consistent:
+
+- **Send side — they keep the staff sender inside Outlook/Gmail.** Every product adds an
+  **Encrypt / "Secure Send" button** to the compose window via a client add-in. Cisco: an *Encrypt*
+  button in the Outlook ribbon (or the ⋯ menu in Outlook Web). TitanFile: a button literally named
+  *Secure Send*. Virtru / Purview: an *Encrypt* toggle in the compose ribbon. The staff member
+  composes normally and clicks one button.
+- **Receive side — the external recipient always goes to a portal.** The recipient gets a plain
+  **notification email** ("you have a secure message"), clicks through to a **web portal**, and on
+  first visit **registers a free account / sets a passcode**. *Nobody* delivers decrypted secure
+  content into an arbitrary outside inbox — that's the insecure leg they exist to avoid. **This is
+  exactly our magic-link → portal → first-time-register flow.**
+- **The staff member's own received replies** live in the vendor's portal, with a notification email
+  landing in Outlook. True "secure replies appear as a native Outlook folder" is rare even among the
+  leaders.
+
+> Sources: [Cisco Secure Email Encryption Add-in](https://docs.ces.cisco.com/docs/cisco-secure-email-encryption-add-in) ·
+> [Cisco recipient guide](https://www.cisco.com/c/en/us/td/docs/security/email_encryption/CRES/recipient_guide/b_Recipient/b_Recipient_chapter_011.html) ·
+> [TitanFile Secure Send](https://www.titanfile.com/features/secure-send/) ·
+> [Virtru Outlook encryption](https://www.virtru.com/blog/email-encryption/outlook) ·
+> [Microsoft Purview Message Encryption](https://learn.microsoft.com/en-us/purview/manage-office-365-message-encryption)
+
+**Conclusion:** our portal + magic-link + first-time-register *is* the recipient half of both
+bridges — already built. The only genuinely new surfaces are (a) the **promote/import** backbone
+operation and (b) a thin **Outlook add-in** holding the "Secure Send" button.
+
+### 10.1 Bridge to Izzy convos (email/SMS → secure) — the promotion bridge
+
+A regular Email/SMS thread is running with Izzy. The human or Izzy decides it needs to go secure
+(§8.2 action-diff). On the switch, the thread is **promoted/imported** into a secure thread.
+
+**The one-way visibility rule (decided):**
+
+- The contact, after authenticating, sees the **full prior conversation history** — the
+  pre-switch email/SMS messages are **copied into** the secure thread, so the secure side is the
+  complete record.
+- After the switch, **secure messages are never back-published to the insecure side.** The
+  email/SMS thread is frozen at the switch point. Sensitive content lives **only** in the
+  authenticated channel. This is both the security guarantee and the compliance boundary.
+
+```mermaid
+flowchart LR
+    subgraph insecure["Insecure channel (Email / SMS)"]
+        m1["msg 1"] --> m2["msg 2"] --> m3["msg 3"]
+        m3 --> frozen["🔒 frozen at switch<br/><i>no secure msgs ever appear here</i>"]
+    end
+    subgraph secure["Secure thread (UUID)"]
+        i1["msg 1 (imported)"] --> i2["msg 2 (imported)"] --> i3["msg 3 (imported)"]
+        i3 --> s4["msg 4 🔒 secure"] --> s5["msg 5 🔒 secure"]
+    end
+    m3 ==>|"promote: COPY full history →"| i1
+    secure -. "one-way — never flows back" .-x insecure
+
+    classDef froze fill:#0000,stroke-dasharray:4 4;
+    class frozen,insecure froze;
+```
+
+**First-click registration:** the magic link a never-seen contact receives lets them **create a
+uid/pwd on first visit**, then drops them into their secure inbox scoped to promoted threads
+(§9 item 7). Returning contacts just sign in.
+
+**App-side capability needed (the backbone):** an **import/promote** operation —
+`PromoteThread({ messages[], contact, channelRef })` → mint a secure ThreadID, write the imported
+messages (`IsSecure=true`, flagged as imported with a `SourceChannel` reference so we know they
+predate the switch), create the PortalSession, issue the magic link. `Start Secure Thread` already
+covers *empty* new threads; promotion adds the **bulk message import** + the **imported-vs-native**
+provenance flag. Invocable by Izzy (API/MCP) and by the Outlook add-in (§10.2).
+
+### 10.2 Bridge to native email (Outlook "Secure Send") — staff stay in their mail client
+
+Staff live in Outlook/Gmail. The insight: those clients are secure *for viewing*; the insecurity is
+**plaintext SMTP to outside domains**. So this bridge replaces the *transport to external parties*
+while keeping the *staff UX native*.
+
+**Send (build Outlook first — Office Add-in):**
+
+1. An **Office Add-in** (Office.js, manifest-based — one codebase across Outlook desktop/web/mobile)
+   adds a **"Secure Send"** button to the compose window.
+2. On click, the add-in reads the draft (recipients + subject + body + attachments) and calls our
+   REST API's **promote/import** endpoint (§10.1) — moving the thread into Secure Messaging and
+   sending the outbound as a **secure message (magic link)**, not plaintext SMTP.
+3. The add-in **cancels the native plaintext send** (`Office.context.mailbox.item` send-blocking /
+   on-send event), so nothing sensitive leaves over SMTP.
+
+**Receive (decided — portal + email nudge, matching incumbents):**
+
+- Secure replies land in the **MJ Executive Inbox** (already built). The staff member gets a plain
+  **notification email** in their native Outlook/Gmail ("new secure reply — click here") that
+  deep-links them into the inbox/thread. This reuses the §5 notify hook (wire a notifier that emails
+  the staff member). It's the proven incumbent pattern and requires no mailbox write-back.
+- **Deferred enhancement:** syncing secure replies into a dedicated *Secure Messaging* Outlook
+  folder / Gmail label via the Graph / Gmail APIs (per-user OAuth, write-back) so replies truly never
+  leave the mail client. Real work; even the incumbents mostly don't do this. Recorded as future.
+
+```mermaid
+sequenceDiagram
+    actor S as 👩‍💼 Staff (in Outlook)
+    participant AddIn as Office Add-in<br/>("Secure Send" button)
+    participant API as Secure Messaging REST
+    actor C as 👤 Contact
+    participant P as Secure portal (widget)
+
+    S->>AddIn: compose draft, click "Secure Send"
+    AddIn->>AddIn: block native plaintext send
+    AddIn->>API: promote(draft → secure thread) + magic link
+    API-->>S: (later) reply arrives → notify email in Outlook inbox
+    API->>C: notification email: "secure message — click here"
+    C->>P: click → register (1st time) → read / reply
+    Note over S,P: Staff stays native to SEND + get nudged;<br/>contact uses the portal. No plaintext SMTP to outside domains.
+```
+
+**Architecture note:** the add-in is a **thin client** — it holds *no* business logic, just the
+button + the REST call to the promote/import endpoint. It ships as its **own downstream package**
+(like the Element widget is separate), not inside the core 6 packages. Gmail (Workspace Add-on,
+CardService) is the symmetric second target once Outlook proves the pattern.
+
+### 10.3 Build order
+
+1. **Backbone first:** the `PromoteThread` import/promote operation (Core service + Action + REST
+   endpoint) + the imported-message provenance flag + first-click registration. App-side, no add-in
+   dependency — unblocks *both* bridges and is testable in isolation.
+2. **Wire a notifier** (§9 item 6) so the email-nudge receive path works for staff and contacts.
+3. **Outlook Office Add-in** (separate package) — the "Secure Send" button → promote endpoint +
+   block-native-send.
+4. **Later:** Gmail Add-on; native-mailbox folder/label write-back sync.
+
+## 11. Engineering standards (established this session)
 
 - Canonical MJ Open-App structure; `@memberjunction/*` as caret peer deps, internal `@mj-biz-apps/*`
   pinned; `ngc` for the Angular lib (Ivy), separate Element app for the widget bundle.
