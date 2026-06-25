@@ -20,6 +20,9 @@ import '@mj-biz-apps/secure-messaging-core';
 // Secure Web communication provider (auto-registers via @RegisterClass on import).
 import './services/SecureWebCommunicationProvider.js';
 
+// Server middleware that mounts the portal REST API pre-auth (auto-registers via @RegisterClass).
+import './SecureMessagingMiddleware.js';
+
 // E-signature provider drivers (DocuSign / PandaDoc / Dropbox Sign). Each package's
 // @RegisterClass(BaseSignatureProvider, '<DriverKey>') side-effect lets the MJ
 // SignatureEngine resolve the driver named by an MJ: Signature Provider's ServerDriverKey.
@@ -55,5 +58,7 @@ export function LoadSecureMessagingServer(): void {
 export { SecureWebCommunicationProvider } from './services/SecureWebCommunicationProvider.js';
 // Express router (mounts the portal REST API)
 export { createSecureMessagingRouter, mountSecureMessagingRoutes } from './routes.js';
+// Server middleware that auto-mounts the portal REST API into MJAPI (pre-auth)
+export { SecureMessagingMiddleware, SECURE_MESSAGING_BASE_PATH } from './SecureMessagingMiddleware.js';
 // Middleware types
 export type { PortalRequest } from './handlers/middleware.js';

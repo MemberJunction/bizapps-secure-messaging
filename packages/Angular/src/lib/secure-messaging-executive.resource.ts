@@ -72,6 +72,10 @@ export class SecureMessagingResource extends BaseResourceComponent {
   override ngOnInit(): void {
     super.ngOnInit();
     this.hydrateFromParams(this.GetQueryParams());
+    // Signal the shell's loading screen to clear — without this, a direct URL navigation
+    // / refresh / deep-link to this resource hangs on "Preparing your view…" forever.
+    // The child surfaces (inbox / workspace) own their own data loading + spinners.
+    this.NotifyLoadComplete();
   }
 
   protected override OnQueryParamsChanged(params: Record<string, string>): void {

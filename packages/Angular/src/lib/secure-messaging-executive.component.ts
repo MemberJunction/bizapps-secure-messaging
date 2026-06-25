@@ -1,9 +1,11 @@
 import { Component, OnInit, OnChanges, SimpleChanges, Input, Output, EventEmitter, Optional, ChangeDetectorRef } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Metadata, RunView } from '@memberjunction/core';
+import { MJUserEntity } from '@memberjunction/core-entities';
 import { MJAuthBase } from '@memberjunction/ng-auth-services';
 import { GraphQLDataProvider, GraphQLFileStorageClient } from '@memberjunction/graphql-dataprovider';
 import { mjBizAppsCommonPersonEntity } from '@mj-biz-apps/common-entities';
+import { mjBizAppsSecureMessagingSecureMessageEntity } from '@mj-biz-apps/secure-messaging-entities';
 import { ContactSelection } from './secure-messaging.contracts';
 
 /* ─── Interfaces ─── */
@@ -77,6 +79,8 @@ interface WorkspaceNavItem {
     <div class="sidebar-profile">
       @if (avatarUrl) {
         <img class="profile-avatar profile-avatar-img" [src]="avatarUrl" [alt]="userName" />
+      } @else if (avatarIconClass) {
+        <div class="profile-avatar"><i [class]="avatarIconClass"></i></div>
       } @else {
         <div class="profile-avatar">{{ getInitials(userName) }}</div>
       }
@@ -1499,8 +1503,10 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
   /* ─── Staff user — the signed-in MJ user (resolved from the metadata provider + auth). ─── */
   userName = '';
   userEmail = '';
-  /** Profile picture from the auth provider; empty falls back to initials. */
+  /** Profile picture (cached UserImageURL, else auth-provider photo); empty falls back to icon/initials. */
   avatarUrl = '';
+  /** Font Awesome class from the user record (UserImageIconClass); used when there's no image. */
+  avatarIconClass = '';
 
   /* ─── Message list state ─── */
   messages: SecureMessageItem[] = [];
@@ -1536,20 +1542,41 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
   }
 
   /**
-   * Resolve the signed-in staff member: name/email from the metadata provider's current
-   * user, profile picture from the auth provider (best-effort; falls back to initials).
+   * Resolve the signed-in staff member. Name/email come synchronously from the metadata
+   * provider's CurrentUser (cached in memory at bootstrap) so the header renders instantly.
+   * The avatar is loaded in the background from the cached MJ: Users record (UserImageURL /
+   * UserImageIconClass), with the auth provider's photo as a last-resort fallback — it never
+   * blocks the header, and re-renders explicitly when it arrives (mirrors the MJ shell).
    */
   private loadCurrentUser(): void {
     const user = Metadata.Provider?.CurrentUser;
-    if (user) {
-      this.userName = user.Name || [user.FirstName, user.LastName].filter(Boolean).join(' ').trim() || user.Email || '';
-      this.userEmail = user.Email || '';
-    }
-    if (this.authService) {
-      this.authService
-        .getProfilePictureUrl()
-        .then(url => { if (url) this.avatarUrl = url; })
-        .catch(() => { /* no picture available — initials fallback */ });
+    if (!user) return;
+    this.userName = user.FirstLast || user.Name || user.Email || '';
+    this.userEmail = user.Email || '';
+    void this.loadAvatar(user.ID);
+  }
+
+  /** Background avatar resolution — DB-cached image/icon first, auth-provider photo as fallback. */
+  private async loadAvatar(userId: string): Promise<void> {
+    try {
+      const md = new Metadata();
+      const userEntity = await md.GetEntityObject<MJUserEntity>('MJ: Users');
+      if (await userEntity.Load(userId)) {
+        if (userEntity.UserImageURL) {
+          this.avatarUrl = userEntity.UserImageURL;
+        } else if (userEntity.UserImageIconClass) {
+          this.avatarIconClass = userEntity.UserImageIconClass;
+        }
+      }
+      // No DB-cached avatar — fall back to the auth provider's profile photo.
+      if (!this.avatarUrl && !this.avatarIconClass && this.authService) {
+        const url = await this.authService.getProfilePictureUrl();
+        if (url) this.avatarUrl = url;
+      }
+    } catch {
+      /* no avatar available — initials fallback */
+    } finally {
+      this.cdr.detectChanges();
     }
   }
 
@@ -1690,10 +1717,29 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
     if (!message.isRead) {
       message.isRead = true;
       this.updateInboxCount();
+      void this.persistRead(message);
     }
     this.replyText = '';
     this.closeActionPanel();
     void this.loadAttachments(message);
+  }
+
+  /**
+   * Persist the read state to the owned SecureMessage record so it survives navigation/reload.
+   * Only promotes a brand-new inbound message (Status 'New') to 'Read'; never overwrites a
+   * 'Replied'/'Sent'/'Failed' status.
+   */
+  private async persistRead(message: SecureMessageItem): Promise<void> {
+    try {
+      const md = new Metadata();
+      const rec = await md.GetEntityObject<mjBizAppsSecureMessagingSecureMessageEntity>('MJ_BizApps_SecureMessaging: Secure Messages');
+      if (!(await rec.Load(message.id))) return;
+      if (rec.Status !== 'New') return;
+      rec.Status = 'Read';
+      await rec.Save();
+    } catch (e) {
+      console.error('Failed to persist read state', e);
+    }
   }
 
   /** Loads the files attached to a message's thread from the owned MessageFile entity. */

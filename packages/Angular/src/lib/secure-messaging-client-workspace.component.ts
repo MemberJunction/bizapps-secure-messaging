@@ -814,7 +814,13 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
   onActionDone(): void {
     const kind = this.actionPanel; // 'request' | 'signature'
     this.actionPanel = null;
-    void this.loadRequestsAndSignatures();
+    // Reload the affected data, then recompute stats + re-render so the Requests &
+    // Signatures tab and the stat cards reflect the new record without a navigation.
+    void (async () => {
+      await this.loadRequestsAndSignatures();
+      this.computeStats();
+      this.cdr.detectChanges();
+    })();
     if (kind) this.actionCompleted.emit({ kind, contactId: this.contactId, threadId: this.session.threadId });
     this.toast('Done.');
   }

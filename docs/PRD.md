@@ -1,0 +1,387 @@
+# Secure Messaging — Product Requirements Document
+
+> Status: living document. Captures the product vision plus the verified state of the
+> codebase as of this writing, so we stop rediscovering the design piecemeal.
+> Sibling reference: `plans/` (the conformance-refactor plan, now complete).
+
+## 1. Vision
+
+Secure Messaging is a **free, installable MemberJunction Open App** that lets an organization
+stand up a secure web portal for communicating with **external parties** (members, clients,
+applicants) — exchanging messages, uploading/sharing documents, and collecting e-signatures —
+without sending sensitive content over plain email.
+
+Think **Cisco Secure Mail / TitanFile, but with a contemporary UX** and strong collaboration
+features for org-to-external-party messaging (e.g. an association ↔ its members).
+
+The canonical flow:
+
+1. A contact emails in with something sensitive (e.g. a renewal request).
+2. The org (or Izzy) replies: _"For this request we need to switch to a secure channel —
+   click here to continue."_ The link is a **magic link**.
+3. The contact clicks, lands on the secure portal (the **widget**), authenticates passwordlessly,
+   and can now message, upload documents, and sign — all inside the secure channel.
+
+Two halves ship together:
+
+- **Backend services** — intentionally simple. Owned MJ entities + a small REST API that the
+  widget calls. No message bus, no real-time push.
+- **A drop-in Angular Element widget** (`<mj-secure-messaging>`) that anyone can embed on any
+  web page (their own site, a landing page) to give external parties the contact-side experience.
+
+## 2. Goals / Non-Goals
+
+**Goals**
+
+- One-command installable Open App in any MJ instance (canonical 6-package structure — **done**).
+- Self-contained ("owned") data model — runs in any MJ instance with no dependency on Izzy or
+  any Channel platform.
+- Staff experience inside MJ Explorer: triage inbox + per-contact 360° workspace.
+- Contact experience via an embeddable widget: passwordless (magic-link) access to one thread.
+- File sharing and e-signature collection as first-class actions.
+
+**Non-Goals (for v1)**
+
+- No real-time push / websockets. The widget **pulls** (polls/loads) over REST.
+- No outbound email/SMS infrastructure of our own — the magic-link _email_ is sent by whoever
+  initiates (the org's existing comms, or Izzy). We provide the link + the portal.
+- Izzy integration is **not** part of this app. Izzy consumes Secure Messaging later via API/MCP
+  (see §8).
+
+## 3. Actors & surfaces
+
+| Actor                        | Surface                                                      | Auth                                                 | Reaches data via                                        |
+| ---------------------------- | ------------------------------------------------------------ | ---------------------------------------------------- | ------------------------------------------------------- |
+| **Staff** (org user)         | Executive Inbox + Client Workspace, **inside MJ Explorer**   | their MJ login                                       | MJ entity layer (GraphQL → DB), as the MJ user          |
+| **Contact** (external party) | the `<mj-secure-messaging>` **widget**, embedded on any page | **magic link → portal session token** (passwordless) | **REST API** (`/threads/:id/...`) with the portal token |
+
+For the workflow in Izzy, since each channel can have distinct actions, for example SMS might have diff actions than Email channels, we can have a configuration setup for Izzy where when an org turns on the Secure Message channel, they can include actions there that are NOT available in others. For example things that are more sensitive like updating someone's profile or renewing their membership. Those actions would of course be verbs in the vocabulary that are driven by the system's we are integrating with and we'll want to:
+Build the library of MJ actions up so that we have more and more and more of the integrations built as standard MJ actions so we can leverage them everywhere
+Then use those actions in the various channels we setup for clients in Izzy
+Finally, the key piece - when someone is communicating over an insecure channel like Email or SMS, if Izzy determines their request cannot be met with insecure messaging but could be handled by the secure channel - we need to find a way to get this information to the insecure channels automatically, perhaps we "auto-diff" the actions the secure channel has with the current channel and then instruct the LLM that those actions are not available in the current context but that an action called "switch to secure channel" is available and in that case what it does is "switch" the user over to the secure channel.
+The way the "switch" would work is pretty simple - the whole thread is "imported" into the secure messaging service and assigned a UUID. Then, in the email or SMS response, Izzy sends a link telling the person that their request is something we'd be pleased to assist with, but we need to switch to a secure site to ensure the information is both secure/authenticated/etc.
+
+When the user clicks the link, they login (require a registration first time they get a link) and then they can see their secure inbox, reply, etc. They would see only the message that have been "promoted" to secure threads that have been imported there.
+
+Both read/write the **same owned tables**, through two different doors.
+
+```mermaid
+flowchart LR
+    subgraph external["External party"]
+        contact["👤 Contact<br/><i>browser, any website</i>"]
+        widget["&lt;mj-secure-messaging&gt;<br/><b>Angular Element widget</b>"]
+        contact --> widget
+    end
+
+    subgraph mj["Customer's MemberJunction instance"]
+        subgraph explorer["MJ Explorer"]
+            staff["👩‍💼 Staff<br/>Executive Inbox + Client Workspace"]
+        end
+        api["MJAPI<br/><i>GraphQL + REST</i>"]
+        subgraph app["Secure Messaging Open App"]
+            rest["REST handlers<br/><i>/threads/:id/…</i>"]
+            store["MessageStore + ArtifactFileStore<br/>SignatureEngine"]
+        end
+        db[("Owned schema<br/>__mj_BizAppsSecureMessaging<br/>+ core MJ: Files / Artifacts /<br/>Signature Requests")]
+        files[("Storage provider<br/>S3 / Azure Blob")]
+    end
+
+    izzy["🤖 Izzy<br/><i>future consumer</i>"]
+
+    widget -->|"REST + portal token<br/>(magic-link auth)"| rest
+    staff -->|"MJ entity layer<br/>(as MJ user)"| api
+    rest --> store
+    api --> db
+    store --> db
+    store -.->|bytes| files
+    izzy -.->|"API / MCP<br/>(OrganizationAction + Credentials)"| api
+
+    classDef future stroke-dasharray:5 5,fill:#0000;
+    class izzy future;
+```
+
+## 4. Data model (owned — schema `__mj_BizAppsSecureMessaging`)
+
+All five entities exist, are CodeGen-registered, and ship with the app:
+
+- **Secure Messages** — one inbound or outbound message in a thread. `Direction` (Inbound/Outbound),
+  `Sender`, `Recipient`, `Subject`, `Content`, `Status` (New/Read/Replied/Sent/Failed), `IsSecure`,
+  `ThreadID`, `PersonID`, `PortalSessionID`, `ReceivedAt`. **App-agnostic** — does not require any
+  external Channel entity.
+- **Portal Sessions** — an authenticated session for one contact on one thread; opaque hashed token,
+  sliding expiry, `ContactID` (a BizAppsCommon Person), `ChannelID`, `Status`.
+- **Portal Magic Links** — single-use, short-lived links that redeem into a fresh Portal Session.
+- **File Requests** — staff asks the contact to upload specific files; `Status` Pending/Fulfilled/Cancelled.
+- **Message Files** — links an uploaded file to a thread; this table holds only references +
+  display metadata. See File storage below.
+
+### File storage (fully wired — core primitives only)
+
+Uploaded bytes are **never** stored in our schema. The Core `ArtifactFileStore` uses
+`@memberjunction/storage` `FileStorageEngine.UploadFile()` → bytes land in the org's configured
+**MJ: Files** storage provider (S3 / Azure Blob / etc.), then are wrapped as **MJ: Artifacts** +
+**MJ: Artifact Versions** (`ContentMode='File'`). Downloads use pre-authed `createDownloadUrl`; a
+`MAX_FILE_BYTES` cap mirrors MJ's attachment pipeline. Powers attachments and File-Request fulfillment.
+
+### E-signatures (fully wired — core engine + all providers)
+
+Reuses the **core** `MJ: Signature Requests` entity (not a bespoke table) driven by
+`@memberjunction/esignature` `SignatureEngine.SendForSignature()` (atomic create+send). All three
+providers ship as deps — **DocuSign, PandaDoc, Dropbox Sign** — selected per send via an
+`MJ: Signature Account` (provider + credentials). A webhook route receives provider status callbacks;
+the REST surface exposes refresh-status, void, and signed-document download.
+
+```mermaid
+erDiagram
+    PERSON ||--o{ PORTAL_SESSION : "is the contact for"
+    PORTAL_SESSION ||--o{ SECURE_MESSAGE : "carries"
+    PORTAL_SESSION ||--o{ FILE_REQUEST : "carries"
+    PORTAL_SESSION ||--o{ PORTAL_MAGIC_LINK : "re-authed by"
+    SECURE_MESSAGE ||--o{ MESSAGE_FILE : "has attachments"
+    MESSAGE_FILE }o--|| MJ_FILE : "references bytes in"
+    FILE_REQUEST ||--o{ MESSAGE_FILE : "fulfilled by"
+    SECURE_MESSAGE }o--o| MJ_SIGNATURE_REQUEST : "may request signature via"
+
+    PORTAL_SESSION {
+        uuid ID
+        uuid ContactID "→ BizAppsCommon Person"
+        string ThreadID "secure thread UUID"
+        string TokenHash "opaque, hashed"
+        string Status "Active/Expired/Revoked"
+    }
+    SECURE_MESSAGE {
+        uuid ID
+        string ThreadID
+        string Direction "Inbound/Outbound"
+        string Status "New/Read/Replied/Sent/Failed"
+        string Content
+    }
+    MESSAGE_FILE {
+        uuid ID
+        string ThreadID
+        string Filename "metadata only"
+    }
+    FILE_REQUEST {
+        uuid ID
+        string Title
+        string Status "Pending/Fulfilled/Cancelled"
+    }
+    PERSON {
+        uuid ID "core: BizAppsCommon"
+    }
+    MJ_FILE {
+        uuid ID "core: bytes in storage provider"
+    }
+    MJ_SIGNATURE_REQUEST {
+        uuid ID "core: DocuSign/PandaDoc/Dropbox"
+    }
+```
+
+> Owned entities (schema `__mj_BizAppsSecureMessaging`) in solid boxes; `MJ_FILE`,
+> `MJ_SIGNATURE_REQUEST`, and `PERSON` are **core/BizAppsCommon** entities reused, not redefined.
+
+## 5. Backend / REST contract (the widget's API — all implemented)
+
+Served by the Server package's Express routes, portal-token authenticated:
+
+- `POST /auth/validate`, `POST /auth/magic-link`, `POST /auth/magic-link/redeem`
+- `GET|POST /threads/:threadId/messages`
+- `GET|POST /threads/:threadId/attachments`, `GET …/attachments/:id/download`
+- `GET|POST /threads/:threadId/file-requests`, `POST …/:id/fulfill`
+- `GET|POST /threads/:threadId/signature-requests`, `POST …/:id/refresh-status`,
+  `POST …/:id/void`, `GET …/:id/signed-document`
+
+A **MessageStore** abstraction in Core keeps the app owned-by-default:
+`OwnedMessageStore` (the default; `__mj_BizAppsSecureMessaging` only) and an optional
+`ChannelMessageStore` adapter (Izzy's Channel Messages + AI pipeline) selected by
+`SECURE_MESSAGING_MESSAGE_BACKEND=channel`.
+
+### Delivery model (decided)
+
+There is **no push**. A message is "delivered" the moment its row exists in the `SecureMessage`
+table for that thread:
+
+- **Contact → staff:** the widget `POST`s an `Inbound` message via REST → `OwnedMessageStore.createMessage`.
+- **Staff → contact:** staff writes an `Outbound` message (via the MJ entity layer from the inbox).
+  The contact's widget shows it on its next `GET /threads/:id/messages` (which returns all rows in
+  the thread, both directions).
+
+One row, one table, two readers. This is the "very simple backend" the concept calls for.
+
+```mermaid
+sequenceDiagram
+    actor C as 👤 Contact (widget)
+    participant R as REST handlers
+    participant DB as SecureMessage table
+    participant E as MJ entity layer
+    actor S as 👩‍💼 Staff (inbox)
+
+    Note over C,S: Contact → staff
+    C->>R: POST /threads/:id/messages
+    R->>DB: insert (Direction=Inbound, Status=New)
+    S->>E: RunView(thread)
+    E->>DB: select
+    DB-->>S: inbound message appears
+
+    Note over C,S: Staff → contact
+    S->>E: Save (Direction=Outbound, Status=Sent)
+    E->>DB: insert
+    C->>R: GET /threads/:id/messages (next load)
+    R->>DB: select (all rows, both directions)
+    DB-->>C: outbound reply appears
+
+    Note over C,S: No push — each side reads the<br/>same table through its own door.
+```
+
+## 6. Staff experience (MJ Explorer) — current state
+
+Two-lens coordinator (`SecureMessagingResource`) that round-trips view state through query params
+(deep-link / back-forward safe):
+
+```mermaid
+stateDiagram-v2
+    [*] --> Inbox
+    Inbox --> Workspace : click a contact
+    Workspace --> Inbox : ← back
+    Workspace --> ThreadFocus : open a thread
+    ThreadFocus --> Workspace : ← back to workspace
+    ThreadFocus --> Inbox : clear contact
+
+    Inbox : Executive Inbox
+    Inbox : triage list · search · sort · nav categories
+    Workspace : Client Workspace
+    Workspace : contact 360 · requests · signatures · docs · audit
+    ThreadFocus : Inbox focused on one thread
+    note right of Inbox : view state lives in query params →<br/>refresh & browser back/forward restore the lens
+```
+
+
+- **Executive Inbox** — triage list with search, sort (Date/Sender/Status), left-nav categories
+  (Inbox/Sent/Starred/Drafts/Escalated/Documents/Notifications), per-contact Workspaces grouping,
+  and a reading pane. Header shows the **signed-in MJ user** (name/email/avatar from the user record).
+- **Client Workspace** — per-contact 360°: conversations, requests & signatures, documents,
+  session & security, compliance badges, audit trail; basic/advanced progressive disclosure; a
+  back button returns to the inbox.
+
+**Implemented:** read/triage, nav filters + live counts, read-state persistence, contact 360 data
+loading, **Request Files**, **Send for Signature**, file download, session revoke.
+
+**Not yet implemented (stubs):** **compose / reply / send** (`onCompose`, `onSendReply`, `onReply`,
+`onForward`), Archive/Delete, Star persistence (no column yet), Drafts/Notifications sources. See §9.
+
+## 7. Contact experience (the widget)
+
+`<mj-secure-messaging>` — a standalone Angular Element bundle (separate `Element` package) that
+embeds the conversation UI on any external page. Authenticates via magic-link → portal session
+token, scoped to a single thread. Lets the contact read/send messages, upload documents, fulfill
+file requests, and complete signature requests. Talks only to the REST API (never the MJ runtime),
+so it has no MJ/Explorer dependency. Brand-color / `@Input`/`@Output` configurable by the host page.
+
+## 8. Izzy integration (future — out of scope for _this app's_ v1)
+
+Once Secure Messaging installs cleanly in any MJ instance, Izzy supports it **externally** — via an
+**API or MCP server exposed from the customer's own MJ instance**, wired as an **OrganizationAction**
+with **Credentials**. None of the below lives in the Secure Messaging app; it is Izzy-side behavior
+that _consumes_ this app's surface. It is recorded here because it shapes what the app must expose.
+
+### 8.1 Per-channel action vocabularies
+
+In Izzy, **each channel has its own set of available actions** — SMS may differ from Email, and the
+**Secure Message channel can include actions that are NOT available in any insecure channel**:
+sensitive verbs like _update a profile_ or _renew a membership_. Those verbs are driven by the
+systems being integrated, surfaced as **standard MJ Actions**. Direction:
+
+- **Grow the MJ Action library** — build more and more third-party integrations as standard MJ
+  Actions, so the same verbs are reusable everywhere (Izzy channels, workflows, agents).
+- **Compose channels from those actions** — when an org turns on the Secure Message channel in Izzy,
+  they attach the (more sensitive) actions that should only be available in the authenticated,
+  secure context.
+
+### 8.2 Action-diff → "switch to secure channel" (the key piece)
+
+When a contact is on an **insecure** channel (Email/SMS) and Izzy determines their request **can't be
+fulfilled there but could be in the secure channel**, Izzy should steer them over automatically:
+
+1. **Auto-diff** the action set of the secure channel against the current (insecure) channel.
+2. Instruct the LLM that those diffed actions are **not available in the current context**, but a
+   single action — **"switch to secure channel"** — _is_ available.
+3. When the LLM invokes "switch to secure channel", Izzy performs a **thread promotion** (§8.3).
+
+```mermaid
+flowchart TD
+    msg["📧 Contact request<br/>on Email / SMS"] --> izzy{"Izzy: can this be<br/>fulfilled on the<br/>current channel?"}
+    izzy -->|yes| handle["Handle normally<br/><i>(channel's own actions)</i>"]
+    izzy -->|"no — needs a<br/>sensitive action"| diff["Auto-diff:<br/>secure-channel actions<br/>− current-channel actions"]
+    diff --> prompt["LLM context:<br/>• diffed actions = NOT available here<br/>• 'switch to secure channel' = available"]
+    prompt --> llm{"LLM picks<br/>an action"}
+    llm -->|"switch to<br/>secure channel"| promote["Thread promotion →<br/>see 8.3"]
+    promote --> link["Reply on Email/SMS:<br/>'…we need a secure site —<br/>click here' + magic link"]
+```
+
+### 8.3 Thread promotion ("switch")
+
+The switch is deliberately simple:
+
+1. The entire current thread is **imported into Secure Messaging** and assigned a **UUID** (a secure
+   ThreadID). Only the messages that were **promoted** become visible in the secure thread.
+2. Izzy's Email/SMS reply tells the contact their request is something the org would be pleased to
+   help with, but it requires switching to a secure, authenticated site — with a **magic link**.
+3. On first click, the contact **registers** (first-time), then logs in and sees their **secure
+   inbox** — only the promoted/imported threads — where they can reply, upload, sign, etc.
+
+**Implications for _this_ app (what the surface must support):**
+
+- An **import/promote** entry point: create a thread (UUID) + seed it with imported messages, then
+  issue a magic link for the target contact. (Today: thread creation + `IssuePortalMagicLink` exist;
+  a bulk "import these messages into a new secure thread" operation is the new capability.)
+- **Contact registration on first magic-link redemption** (not just session mint) — see §9.
+- The contact's secure inbox is **scoped to promoted threads** they're a party to.
+
+```mermaid
+sequenceDiagram
+    participant I as 🤖 Izzy
+    participant SM as Secure Messaging<br/>(API / MCP)
+    actor C as 👤 Contact
+    participant P as Secure portal (widget)
+
+    I->>SM: promote(thread, messages)
+    SM->>SM: create thread (UUID),<br/>import promoted messages,<br/>IssuePortalMagicLink(contact)
+    SM-->>I: magic link URL
+    I->>C: Email/SMS: "switch to a secure site — click here"
+    C->>P: click link (first time)
+    P->>C: register (first visit only), then sign in
+    C->>P: redeem link → portal session
+    P->>SM: GET secure inbox (scoped to promoted threads)
+    SM-->>C: imported thread(s) — reply / upload / sign
+```
+
+## 9. Open product decisions (blockers for the send feature)
+
+These must be decided before building compose/reply/send:
+
+1. **Contact notification on a staff reply.** Pull-only (contact sees it on next visit) — or does a
+   staff reply trigger an outbound email/magic-link nudge? If the latter, who sends the email
+   (this app has no mailer) — the org's comms, or a pluggable hook?
+2. **Starting a new thread vs. replying.** Reply appends to an existing thread (has a PortalSession).
+   Compose-new needs to mint a ThreadID + (optionally) a PortalSession + magic link. Define that flow.
+3. **Outbound `Sender` identity.** The firm/org address, or the individual staff user's address?
+4. **Star/flag persistence** needs a new `SecureMessage` column (additive migration) if we want it.
+5. **Archive/Delete semantics** — no Archive status exists today; decide whether to add one or drop
+   the action.
+6. **Contact registration on first magic-link redemption** (needed for the §8.3 switch flow). Today
+   a link mints a session; the promotion flow wants a first-time **registration** step before the
+   contact reaches their secure inbox. Define what "registration" collects/verifies.
+7. **Thread import/promote operation** (§8.3) — the bulk "import these messages into a new secure
+   thread (UUID) and scope a contact's inbox to promoted threads" capability the app must expose for
+   Izzy to call. Define its contract (what's copied vs. referenced, dedup, who can invoke).
+
+## 10. Engineering standards (established this session)
+
+- Canonical MJ Open-App structure; `@memberjunction/*` as caret peer deps, internal `@mj-biz-apps/*`
+  pinned; `ngc` for the Angular lib (Ivy), separate Element app for the widget bundle.
+- **CodeGen owns entity metadata**; sync is an update-only override layer (no hand-authored entities).
+- **No weak typing** — generated entity classes + typed `.Load()`/properties, never bare `BaseEntity`
+  `.Get()`/`.Set()`. Check `Save()`/`Load()` booleans; use `LatestResult.CompleteMessage`.
+- **All colors via `--mj-*` design tokens** (light + dark correct); no hardcoded hex.
+- Current user/name/email read **synchronously** from `Metadata.Provider.CurrentUser`; avatar from the
+  cached `MJ: Users` record, never blocking the header; `detectChanges()` after async loads.
