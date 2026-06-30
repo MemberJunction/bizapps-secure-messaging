@@ -26,3 +26,4 @@ Schema Files/
 
 # ML model cache (downloaded by MJ tooling; never commit)
 .cache/
+scratch/

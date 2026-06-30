@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, Output, ChangeDetectorRef } from '@angular/core';
 import { Metadata, RunView } from '@memberjunction/core';
 import { GraphQLDataProvider, GraphQLActionClient } from '@memberjunction/graphql-dataprovider';
 
@@ -48,19 +48,32 @@ import { GraphQLDataProvider, GraphQLActionClient } from '@memberjunction/graphq
       <div class="action-panel-hint">No active signature accounts are configured. Add one in MJ: Signature Accounts.</div>
     }
     <label class="action-panel-label">Document to sign</label>
-    @if (documents.length > 0) {
-      <select class="action-panel-input" [(ngModel)]="selectedArtifactId">
-        @for (doc of documents; track doc.artifactId) {
-          <option [value]="doc.artifactId">{{ doc.filename }}</option>
-        }
-      </select>
-    } @else {
-      <div class="action-panel-hint">No documents on this conversation yet. Upload a file to the thread first.</div>
-    }
+    <!-- Pick a document; its bytes are sent inline (base64) straight to the signature provider
+         via MJ's "Send Document for Signature" action — no file-storage upload needed. -->
+    <div class="action-panel-upload">
+      <input #sigFileInput type="file" class="action-panel-file-input"
+        accept=".pdf,.docx,.doc" (change)="onSignatureFileChosen($event)">
+      @if (pickedDoc) {
+        <div class="action-panel-doc">
+          <i class="fa-solid fa-file-lines"></i>
+          <span class="action-panel-doc-name">{{ pickedDoc.filename }}</span>
+          <button class="action-panel-doc-remove" type="button" title="Remove" (click)="pickedDoc = null">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      } @else {
+        <button class="action-panel-upload-btn" type="button" (click)="sigFileInput.click()">
+          <i class="fa-solid fa-paperclip"></i> Choose a document
+        </button>
+      }
+    </div>
   }
 
   @if (error) {
     <div class="action-panel-error">{{ error }}</div>
+  }
+  @if (success) {
+    <div class="action-panel-success"><i class="fa-solid fa-circle-check"></i> {{ success }}</div>
   }
   <div class="action-panel-footer">
     <button class="action-panel-submit" [disabled]="!canSubmit()" (click)="submit()">
@@ -125,9 +138,50 @@ import { GraphQLDataProvider, GraphQLActionClient } from '@memberjunction/graphq
   color: var(--mj-text-muted);
   margin-bottom: 8px;
 }
+.action-panel-file-input { display: none; }
+.action-panel-upload { margin: 6px 0 10px; }
+.action-panel-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  border: 1px dashed var(--mj-border-default);
+  border-radius: 6px;
+  background: var(--mj-bg-surface-sunken);
+  color: var(--mj-text-secondary);
+  cursor: pointer;
+}
+.action-panel-upload-btn:hover { border-color: var(--mj-brand-primary); color: var(--mj-brand-primary); }
+.action-panel-doc {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--mj-border-default);
+  border-radius: 6px;
+  background: var(--mj-bg-surface-sunken);
+  font-size: 13px;
+  color: var(--mj-text-primary);
+}
+.action-panel-doc-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.action-panel-doc-remove {
+  border: none; background: transparent; cursor: pointer;
+  color: var(--mj-text-muted); padding: 0; display: flex; align-items: center;
+}
+.action-panel-doc-remove:hover { color: var(--mj-status-error-text); }
 .action-panel-error {
   font-size: 12px;
   color: var(--mj-status-error-text);
+  margin-bottom: 8px;
+}
+.action-panel-success {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mj-status-success-text);
   margin-bottom: 8px;
 }
 .action-panel-footer {
@@ -168,23 +222,26 @@ export class SecureMessagingActionPanelComponent implements OnInit {
   instructions = '';
   submitting = false;
   error = '';
+  success = '';
 
   signatureAccounts: { id: string; label: string }[] = [];
-  documents: { artifactId: string; filename: string }[] = [];
   selectedAccountId = '';
-  selectedArtifactId = '';
+
+  /** The document picked to sign — bytes held as base64, sent inline to the signature provider. */
+  pickedDoc: { filename: string; contentType: string; contentBase64: string } | null = null;
+
+  constructor(private cdr: ChangeDetectorRef) {}
 
   ngOnInit(): void {
     if (this.mode === 'signature') {
       void this.loadSignatureAccounts();
-      void this.loadDocuments();
     }
   }
 
   canSubmit(): boolean {
     if (this.submitting || !this.title.trim()) return false;
     if (this.mode === 'signature') {
-      return !!this.selectedAccountId && !!this.selectedArtifactId;
+      return !!this.selectedAccountId && !!this.pickedDoc;
     }
     return true;
   }
@@ -217,11 +274,12 @@ export class SecureMessagingActionPanelComponent implements OnInit {
         }
       } else {
         if (!this.selectedAccountId) { this.error = 'Select a signature account to send through.'; return; }
-        if (!this.selectedArtifactId) { this.error = 'Select a document to send for signature.'; return; }
+        if (!this.pickedDoc) { this.error = 'Choose a document to send for signature.'; return; }
         if (!this.contactEmail) { this.error = 'No contact email is available for this conversation.'; return; }
 
-        // MJ's shipped 'Send Document for Signature' action wraps SignatureEngine
-        // (atomic create + send). Invoked via the data provider — the engine is server-side.
+        // MJ's shipped 'Send Document for Signature' action wraps SignatureEngine (atomic
+        // create + send). The document rides INLINE as base64 in the Documents param — the engine
+        // hands the bytes straight to the provider (DocuSign), so no file-storage upload is needed.
         const actionId = await this.resolveActionId('Send Document for Signature');
         if (!actionId) {
           this.error = 'The signature action is not available in this environment.';
@@ -235,23 +293,31 @@ export class SecureMessagingActionPanelComponent implements OnInit {
         const result = await client.RunAction(actionId, [
           { Name: 'SignatureAccountID', Value: this.selectedAccountId, Type: 'Input' },
           { Name: 'Title', Value: title, Type: 'Input' },
-          { Name: 'ArtifactID', Value: this.selectedArtifactId, Type: 'Input' },
-          { Name: 'Recipients', Value: [{ email: this.contactEmail }], Type: 'Input' },
+          // Array/object params go over GraphQL as JSON strings (Value is a String scalar).
+          { Name: 'Documents', Value: JSON.stringify([this.pickedDoc]), Type: 'Input' },
+          { Name: 'Recipients', Value: JSON.stringify([{ email: this.contactEmail }]), Type: 'Input' },
           { Name: 'EntityID', Value: portalSessionsEntityId, Type: 'Input' },
           { Name: 'RecordID', Value: sessionId, Type: 'Input' },
-          { Name: 'SendImmediately', Value: true, Type: 'Input' },
+          // String scalar — send 'true', not boolean true, or GraphQL coercion rejects it.
+          { Name: 'SendImmediately', Value: 'true', Type: 'Input' },
         ]);
         if (!result?.Success) {
           this.error = result?.Message || 'Failed to send for signature.';
           return;
         }
       }
-      this.done.emit();
+      // Show a brief confirmation before the host closes the panel, so success is never ambiguous.
+      this.success = this.mode === 'request' ? 'File request sent to the contact.' : 'Document sent for signature.';
+      this.submitting = false;
+      this.cdr.detectChanges();
+      setTimeout(() => this.done.emit(), 1400);
+      return;
     } catch (e) {
       console.error('Action panel submit failed', e);
       this.error = 'Something went wrong. Please try again.';
     } finally {
       this.submitting = false;
+      this.cdr.detectChanges();
     }
   }
 
@@ -271,31 +337,41 @@ export class SecureMessagingActionPanelComponent implements OnInit {
         label: `${r['Name']}${r['SignatureProvider'] ? ' (' + r['SignatureProvider'] + ')' : ''}`,
       }));
       this.selectedAccountId = this.signatureAccounts[0]?.id ?? '';
+      this.cdr.detectChanges();
     } catch (e) {
       console.error('Failed to load signature accounts', e);
     }
   }
 
-  /** Load the thread's documents (Message Files backed by an Artifact) for the document picker. */
-  private async loadDocuments(): Promise<void> {
-    if (!this.threadId) return;
-    try {
-      const rv = new RunView();
-      const res = await rv.RunView({
-        EntityName: 'MJ_BizApps_SecureMessaging: Message Files',
-        ExtraFilter: `ThreadID = '${this.threadId.replace(/'/g, "''")}' AND ArtifactID IS NOT NULL`,
-        OrderBy: '__mj_CreatedAt DESC',
-        ResultType: 'simple',
-      });
-      if (!res.Success) return;
-      this.documents = (res.Results as Record<string, unknown>[]).map(r => ({
-        artifactId: String(r['ArtifactID']),
-        filename: (r['Filename'] as string) ?? 'document',
-      }));
-      this.selectedArtifactId = this.documents[0]?.artifactId ?? '';
-    } catch (e) {
-      console.error('Failed to load signable documents', e);
-    }
+  /**
+   * Read the chosen file as base64 and hold it as the document to sign. No upload — the bytes are
+   * passed INLINE to MJ's 'Send Document for Signature' action (Documents param), which hands them
+   * straight to the provider (DocuSign). This is MJ's canonical e-signature convention.
+   */
+  onSignatureFileChosen(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = ''; // allow re-picking the same file
+    if (!file) return;
+
+    this.error = '';
+    const reader = new FileReader();
+    reader.onload = () => {
+      // FileReader gives a data URL: "data:<mime>;base64,<data>" — strip the prefix.
+      const result = String(reader.result || '');
+      const base64 = result.includes(',') ? result.slice(result.indexOf(',') + 1) : result;
+      this.pickedDoc = {
+        filename: file.name,
+        contentType: file.type || 'application/pdf',
+        contentBase64: base64,
+      };
+      this.cdr.detectChanges();
+    };
+    reader.onerror = () => {
+      this.error = 'Could not read the selected file.';
+      this.cdr.detectChanges();
+    };
+    reader.readAsDataURL(file);
   }
 
   /** Resolve an Action's ID by name (RunView on MJ: Actions). */
