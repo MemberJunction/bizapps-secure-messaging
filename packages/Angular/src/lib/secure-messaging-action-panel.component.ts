@@ -1,6 +1,7 @@
 import { Component, EventEmitter, Input, OnInit, Output, ChangeDetectorRef } from '@angular/core';
 import { Metadata, RunView } from '@memberjunction/core';
 import { GraphQLDataProvider, GraphQLActionClient } from '@memberjunction/graphql-dataprovider';
+import { PlacedField } from './secure-messaging-field-placer.component';
 
 /**
  * Shared action panel for staff-initiated thread actions: requesting files from the contact,
@@ -67,6 +68,28 @@ import { GraphQLDataProvider, GraphQLActionClient } from '@memberjunction/graphq
         </button>
       }
     </div>
+
+    <!-- Field placement: staff visually drop signature/date/etc. onto the actual document. Since
+         uploaded PDFs have no predictable marker text, coordinate placement (not anchor text) is the
+         reliable path. Requires a picked PDF to render. -->
+    @if (pickedDoc) {
+      <label class="action-panel-label">Signing fields</label>
+      <div class="action-panel-place">
+        <button class="action-panel-place-btn" type="button" (click)="openPlacer()">
+          <i class="fa-solid fa-hand-pointer"></i>
+          {{ placedFields.length > 0 ? 'Edit field placement' : 'Place fields on document' }}
+        </button>
+        @if (placedFields.length > 0) {
+          <span class="action-panel-place-count">
+            <i class="fa-solid fa-circle-check"></i>
+            {{ placedFields.length }} field{{ placedFields.length === 1 ? '' : 's' }} placed
+          </span>
+        }
+      </div>
+      <div class="action-panel-hint">
+        Drop where the contact should sign. If you place no fields, the provider chooses a default location.
+      </div>
+    }
   }
 
   @if (error) {
@@ -81,6 +104,15 @@ import { GraphQLDataProvider, GraphQLActionClient } from '@memberjunction/graphq
     </button>
   </div>
 </div>
+
+@if (showPlacer && pickedDoc) {
+  <mj-secure-messaging-field-placer
+    [contentBase64]="pickedDoc.contentBase64"
+    [filename]="pickedDoc.filename"
+    (placedFields)="onFieldsPlaced($event)"
+    (cancel)="showPlacer = false">
+  </mj-secure-messaging-field-placer>
+}
 `,
   styles: [`
 .action-panel {
@@ -137,6 +169,18 @@ import { GraphQLDataProvider, GraphQLActionClient } from '@memberjunction/graphq
   font-size: 12px;
   color: var(--mj-text-muted);
   margin-bottom: 8px;
+}
+.action-panel-place { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
+.action-panel-place-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 12px; font-size: 13px; font-weight: 500;
+  border: 1px solid var(--mj-brand-primary); border-radius: 6px;
+  background: var(--mj-bg-surface); color: var(--mj-brand-primary); cursor: pointer;
+}
+.action-panel-place-btn:hover { background: color-mix(in srgb, var(--mj-brand-primary) 10%, var(--mj-bg-surface)); }
+.action-panel-place-count {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 600; color: var(--mj-status-success-text);
 }
 .action-panel-file-input { display: none; }
 .action-panel-upload { margin: 6px 0 10px; }
@@ -212,6 +256,8 @@ export class SecureMessagingActionPanelComponent implements OnInit {
   @Input() threadId = '';
   /** The contact's email — used as the signer recipient. */
   @Input() contactEmail = '';
+  /** The contact's display name — shown as the signer's name in the signing ceremony/emails. */
+  @Input() contactName = '';
 
   /** Emitted after a successful create/send. */
   @Output() done = new EventEmitter<void>();
@@ -229,6 +275,11 @@ export class SecureMessagingActionPanelComponent implements OnInit {
 
   /** The document picked to sign — bytes held as base64, sent inline to the signature provider. */
   pickedDoc: { filename: string; contentType: string; contentBase64: string } | null = null;
+
+  /** Whether the full-screen drag-and-drop field placer modal is open. */
+  showPlacer = false;
+  /** Fields the staffer placed on the document via the placer — sent as coordinate placement. */
+  placedFields: PlacedField[] = [];
 
   constructor(private cdr: ChangeDetectorRef) {}
 
@@ -289,13 +340,31 @@ export class SecureMessagingActionPanelComponent implements OnInit {
           e => e.Name === 'MJ_BizApps_SecureMessaging: Portal Sessions'
         )?.ID;
 
+        // Coordinate placement from the visual placer. Each placed field carries its normalized
+        // position + the page's true point dimensions, so the provider positions it exactly on the
+        // uploaded document. Name the signer so DocuSign shows a real name (not the raw email). When
+        // no fields were placed, we send none and the provider applies its own default location.
+        const recipient: Record<string, unknown> = { email: this.contactEmail };
+        if (this.contactName.trim()) recipient['name'] = this.contactName.trim();
+        if (this.placedFields.length > 0) {
+          recipient['fields'] = this.placedFields.map(f => ({
+            type: f.type,
+            page: f.page,
+            xPercent: f.xPercent,
+            yPercent: f.yPercent,
+            pageWidthPt: f.pageWidthPt,
+            pageHeightPt: f.pageHeightPt,
+            required: f.required,
+          }));
+        }
+
         const client = new GraphQLActionClient(Metadata.Provider as unknown as GraphQLDataProvider);
         const result = await client.RunAction(actionId, [
           { Name: 'SignatureAccountID', Value: this.selectedAccountId, Type: 'Input' },
           { Name: 'Title', Value: title, Type: 'Input' },
           // Array/object params go over GraphQL as JSON strings (Value is a String scalar).
           { Name: 'Documents', Value: JSON.stringify([this.pickedDoc]), Type: 'Input' },
-          { Name: 'Recipients', Value: JSON.stringify([{ email: this.contactEmail }]), Type: 'Input' },
+          { Name: 'Recipients', Value: JSON.stringify([recipient]), Type: 'Input' },
           { Name: 'EntityID', Value: portalSessionsEntityId, Type: 'Input' },
           { Name: 'RecordID', Value: sessionId, Type: 'Input' },
           // String scalar — send 'true', not boolean true, or GraphQL coercion rejects it.
@@ -365,6 +434,8 @@ export class SecureMessagingActionPanelComponent implements OnInit {
         contentType: file.type || 'application/pdf',
         contentBase64: base64,
       };
+      // A new document invalidates any fields placed on the previous one.
+      this.placedFields = [];
       this.cdr.detectChanges();
     };
     reader.onerror = () => {
@@ -372,6 +443,20 @@ export class SecureMessagingActionPanelComponent implements OnInit {
       this.cdr.detectChanges();
     };
     reader.readAsDataURL(file);
+  }
+
+  /** Open the drag-and-drop placer modal (only meaningful once a document is picked). */
+  openPlacer(): void {
+    if (!this.pickedDoc) return;
+    this.showPlacer = true;
+    this.cdr.detectChanges();
+  }
+
+  /** Receive the placed fields from the modal and close it. */
+  onFieldsPlaced(fields: PlacedField[]): void {
+    this.placedFields = fields;
+    this.showPlacer = false;
+    this.cdr.detectChanges();
   }
 
   /** Resolve an Action's ID by name (RunView on MJ: Actions). */

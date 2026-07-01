@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { SecureMessagingExecutiveComponent } from './secure-messaging-executive.component';
 import { SecureMessagingClientWorkspaceComponent } from './secure-messaging-client-workspace.component';
 import { SecureMessagingActionPanelComponent } from './secure-messaging-action-panel.component';
+import { SecureMessagingFieldPlacerComponent } from './secure-messaging-field-placer.component';
 import { SecureMessagingResource } from './secure-messaging-executive.resource';
 // Side-effect import: triggers @RegisterClass for SecureMessagingApplication
 import './secure-messaging.application';
@@ -14,6 +15,7 @@ import './secure-messaging.application';
     SecureMessagingExecutiveComponent,
     SecureMessagingClientWorkspaceComponent,
     SecureMessagingActionPanelComponent,
+    SecureMessagingFieldPlacerComponent,
     SecureMessagingResource
   ],
   imports: [
@@ -24,6 +26,7 @@ import './secure-messaging.application';
     SecureMessagingExecutiveComponent,
     SecureMessagingClientWorkspaceComponent,
     SecureMessagingActionPanelComponent,
+    SecureMessagingFieldPlacerComponent,
     SecureMessagingResource
   ]
 })

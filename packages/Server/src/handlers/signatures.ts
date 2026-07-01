@@ -27,6 +27,46 @@ function getPortalSessionsEntityId(): string {
     return entity.ID;
 }
 
+/** The name fields we read off a person to build a signer display name. */
+interface ContactNameFields {
+    DisplayName?: string | null;
+    FirstName?: string | null;
+    LastName?: string | null;
+}
+
+/**
+ * Resolve a human display name for the contact behind a portal session, for use as the signer's
+ * name (so the provider shows a real name in the signing ceremony + emails rather than the raw
+ * email). Read via RunView (no cross-package entity dependency needed here); best-effort — returns
+ * undefined if the person can't be loaded, in which case the provider falls back to the email.
+ */
+async function resolveContactName(contactId: string, contextUser: UserInfo): Promise<string | undefined> {
+    if (!contactId) {
+        return undefined;
+    }
+    try {
+        const rv = new RunView();
+        const result = await rv.RunView<ContactNameFields>(
+            {
+                EntityName: 'MJ_BizApps_Common: People',
+                ExtraFilter: `ID = '${contactId.replace(/'/g, "''")}'`,
+                Fields: ['DisplayName', 'FirstName', 'LastName'],
+                MaxRows: 1,
+                ResultType: 'simple',
+            },
+            contextUser,
+        );
+        const p = result.Success ? result.Results[0] : undefined;
+        if (!p) {
+            return undefined;
+        }
+        const name = p.DisplayName || [p.FirstName, p.LastName].filter(Boolean).join(' ').trim();
+        return name || undefined;
+    } catch {
+        return undefined;
+    }
+}
+
 /** All portal session IDs for a thread — the set a thread's signature requests link to. */
 async function getSessionIdsForThread(threadId: string, contextUser: UserInfo): Promise<string[]> {
     const rv = new RunView();
@@ -126,7 +166,10 @@ export async function getSignatureRequests(req: Request, res: Response): Promise
 export async function createSignatureRequest(req: Request, res: Response): Promise<void> {
     const { threadId } = req.params;
     const session = (req as PortalRequest).portalSession;
-    const { title, signatureAccountId, artifactId } = req.body;
+    const { title, signatureAccountId, artifactId, signatureAnchor } = req.body;
+    // Where to place the signature field: the text in the document to anchor it to. Defaults to a
+    // "Signature:" line; if the document has no such marker the provider uses its own default.
+    const anchor = typeof signatureAnchor === 'string' && signatureAnchor.trim() ? signatureAnchor.trim() : 'Signature:';
 
     if (session.threadId !== threadId) {
         res.status(403).json({ error: 'Access denied to this thread' });
@@ -158,12 +201,22 @@ export async function createSignatureRequest(req: Request, res: Response): Promi
             return;
         }
 
+        const contactName = await resolveContactName(session.contactId, systemUser);
+
         await SignatureEngine.Instance.Config(false, systemUser);
         const result = await SignatureEngine.Instance.SendForSignature({
             signatureAccountId,
             title: title.trim(),
             documents: [{ bytes: document.bytes, filename: document.filename, contentType: document.contentType }],
-            recipients: [{ email: session.contactEmail }],
+            recipients: [
+                {
+                    email: session.contactEmail,
+                    name: contactName,
+                    // Anchor the signature field to the marker text; if the document lacks it, the
+                    // provider applies its own default placement (anchorIgnoreIfNotPresent).
+                    fields: [{ type: 'signature', anchor, anchorIgnoreIfNotPresent: true }],
+                },
+            ],
             artifactId,
             // Polymorphic link back to the originating portal session.
             entityId: getPortalSessionsEntityId(),

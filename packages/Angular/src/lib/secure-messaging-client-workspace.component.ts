@@ -113,6 +113,7 @@ const ADV_PREF_KEY = 'sm.workspace.advanced';
         [mode]="actionPanel"
         [threadId]="session.threadId"
         [contactEmail]="contactEmail"
+        [contactName]="contactName"
         (done)="onActionDone()"
         (cancel)="closeActionPanel()">
       </mj-secure-messaging-action-panel>
