@@ -9,6 +9,8 @@
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LogStatus } from '@memberjunction/core';
+import { setMessageNotifier } from '@mj-biz-apps/secure-messaging-core';
+import { secureMessagingNotifier } from './services/SecureMessagingNotifier.js';
 
 // Generated entity + action subclasses (fire @RegisterClass on import).
 import { LoadGeneratedEntities } from '@mj-biz-apps/secure-messaging-entities';
@@ -50,6 +52,9 @@ export const RESOLVER_PATHS: string[] = [
 export function LoadSecureMessagingServer(): void {
   LoadGeneratedEntities();
   void CLASS_REGISTRATIONS; // anchor the manifest so registrations are never tree-shaken
+  // Wire the notify hook: outbound messages email the contact a magic-link nudge (PRD §9).
+  // No-ops gracefully when SECURE_MESSAGING_EMAIL_PROVIDER / FROM_EMAIL aren't configured.
+  setMessageNotifier(secureMessagingNotifier);
   LogStatus('MJ Secure Messaging: Server bootstrap loaded.');
 }
 

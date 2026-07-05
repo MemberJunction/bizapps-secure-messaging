@@ -34,6 +34,7 @@
     "@memberjunction/core-entities": "^5.43.0",
     "@memberjunction/global": "^5.43.0",
     "@memberjunction/communication-types": "^5.43.0",
+    "@memberjunction/communication-engine": "^5.43.0",
     "@memberjunction/server": "^5.43.0",
     "@memberjunction/sqlserver-dataprovider": "^5.43.0",
     "@memberjunction/storage": "^5.43.0",

@@ -27,18 +27,46 @@ export interface SecureMessagingConfig {
      * GraphQL RunAction surface. There is no insecure default.
      */
     promoteSecret: string;
+
+    /**
+     * Notify hook (PRD §9). When a message is sent, the app can email the other party a nudge
+     * (with a fresh magic link for the contact). Delivery uses MJ's CommunicationEngine.
+     */
+    notify: {
+        /** MJ CommunicationEngine provider name, e.g. 'SendGrid' or 'MS-Graph'. Empty ⇒ notifications no-op. */
+        emailProvider: string;
+        /** The From address for nudge emails. Empty ⇒ notifications no-op (providers require a From). */
+        fromEmail: string;
+        /** Optional From display name. */
+        fromName: string;
+        /**
+         * Base URL of the contact-facing widget; the contact nudge links to `${this}/?ml=<token>`.
+         * Must be the widget's public origin (NOT the staff app). Defaults to the dev widget on :4400.
+         */
+        portalBaseUrl: string;
+    };
 }
 
 /**
  * Reads config from environment variables with app-agnostic defaults.
- *   SECURE_MESSAGING_MESSAGE_BACKEND = 'owned' | 'channel'  (default 'owned')
- *   SECURE_MESSAGING_PROMOTE_SECRET  = <shared signing secret>  (default '' → promote REST disabled)
+ *   SECURE_MESSAGING_MESSAGE_BACKEND = 'owned' | 'channel'   (default 'owned')
+ *   SECURE_MESSAGING_PROMOTE_SECRET  = <shared signing secret> (default '' → promote REST disabled)
+ *   SECURE_MESSAGING_EMAIL_PROVIDER  = 'SendGrid' | 'MS-Graph' (default '' → notify no-ops)
+ *   SECURE_MESSAGING_FROM_EMAIL      = <from address>          (default '' → notify no-ops)
+ *   SECURE_MESSAGING_FROM_NAME       = <from display name>     (default 'Secure Messaging')
+ *   SECURE_MESSAGING_PORTAL_URL      = <widget public origin>  (default 'http://localhost:4400')
  */
 export function loadSecureMessagingConfig(): SecureMessagingConfig {
     const backend = (process.env.SECURE_MESSAGING_MESSAGE_BACKEND || '').toLowerCase();
     return {
         messageBackend: backend === 'channel' ? 'channel' : 'owned',
         promoteSecret: process.env.SECURE_MESSAGING_PROMOTE_SECRET || '',
+        notify: {
+            emailProvider: process.env.SECURE_MESSAGING_EMAIL_PROVIDER || '',
+            fromEmail: process.env.SECURE_MESSAGING_FROM_EMAIL || '',
+            fromName: process.env.SECURE_MESSAGING_FROM_NAME || 'Secure Messaging',
+            portalBaseUrl: (process.env.SECURE_MESSAGING_PORTAL_URL || 'http://localhost:4400').replace(/\/+$/, ''),
+        },
     };
 }
 
