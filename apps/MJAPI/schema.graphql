@@ -23387,11 +23387,7 @@ type Mutation {
   DeletemjBizAppsCommonPerson(ID: String!, options___: DeleteOptionsInput!): mjBizAppsCommonPerson_!
   DeletemjBizAppsCommonRelationship(ID: String!, options___: DeleteOptionsInput!): mjBizAppsCommonRelationship_!
   DeletemjBizAppsCommonRelationshipType(ID: String!, options___: DeleteOptionsInput!): mjBizAppsCommonRelationshipType_!
-  DeletemjBizAppsSecureMessagingFileRequest(ID: String!, options___: DeleteOptionsInput!): mjBizAppsSecureMessagingFileRequest_!
   DeletemjBizAppsSecureMessagingMessageFile(ID: String!, options___: DeleteOptionsInput!): mjBizAppsSecureMessagingMessageFile_!
-  DeletemjBizAppsSecureMessagingPortalMagicLink(ID: String!, options___: DeleteOptionsInput!): mjBizAppsSecureMessagingPortalMagicLink_!
-  DeletemjBizAppsSecureMessagingPortalSession(ID: String!, options___: DeleteOptionsInput!): mjBizAppsSecureMessagingPortalSession_!
-  DeletemjBizAppsSecureMessagingSecureMessage(ID: String!, options___: DeleteOptionsInput!): mjBizAppsSecureMessagingSecureMessage_!
   DeletemjBizAppsSecureMessagingSecureThread(ID: String!, options___: DeleteOptionsInput!): mjBizAppsSecureMessagingSecureThread_!
   EmbedText(modelSize: String!, textToEmbed: [String!]!): EmbedTextResult!
   EndLiveKitRoom(roomName: String!): Boolean!
@@ -37062,7 +37058,9 @@ type mjBizAppsSecureMessagingFileRequest_ {
   PortalSessionID: String!
   RequestedByUserID: String
 
-  """Request lifecycle status: Pending, Fulfilled, or Cancelled."""
+  """
+  Request lifecycle status: Pending (awaiting the contact), Fulfilled (files uploaded and the contact marked it complete), Cancelled (staff closed it out), or Expired (the DueAt deadline passed while still Pending). Only Pending requests appear as action callouts in the portal; terminal states collapse into thread history.
+  """
   Status: String!
   ThreadID: String!
   Title: String!

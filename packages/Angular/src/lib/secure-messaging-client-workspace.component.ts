@@ -1,10 +1,10 @@
 import { Component, OnInit, Input, Output, EventEmitter, ChangeDetectorRef } from '@angular/core';
-import { Metadata, RunView } from '@memberjunction/core';
+import { CompositeKey, Metadata, RunView } from '@memberjunction/core';
 import { MJFileEntity } from '@memberjunction/core-entities';
 import { GraphQLDataProvider, GraphQLFileStorageClient, GraphQLActionClient } from '@memberjunction/graphql-dataprovider';
 import { ActionResult, ActionParam } from '@memberjunction/actions-base';
 import { mjBizAppsCommonPersonEntity } from '@mj-biz-apps/common-entities';
-import { mjBizAppsSecureMessagingPortalSessionEntity } from '@mj-biz-apps/secure-messaging-entities';
+import { mjBizAppsSecureMessagingPortalSessionEntity, mjBizAppsSecureMessagingFileRequestEntity } from '@mj-biz-apps/secure-messaging-entities';
 import { OpenThreadRequest, WorkspaceActionRequest } from './secure-messaging.contracts';
 
 /* ─────────────────────────── Interfaces ─────────────────────────── */
@@ -23,6 +23,7 @@ interface RequestRow {
   sub: string;
   time: string;
   kind: 'file' | 'signature';
+  status: string;
   badge: { cls: string; label: string };
 }
 
@@ -228,7 +229,15 @@ const ADV_PREF_KEY = 'sm.workspace.advanced';
             <div class="row">
               <div class="ic" [ngClass]="r.kind === 'signature' ? 'ic-sign' : 'ic-file'"><i class="fa-solid" [ngClass]="r.kind === 'signature' ? 'fa-file-signature' : 'fa-folder-plus'"></i></div>
               <div class="row-main"><div class="row-title">{{ r.title }}</div><div class="row-sub">{{ r.sub }}</div></div>
-              <div class="row-right"><span class="badge" [ngClass]="r.badge.cls">{{ r.badge.label }}</span><span class="row-time">{{ r.time }}</span></div>
+              <div class="row-right">
+                <span class="badge" [ngClass]="r.badge.cls">{{ r.badge.label }}</span>
+                <span class="row-time">{{ r.time }}</span>
+                @if (r.kind === 'file' && r.status === 'Pending') {
+                  <button class="btn btn-sm btn-danger" [disabled]="cancellingId === r.id" (click)="cancelRequest(r)" title="Cancel this request">
+                    <i class="fa-solid" [ngClass]="cancellingId === r.id ? 'fa-spinner fa-spin' : 'fa-ban'"></i>
+                  </button>
+                }
+              </div>
             </div>
           }
           @if (requests.length === 0 && !loading) { <div class="empty">No requests or signatures.</div> }
@@ -434,6 +443,8 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
 
   threads: ThreadRow[] = [];
   requests: RequestRow[] = [];
+  /** ID of the file request currently being cancelled (drives the button spinner). */
+  cancellingId: string | null = null;
   docs: DocRow[] = [];
   audit: AuditEvent[] = [];
 
@@ -645,18 +656,19 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
       sub: 'File request' + (r.DueAt ? ` · due ${this.shortDate(r.DueAt as string)}` : ''),
       time: this.shortDate(r.__mj_CreatedAt as string),
       kind: 'file' as const,
+      status: String(r.Status || 'Pending'),
       badge: this.fileRequestBadge(String(r.Status || 'Pending')),
     })) : [];
 
-    // Signature requests (core MJ engine entity), linked to this contact's sessions via EntityID/RecordID.
+    // Signature requests (core MJ engine entity), linked to the thread via EntityID/RecordID (v2:
+    // the SecureThread is the polymorphic owner — matches the server-side SendForSignature link).
     let sigRows: RequestRow[] = [];
-    const sessionIds = await this.sessionIdsForContact();
-    if (sessionIds.length > 0) {
-      const entityId = this.entityIdOf('MJ_BizApps_SecureMessaging: Portal Sessions');
+    const entityId = this.entityIdOf('MJ_BizApps_SecureMessaging: Secure Threads');
+    if (entityId && this.threadIds.length > 0) {
       const rvS = new RunView();
       const sRes = await rvS.RunView({
         EntityName: 'MJ: Signature Requests',
-        ExtraFilter: `EntityID = '${this.esc(entityId)}' AND RecordID IN (${this.inList(sessionIds)})`,
+        ExtraFilter: `EntityID = '${this.esc(entityId)}' AND RecordID IN (${this.inList(this.threadIds)})`,
         OrderBy: '__mj_CreatedAt DESC',
         ResultType: 'simple',
       });
@@ -666,11 +678,46 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
         sub: 'Signature' + (r.ExternalEnvelopeID ? ' · envelope sent' : ''),
         time: this.shortDate(r.__mj_CreatedAt as string),
         kind: 'signature' as const,
+        status: String(r.Status || 'Draft'),
         badge: this.signatureBadge(String(r.Status || 'Draft')),
       })) : [];
     }
 
     this.requests = [...fileRows, ...sigRows];
+  }
+
+  /**
+   * Staff close-out of a Pending file request (PRD §7). Sets Status = Cancelled via the entity
+   * layer — the request then drops out of the contact's action strip and collapses to history.
+   */
+  async cancelRequest(r: RequestRow): Promise<void> {
+    if (r.kind !== 'file' || r.status !== 'Pending' || this.cancellingId) return;
+    if (!confirm(`Cancel the request "${r.title}"? The contact will no longer be asked for it.`)) return;
+    this.cancellingId = r.id;
+    this.cdr.detectChanges();
+    try {
+      const md = new Metadata();
+      const fr = await md.GetEntityObject<mjBizAppsSecureMessagingFileRequestEntity>('MJ_BizApps_SecureMessaging: File Requests');
+      const loaded = await fr.InnerLoad(CompositeKey.FromID(r.id));
+      if (!loaded) {
+        this.toast('Could not load the request to cancel.');
+        return;
+      }
+      fr.Status = 'Cancelled';
+      if (await fr.Save()) {
+        await this.loadRequestsAndSignatures();
+        this.computeStats();
+        this.toast('Request cancelled.');
+      } else {
+        this.toast(fr.LatestResult?.CompleteMessage || 'Could not cancel the request.');
+      }
+    } catch (e) {
+      console.error('cancelRequest failed', e);
+      this.toast('Could not cancel the request.');
+    } finally {
+      this.cancellingId = null;
+      this.cdr.detectChanges();
+    }
   }
 
   private async loadDocuments(): Promise<void> {
@@ -964,6 +1011,7 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
     switch (status) {
       case 'Fulfilled': return { cls: 'badge-done', label: 'Fulfilled' };
       case 'Cancelled': return { cls: 'badge-cancelled', label: 'Cancelled' };
+      case 'Expired': return { cls: 'badge-cancelled', label: 'Expired' };
       default: return { cls: 'badge-pending', label: 'Pending' };
     }
   }

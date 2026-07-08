@@ -35,7 +35,7 @@ export const mjBizAppsSecureMessagingFileRequestSchema = z.object({
         * * Field Name: Instructions
         * * Display Name: Instructions
         * * SQL Data Type: nvarchar(MAX)`),
-    Status: z.union([z.literal('Cancelled'), z.literal('Fulfilled'), z.literal('Pending')]).describe(`
+    Status: z.union([z.literal('Cancelled'), z.literal('Expired'), z.literal('Fulfilled'), z.literal('Pending')]).describe(`
         * * Field Name: Status
         * * Display Name: Status
         * * SQL Data Type: nvarchar(20)
@@ -43,9 +43,10 @@ export const mjBizAppsSecureMessagingFileRequestSchema = z.object({
     * * Value List Type: List
     * * Possible Values 
     *   * Cancelled
+    *   * Expired
     *   * Fulfilled
     *   * Pending
-        * * Description: Request lifecycle status: Pending, Fulfilled, or Cancelled.`),
+        * * Description: Request lifecycle status: Pending (awaiting the contact), Fulfilled (files uploaded and the contact marked it complete), Cancelled (staff closed it out), or Expired (the DueAt deadline passed while still Pending). Only Pending requests appear as action callouts in the portal; terminal states collapse into thread history.`),
     RequestedByUserID: z.string().nullable().describe(`
         * * Field Name: RequestedByUserID
         * * Display Name: Requested By User ID
@@ -450,6 +451,18 @@ export class mjBizAppsSecureMessagingFileRequestEntity extends BaseEntity<mjBizA
     }
 
     /**
+    * MJ_BizApps_SecureMessaging: File Requests - AllowDeleteAPI is set to 0 in the database.  Delete is not allowed, so this method is generated to override the base class method and throw an error. To enable delete for this entity, set AllowDeleteAPI to 1 in the database.
+    * @public
+    * @method
+    * @override
+    * @memberof mjBizAppsSecureMessagingFileRequestEntity
+    * @throws {Error} - Delete is not allowed for MJ_BizApps_SecureMessaging: File Requests, to enable it set AllowDeleteAPI to 1 in the database.
+    */
+    public override async Delete(): Promise<boolean> {
+        throw new Error('Delete is not allowed for MJ_BizApps_SecureMessaging: File Requests, to enable it set AllowDeleteAPI to 1 in the database.');
+    }
+
+    /**
     * * Field Name: ID
     * * Display Name: ID
     * * SQL Data Type: uniqueidentifier
@@ -520,14 +533,15 @@ export class mjBizAppsSecureMessagingFileRequestEntity extends BaseEntity<mjBizA
     * * Value List Type: List
     * * Possible Values 
     *   * Cancelled
+    *   * Expired
     *   * Fulfilled
     *   * Pending
-    * * Description: Request lifecycle status: Pending, Fulfilled, or Cancelled.
+    * * Description: Request lifecycle status: Pending (awaiting the contact), Fulfilled (files uploaded and the contact marked it complete), Cancelled (staff closed it out), or Expired (the DueAt deadline passed while still Pending). Only Pending requests appear as action callouts in the portal; terminal states collapse into thread history.
     */
-    get Status(): 'Cancelled' | 'Fulfilled' | 'Pending' {
+    get Status(): 'Cancelled' | 'Expired' | 'Fulfilled' | 'Pending' {
         return this.Get('Status');
     }
-    set Status(value: 'Cancelled' | 'Fulfilled' | 'Pending') {
+    set Status(value: 'Cancelled' | 'Expired' | 'Fulfilled' | 'Pending') {
         this.Set('Status', value);
     }
 
@@ -785,6 +799,18 @@ export class mjBizAppsSecureMessagingPortalMagicLinkEntity extends BaseEntity<mj
     }
 
     /**
+    * MJ_BizApps_SecureMessaging: Portal Magic Links - AllowDeleteAPI is set to 0 in the database.  Delete is not allowed, so this method is generated to override the base class method and throw an error. To enable delete for this entity, set AllowDeleteAPI to 1 in the database.
+    * @public
+    * @method
+    * @override
+    * @memberof mjBizAppsSecureMessagingPortalMagicLinkEntity
+    * @throws {Error} - Delete is not allowed for MJ_BizApps_SecureMessaging: Portal Magic Links, to enable it set AllowDeleteAPI to 1 in the database.
+    */
+    public override async Delete(): Promise<boolean> {
+        throw new Error('Delete is not allowed for MJ_BizApps_SecureMessaging: Portal Magic Links, to enable it set AllowDeleteAPI to 1 in the database.');
+    }
+
+    /**
     * * Field Name: ID
     * * Display Name: ID
     * * SQL Data Type: uniqueidentifier
@@ -934,6 +960,18 @@ export class mjBizAppsSecureMessagingPortalSessionEntity extends BaseEntity<mjBi
     }
 
     /**
+    * MJ_BizApps_SecureMessaging: Portal Sessions - AllowDeleteAPI is set to 0 in the database.  Delete is not allowed, so this method is generated to override the base class method and throw an error. To enable delete for this entity, set AllowDeleteAPI to 1 in the database.
+    * @public
+    * @method
+    * @override
+    * @memberof mjBizAppsSecureMessagingPortalSessionEntity
+    * @throws {Error} - Delete is not allowed for MJ_BizApps_SecureMessaging: Portal Sessions, to enable it set AllowDeleteAPI to 1 in the database.
+    */
+    public override async Delete(): Promise<boolean> {
+        throw new Error('Delete is not allowed for MJ_BizApps_SecureMessaging: Portal Sessions, to enable it set AllowDeleteAPI to 1 in the database.');
+    }
+
+    /**
     * * Field Name: ID
     * * Display Name: ID
     * * SQL Data Type: uniqueidentifier
@@ -1067,6 +1105,18 @@ export class mjBizAppsSecureMessagingSecureMessageEntity extends BaseEntity<mjBi
         const compositeKey: CompositeKey = new CompositeKey();
         compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
         return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * MJ_BizApps_SecureMessaging: Secure Messages - AllowDeleteAPI is set to 0 in the database.  Delete is not allowed, so this method is generated to override the base class method and throw an error. To enable delete for this entity, set AllowDeleteAPI to 1 in the database.
+    * @public
+    * @method
+    * @override
+    * @memberof mjBizAppsSecureMessagingSecureMessageEntity
+    * @throws {Error} - Delete is not allowed for MJ_BizApps_SecureMessaging: Secure Messages, to enable it set AllowDeleteAPI to 1 in the database.
+    */
+    public override async Delete(): Promise<boolean> {
+        throw new Error('Delete is not allowed for MJ_BizApps_SecureMessaging: Secure Messages, to enable it set AllowDeleteAPI to 1 in the database.');
     }
 
     /**

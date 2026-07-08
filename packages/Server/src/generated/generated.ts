@@ -44,7 +44,7 @@ export class mjBizAppsSecureMessagingFileRequest_ {
     @Field({nullable: true}) 
     Instructions?: string;
         
-    @Field({description: `Request lifecycle status: Pending, Fulfilled, or Cancelled.`}) 
+    @Field({description: `Request lifecycle status: Pending (awaiting the contact), Fulfilled (files uploaded and the contact marked it complete), Cancelled (staff closed it out), or Expired (the DueAt deadline passed while still Pending). Only Pending requests appear as action callouts in the portal; terminal states collapse into thread history.`}) 
     @MaxLength(20)
     Status: string;
         
@@ -217,13 +217,6 @@ export class mjBizAppsSecureMessagingFileRequestResolver extends ResolverBase {
     ) {
         const provider = GetReadWriteProvider(providers);
         return this.UpdateRecord('MJ_BizApps_SecureMessaging: File Requests', input, provider, userPayload, pubSub);
-    }
-    
-    @Mutation(() => mjBizAppsSecureMessagingFileRequest_)
-    async DeletemjBizAppsSecureMessagingFileRequest(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadWriteProvider(providers);
-        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
-        return this.DeleteRecord('MJ_BizApps_SecureMessaging: File Requests', key, options, provider, userPayload, pubSub);
     }
     
 }
@@ -618,13 +611,6 @@ export class mjBizAppsSecureMessagingPortalMagicLinkResolver extends ResolverBas
         return this.UpdateRecord('MJ_BizApps_SecureMessaging: Portal Magic Links', input, provider, userPayload, pubSub);
     }
     
-    @Mutation(() => mjBizAppsSecureMessagingPortalMagicLink_)
-    async DeletemjBizAppsSecureMessagingPortalMagicLink(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadWriteProvider(providers);
-        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
-        return this.DeleteRecord('MJ_BizApps_SecureMessaging: Portal Magic Links', key, options, provider, userPayload, pubSub);
-    }
-    
 }
 
 //****************************************************************************
@@ -834,13 +820,6 @@ export class mjBizAppsSecureMessagingPortalSessionResolver extends ResolverBase 
     ) {
         const provider = GetReadWriteProvider(providers);
         return this.UpdateRecord('MJ_BizApps_SecureMessaging: Portal Sessions', input, provider, userPayload, pubSub);
-    }
-    
-    @Mutation(() => mjBizAppsSecureMessagingPortalSession_)
-    async DeletemjBizAppsSecureMessagingPortalSession(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadWriteProvider(providers);
-        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
-        return this.DeleteRecord('MJ_BizApps_SecureMessaging: Portal Sessions', key, options, provider, userPayload, pubSub);
     }
     
 }
@@ -1123,13 +1102,6 @@ export class mjBizAppsSecureMessagingSecureMessageResolver extends ResolverBase 
     ) {
         const provider = GetReadWriteProvider(providers);
         return this.UpdateRecord('MJ_BizApps_SecureMessaging: Secure Messages', input, provider, userPayload, pubSub);
-    }
-    
-    @Mutation(() => mjBizAppsSecureMessagingSecureMessage_)
-    async DeletemjBizAppsSecureMessagingSecureMessage(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadWriteProvider(providers);
-        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
-        return this.DeleteRecord('MJ_BizApps_SecureMessaging: Secure Messages', key, options, provider, userPayload, pubSub);
     }
     
 }

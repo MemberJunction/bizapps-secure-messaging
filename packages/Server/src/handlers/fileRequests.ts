@@ -1,12 +1,21 @@
 import { Request, Response } from 'express';
 import { CompositeKey, Metadata, RunView } from '@memberjunction/core';
+import { mjBizAppsSecureMessagingFileRequestEntity } from '@mj-biz-apps/secure-messaging-entities';
 import { PortalRequest, assertThreadAccess } from './middleware.js';
 import { getFileStore } from '@mj-biz-apps/secure-messaging-core';
+
+/** A Pending request whose DueAt has passed is treated as Expired (PRD §7, enforced lazily). */
+function isOverdue(dueAt: Date | null): boolean {
+    return !!dueAt && dueAt.getTime() < Date.now();
+}
 
 /**
  * GET /threads/:threadId/file-requests
  *
- * Lists file requests for the thread (the widget shows pending ones to the contact).
+ * Lists the thread's file requests. Pending requests whose DueAt has passed are lazily flipped to
+ * Expired here (no scheduler needed). The widget shows only Pending ones as action callouts; the
+ * terminal states (Fulfilled / Cancelled / Expired) are returned too so they can collapse into
+ * thread history.
  */
 export async function getFileRequests(req: Request, res: Response): Promise<void> {
     const access = await assertThreadAccess(req as PortalRequest, res);
@@ -15,10 +24,11 @@ export async function getFileRequests(req: Request, res: Response): Promise<void
 
     try {
         const rv = new RunView();
-        const result = await rv.RunView({
+        const result = await rv.RunView<mjBizAppsSecureMessagingFileRequestEntity>({
             EntityName: 'MJ_BizApps_SecureMessaging: File Requests',
             ExtraFilter: `ThreadID = '${threadId.replace(/'/g, "''")}'`,
             OrderBy: '__mj_CreatedAt DESC',
+            ResultType: 'entity_object',
         }, systemUser);
 
         if (!result.Success) {
@@ -26,7 +36,15 @@ export async function getFileRequests(req: Request, res: Response): Promise<void
             return;
         }
 
-        const fileRequests = (result.Results as Record<string, unknown>[]).map(r => ({
+        // Lazily expire overdue Pending requests so they leave the contact's action strip.
+        for (const r of result.Results) {
+            if (r.Status === 'Pending' && isOverdue(r.DueAt)) {
+                r.Status = 'Expired';
+                await r.Save();
+            }
+        }
+
+        const fileRequests = result.Results.map(r => ({
             id: r.ID,
             title: r.Title,
             instructions: r.Instructions,
@@ -65,21 +83,22 @@ export async function createFileRequest(req: Request, res: Response): Promise<vo
 
     try {
         const md = new Metadata();
-        const entity = await md.GetEntityObject('MJ_BizApps_SecureMessaging: File Requests', systemUser);
+        const entity = await md.GetEntityObject<mjBizAppsSecureMessagingFileRequestEntity>(
+            'MJ_BizApps_SecureMessaging: File Requests', systemUser);
         entity.NewRecord();
-        entity.Set('PortalSessionID', session.sessionId);
-        entity.Set('ThreadID', threadId);
-        entity.Set('Title', title.trim());
-        entity.Set('Status', 'Pending');
-        if (typeof instructions === 'string') entity.Set('Instructions', instructions.trim());
-        if (typeof dueAt === 'string') entity.Set('DueAt', dueAt);
+        entity.PortalSessionID = session.sessionId;
+        entity.ThreadID = threadId;
+        entity.Title = title.trim();
+        entity.Status = 'Pending';
+        if (typeof instructions === 'string') entity.Instructions = instructions.trim();
+        if (typeof dueAt === 'string') entity.DueAt = new Date(dueAt);
 
         if (!(await entity.Save())) {
             res.status(500).json({ error: entity.LatestResult?.CompleteMessage || 'Failed to create file request' });
             return;
         }
 
-        res.status(201).json({ fileRequestId: entity.Get('ID'), status: 'created' });
+        res.status(201).json({ fileRequestId: entity.ID, status: 'created' });
     } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         console.error(`Secure Messaging create file request error: ${msg}`);
@@ -90,14 +109,18 @@ export async function createFileRequest(req: Request, res: Response): Promise<vo
 /**
  * POST /threads/:threadId/file-requests/:requestId/fulfill
  *
- * Fulfills a file request by uploading a file (multipart field "file"). The file is
- * stored via the same path as a regular attachment and the request is marked Fulfilled.
+ * Uploads one file toward a file request (multipart field "file"). Supports MULTIPLE files per
+ * request: each call attaches a file and, unless the caller passes `complete=false`, marks the
+ * request Fulfilled. To upload several files, send `complete=false` on all but the last. A request
+ * that is already in a terminal state cannot be fulfilled.
  */
 export async function fulfillFileRequest(req: Request, res: Response): Promise<void> {
     const access = await assertThreadAccess(req as PortalRequest, res);
     if (!access) return;
     const { systemUser, threadId } = access;
     const requestId = String(req.params.requestId);
+    // Default true (a single upload fulfills); pass complete=false for intermediate multi-file uploads.
+    const markComplete = String(req.body?.complete ?? 'true').toLowerCase() !== 'false';
 
     const file = (req as Request & { file?: Express.Multer.File }).file;
     if (!file || !file.buffer || file.buffer.length === 0) {
@@ -109,10 +132,16 @@ export async function fulfillFileRequest(req: Request, res: Response): Promise<v
         const md = new Metadata();
 
         // Load and validate the request belongs to this thread.
-        const request = await md.GetEntityObject('MJ_BizApps_SecureMessaging: File Requests', systemUser);
+        const request = await md.GetEntityObject<mjBizAppsSecureMessagingFileRequestEntity>(
+            'MJ_BizApps_SecureMessaging: File Requests', systemUser);
         const loaded = await request.InnerLoad(CompositeKey.FromID(requestId));
-        if (!loaded || request.Get('ThreadID') !== threadId) {
+        if (!loaded || request.ThreadID !== threadId) {
             res.status(404).json({ error: 'File request not found in this thread' });
+            return;
+        }
+        // Only an open (Pending) request accepts uploads — terminal ones are closed.
+        if (request.Status !== 'Pending') {
+            res.status(409).json({ error: `This request is ${String(request.Status).toLowerCase()} and no longer accepts files.` });
             return;
         }
 
@@ -126,18 +155,20 @@ export async function fulfillFileRequest(req: Request, res: Response): Promise<v
             systemUser
         );
 
-        request.Set('Status', 'Fulfilled');
-        request.Set('FulfilledAt', new Date().toISOString());
-        if (!(await request.Save())) {
-            res.status(500).json({ error: request.LatestResult?.CompleteMessage || 'Failed to update file request' });
-            return;
+        if (markComplete) {
+            request.Status = 'Fulfilled';
+            request.FulfilledAt = new Date();
+            if (!(await request.Save())) {
+                res.status(500).json({ error: request.LatestResult?.CompleteMessage || 'Failed to update file request' });
+                return;
+            }
         }
 
         res.status(201).json({
             fileRequestId: requestId,
             attachmentId: stored.messageFileId,
             filename: stored.filename,
-            status: 'fulfilled',
+            status: markComplete ? 'fulfilled' : 'pending',
         });
     } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
