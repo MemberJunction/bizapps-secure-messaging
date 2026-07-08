@@ -84,6 +84,7 @@ import {
             </div>
 
             <sm-compose-box
+                *ngIf="!readOnly"
                 [sending]="sending"
                 (messageSent)="onMessageSent($event)"
             ></sm-compose-box>
@@ -231,6 +232,8 @@ import {
 export class ConversationComponent implements OnInit {
     @Input() threadId = '';
     @Input() contactEmail = '';
+    /** When true (a Closed thread), the compose box is hidden — the conversation is read-only. */
+    @Input() readOnly = false;
 
     @ViewChild('messageContainer') messageContainer!: ElementRef;
     @ViewChild('fulfillInput') fulfillInput!: ElementRef<HTMLInputElement>;

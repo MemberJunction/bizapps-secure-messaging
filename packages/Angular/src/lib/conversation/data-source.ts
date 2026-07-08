@@ -19,6 +19,18 @@ export interface AuthResponse {
   token: string;
 }
 
+/** A row in the contact's portal inbox (PRD §5). */
+export interface ThreadSummary {
+  id: string;
+  subject: string;
+  status: string;
+  lastMessageAt: string | null;
+}
+
+export interface ThreadsResponse {
+  threads: ThreadSummary[];
+}
+
 export interface ThreadMessage {
   id: string;
   sender: string;
@@ -113,6 +125,9 @@ export interface ISecureMessagingDataSource {
   // Auth
   validateToken(token: string): Promise<AuthResponse>;
   redeemMagicLink(token: string): Promise<AuthResponse>;
+
+  // Threads (the contact's inbox)
+  listThreads(): Promise<ThreadsResponse>;
 
   // Messages
   getMessages(threadId: string): Promise<MessagesResponse>;

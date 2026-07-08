@@ -2,6 +2,7 @@ import { Router, json, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import { portalAuthMiddleware } from './handlers/middleware.js';
 import { validateToken, requestMagicLink, redeemMagicLink } from './handlers/auth.js';
+import { listThreads } from './handlers/threads.js';
 import { getThreadMessages, createThreadMessage } from './handlers/messages.js';
 import { getThreadAttachments, uploadAttachment, downloadAttachment } from './handlers/attachments.js';
 import { getFileRequests, createFileRequest, fulfillFileRequest } from './handlers/fileRequests.js';
@@ -70,6 +71,9 @@ export function createSecureMessagingRouter(): Router {
 
     // --- Protected routes (require valid portal session token) ---
     router.use(portalAuthMiddleware);
+
+    // Contact's thread list (the portal inbox — scoped to the authenticated contact)
+    router.get('/threads', listThreads);
 
     // Thread messages
     router.get('/threads/:threadId/messages', getThreadMessages);

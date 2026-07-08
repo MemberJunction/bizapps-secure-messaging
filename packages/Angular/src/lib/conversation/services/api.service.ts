@@ -8,6 +8,7 @@ import {
   ISecureMessagingDataSource,
   MessagesResponse,
   SignatureRequestsResponse,
+  ThreadsResponse,
   UploadResponse,
 } from '../data-source.js';
 
@@ -78,6 +79,10 @@ export class SecureMessagingApiService implements ISecureMessagingDataSource {
       method: 'POST',
       body: JSON.stringify({ token }),
     });
+  }
+
+  async listThreads(): Promise<ThreadsResponse> {
+    return this.request<ThreadsResponse>('/threads');
   }
 
   async getMessages(threadId: string): Promise<MessagesResponse> {
