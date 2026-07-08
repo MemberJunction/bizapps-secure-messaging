@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { Metadata, RunView, UserInfo } from '@memberjunction/core';
 import { getSystemUser } from '@memberjunction/server';
 import { SignatureEngine } from '@memberjunction/esignature/server';
-import { PortalRequest } from './middleware.js';
+import { PortalRequest, assertThreadAccess } from './middleware.js';
 import { getFileStore } from '@mj-biz-apps/secure-messaging-core';
 
 /**
@@ -12,17 +12,17 @@ import { getFileStore } from '@mj-biz-apps/secure-messaging-core';
  * lifecycle, and webhooks — so this layer only translates between our thread-scoped
  * portal API and the engine.
  *
- * Thread linkage: a signature request is tied back to the originating portal session via
- * the engine's polymorphic EntityID/RecordID (EntityID = the 'MJ_BizApps_SecureMessaging: Portal Sessions' entity,
- * RecordID = the session ID — a real PK). We list a thread's requests by joining its
- * sessions, since the thread itself has no single owning row.
+ * Thread linkage (v2): a signature request is tied to its SecureThread via the engine's
+ * polymorphic EntityID/RecordID (EntityID = the 'MJ_BizApps_SecureMessaging: Secure Threads'
+ * entity, RecordID = the thread ID — a real PK). The thread is now a first-class row, so a
+ * thread's requests are listed by a direct RecordID match (no session-join needed).
  */
 
-/** Resolve the entity ID for our 'MJ_BizApps_SecureMessaging: Portal Sessions' entity (for the polymorphic link). */
-function getPortalSessionsEntityId(): string {
-    const entity = new Metadata().Entities.find(e => e.Name === 'MJ_BizApps_SecureMessaging: Portal Sessions');
+/** Resolve the entity ID for our Secure Threads entity (for the polymorphic signature link). */
+function getSecureThreadsEntityId(): string {
+    const entity = new Metadata().EntityByName('MJ_BizApps_SecureMessaging: Secure Threads');
     if (!entity) {
-        throw new Error("'MJ_BizApps_SecureMessaging: Portal Sessions' entity is not registered");
+        throw new Error("'MJ_BizApps_SecureMessaging: Secure Threads' entity is not registered");
     }
     return entity.ID;
 }
@@ -67,17 +67,6 @@ async function resolveContactName(contactId: string, contextUser: UserInfo): Pro
     }
 }
 
-/** All portal session IDs for a thread — the set a thread's signature requests link to. */
-async function getSessionIdsForThread(threadId: string, contextUser: UserInfo): Promise<string[]> {
-    const rv = new RunView();
-    const result = await rv.RunView({
-        EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
-        ExtraFilter: `ThreadID = '${threadId.replace(/'/g, "''")}'`,
-    }, contextUser);
-    if (!result.Success) return [];
-    return (result.Results as Record<string, unknown>[]).map(r => String(r.ID));
-}
-
 /** Map a normalized MJ envelope status onto the label the portal UI displays. */
 function toDisplayStatus(status: string | null | undefined): string {
     switch (status) {
@@ -101,31 +90,19 @@ function toDisplayStatus(status: string | null | undefined): string {
 /**
  * GET /threads/:threadId/signature-requests
  *
- * Lists signature requests for the thread (across all of its portal sessions).
+ * Lists signature requests for the thread (linked directly by the thread's RecordID).
  */
 export async function getSignatureRequests(req: Request, res: Response): Promise<void> {
-    const { threadId } = req.params;
-    const session = (req as PortalRequest).portalSession;
-
-    if (session.threadId !== threadId) {
-        res.status(403).json({ error: 'Access denied to this thread' });
-        return;
-    }
+    const access = await assertThreadAccess(req as PortalRequest, res);
+    if (!access) return;
+    const { systemUser, threadId } = access;
 
     try {
-        const systemUser = await getSystemUser();
-        const sessionIds = await getSessionIdsForThread(threadId, systemUser);
-        if (sessionIds.length === 0) {
-            res.json({ signatureRequests: [] });
-            return;
-        }
-
-        const entityId = getPortalSessionsEntityId();
-        const idList = sessionIds.map(id => `'${id}'`).join(', ');
+        const entityId = getSecureThreadsEntityId();
         const rv = new RunView();
         const result = await rv.RunView({
             EntityName: 'MJ: Signature Requests',
-            ExtraFilter: `EntityID = '${entityId}' AND RecordID IN (${idList})`,
+            ExtraFilter: `EntityID = '${entityId}' AND RecordID = '${threadId.replace(/'/g, "''")}'`,
             OrderBy: '__mj_CreatedAt DESC',
         }, systemUser);
 
@@ -164,17 +141,15 @@ export async function getSignatureRequests(req: Request, res: Response): Promise
  *   - artifactId names the document to sign; its latest version's bytes are sent.
  */
 export async function createSignatureRequest(req: Request, res: Response): Promise<void> {
-    const { threadId } = req.params;
+    const access = await assertThreadAccess(req as PortalRequest, res);
+    if (!access) return;
+    const { systemUser, threadId } = access;
     const session = (req as PortalRequest).portalSession;
     const { title, signatureAccountId, artifactId, signatureAnchor } = req.body;
     // Where to place the signature field: the text in the document to anchor it to. Defaults to a
     // "Signature:" line; if the document has no such marker the provider uses its own default.
     const anchor = typeof signatureAnchor === 'string' && signatureAnchor.trim() ? signatureAnchor.trim() : 'Signature:';
 
-    if (session.threadId !== threadId) {
-        res.status(403).json({ error: 'Access denied to this thread' });
-        return;
-    }
     if (!title || typeof title !== 'string' || title.trim().length === 0) {
         res.status(400).json({ error: 'A title is required' });
         return;
@@ -189,8 +164,6 @@ export async function createSignatureRequest(req: Request, res: Response): Promi
     }
 
     try {
-        const systemUser = await getSystemUser();
-
         // Resolve the document bytes from the artifact's latest version.
         let document: { bytes: Buffer; filename: string; contentType: string };
         try {
@@ -218,9 +191,9 @@ export async function createSignatureRequest(req: Request, res: Response): Promi
                 },
             ],
             artifactId,
-            // Polymorphic link back to the originating portal session.
-            entityId: getPortalSessionsEntityId(),
-            recordId: session.sessionId,
+            // Polymorphic link back to the SecureThread (v2: the thread is the owning row).
+            entityId: getSecureThreadsEntityId(),
+            recordId: threadId,
             sendImmediately: true,
             contextUser: systemUser,
         });
@@ -251,17 +224,12 @@ export async function createSignatureRequest(req: Request, res: Response): Promi
  * Polls the provider for the envelope's current status and persists it.
  */
 export async function refreshSignatureStatus(req: Request, res: Response): Promise<void> {
-    const threadId = String(req.params.threadId);
+    const access = await assertThreadAccess(req as PortalRequest, res);
+    if (!access) return;
+    const { systemUser } = access;
     const requestId = String(req.params.requestId);
-    const session = (req as PortalRequest).portalSession;
-
-    if (session.threadId !== threadId) {
-        res.status(403).json({ error: 'Access denied to this thread' });
-        return;
-    }
 
     try {
-        const systemUser = await getSystemUser();
         await SignatureEngine.Instance.Config(false, systemUser);
         const result = await SignatureEngine.Instance.RefreshStatus(requestId, systemUser);
         if (!result.Success) {
@@ -284,18 +252,13 @@ export async function refreshSignatureStatus(req: Request, res: Response): Promi
  * Body: { reason?: string }
  */
 export async function voidSignatureRequest(req: Request, res: Response): Promise<void> {
-    const threadId = String(req.params.threadId);
+    const access = await assertThreadAccess(req as PortalRequest, res);
+    if (!access) return;
+    const { systemUser } = access;
     const requestId = String(req.params.requestId);
-    const session = (req as PortalRequest).portalSession;
     const reason = typeof req.body?.reason === 'string' ? req.body.reason : 'Cancelled by sender';
 
-    if (session.threadId !== threadId) {
-        res.status(403).json({ error: 'Access denied to this thread' });
-        return;
-    }
-
     try {
-        const systemUser = await getSystemUser();
         await SignatureEngine.Instance.Config(false, systemUser);
         const result = await SignatureEngine.Instance.Void(requestId, reason, systemUser);
         if (!result.Success) {
@@ -316,17 +279,12 @@ export async function voidSignatureRequest(req: Request, res: Response): Promise
  * Downloads the executed/signed document for a completed envelope.
  */
 export async function downloadSignedDocument(req: Request, res: Response): Promise<void> {
-    const threadId = String(req.params.threadId);
+    const access = await assertThreadAccess(req as PortalRequest, res);
+    if (!access) return;
+    const { systemUser } = access;
     const requestId = String(req.params.requestId);
-    const session = (req as PortalRequest).portalSession;
-
-    if (session.threadId !== threadId) {
-        res.status(403).json({ error: 'Access denied to this thread' });
-        return;
-    }
 
     try {
-        const systemUser = await getSystemUser();
         await SignatureEngine.Instance.Config(false, systemUser);
         const result = await SignatureEngine.Instance.DownloadSigned(requestId, systemUser);
         if (!result.Success || !result.document) {

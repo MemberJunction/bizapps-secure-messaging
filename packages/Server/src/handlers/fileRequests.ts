@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import { CompositeKey, Metadata, RunView } from '@memberjunction/core';
-import { getSystemUser } from '@memberjunction/server';
-import { PortalRequest } from './middleware.js';
+import { PortalRequest, assertThreadAccess } from './middleware.js';
 import { getFileStore } from '@mj-biz-apps/secure-messaging-core';
 
 /**
@@ -10,16 +9,11 @@ import { getFileStore } from '@mj-biz-apps/secure-messaging-core';
  * Lists file requests for the thread (the widget shows pending ones to the contact).
  */
 export async function getFileRequests(req: Request, res: Response): Promise<void> {
-    const { threadId } = req.params;
-    const session = (req as PortalRequest).portalSession;
-
-    if (session.threadId !== threadId) {
-        res.status(403).json({ error: 'Access denied to this thread' });
-        return;
-    }
+    const access = await assertThreadAccess(req as PortalRequest, res);
+    if (!access) return;
+    const { systemUser, threadId } = access;
 
     try {
-        const systemUser = await getSystemUser();
         const rv = new RunView();
         const result = await rv.RunView({
             EntityName: 'MJ_BizApps_SecureMessaging: File Requests',
@@ -58,14 +52,11 @@ export async function getFileRequests(req: Request, res: Response): Promise<void
  * Body: { title: string, instructions?: string, dueAt?: string }
  */
 export async function createFileRequest(req: Request, res: Response): Promise<void> {
-    const { threadId } = req.params;
+    const access = await assertThreadAccess(req as PortalRequest, res);
+    if (!access) return;
+    const { systemUser, threadId } = access;
     const session = (req as PortalRequest).portalSession;
     const { title, instructions, dueAt } = req.body;
-
-    if (session.threadId !== threadId) {
-        res.status(403).json({ error: 'Access denied to this thread' });
-        return;
-    }
 
     if (!title || typeof title !== 'string' || title.trim().length === 0) {
         res.status(400).json({ error: 'A title is required' });
@@ -73,7 +64,6 @@ export async function createFileRequest(req: Request, res: Response): Promise<vo
     }
 
     try {
-        const systemUser = await getSystemUser();
         const md = new Metadata();
         const entity = await md.GetEntityObject('MJ_BizApps_SecureMessaging: File Requests', systemUser);
         entity.NewRecord();
@@ -104,14 +94,10 @@ export async function createFileRequest(req: Request, res: Response): Promise<vo
  * stored via the same path as a regular attachment and the request is marked Fulfilled.
  */
 export async function fulfillFileRequest(req: Request, res: Response): Promise<void> {
-    const threadId = String(req.params.threadId);
+    const access = await assertThreadAccess(req as PortalRequest, res);
+    if (!access) return;
+    const { systemUser, threadId } = access;
     const requestId = String(req.params.requestId);
-    const session = (req as PortalRequest).portalSession;
-
-    if (session.threadId !== threadId) {
-        res.status(403).json({ error: 'Access denied to this thread' });
-        return;
-    }
 
     const file = (req as Request & { file?: Express.Multer.File }).file;
     if (!file || !file.buffer || file.buffer.length === 0) {
@@ -120,7 +106,6 @@ export async function fulfillFileRequest(req: Request, res: Response): Promise<v
     }
 
     try {
-        const systemUser = await getSystemUser();
         const md = new Metadata();
 
         // Load and validate the request belongs to this thread.

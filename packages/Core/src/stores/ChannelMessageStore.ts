@@ -28,7 +28,7 @@ export class ChannelMessageStore implements MessageStore {
         const rv = new RunView();
         const result = await rv.RunView({
             EntityName: 'Channel Messages',
-            ExtraFilter: `ChannelID = '${session.channelId}' AND ThreadID = '${threadId.replace(/'/g, "''")}'`,
+            ExtraFilter: `ThreadID = '${threadId.replace(/'/g, "''")}'`,
             OrderBy: 'ReceivedAt ASC',
         }, systemUser);
 
@@ -63,7 +63,9 @@ export class ChannelMessageStore implements MessageStore {
         const md = new Metadata();
         const entity = await md.GetEntityObject('Channel Messages', systemUser);
         entity.NewRecord();
-        entity.Set('ChannelID', session.channelId);
+        // v2 has no session-level channel id; the thread is the conversation grouping, so the
+        // Channel Messages ChannelID is keyed to the SecureThread id (matches the old per-thread id).
+        entity.Set('ChannelID', threadId);
         entity.Set('ThreadID', threadId);
         entity.Set('Sender', session.contactEmail);
         entity.Set('Recipient', ''); // Org receives — no specific recipient address

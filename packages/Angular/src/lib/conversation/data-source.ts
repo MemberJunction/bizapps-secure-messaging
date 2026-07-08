@@ -14,8 +14,8 @@ import { InjectionToken } from '@angular/core';
 export interface AuthResponse {
   sessionId: string;
   contactEmail: string;
-  channelId: string;
-  threadId: string;
+  /** Deep-link target thread from a magic link; absent for a bare session-token validation (v2). */
+  threadId?: string;
   token: string;
 }
 

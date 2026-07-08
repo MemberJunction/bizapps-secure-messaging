@@ -1,7 +1,7 @@
 import { Metadata, RunView, UserInfo } from '@memberjunction/core';
 import {
     mjBizAppsSecureMessagingSecureMessageEntity,
-    mjBizAppsSecureMessagingPortalSessionEntity,
+    mjBizAppsSecureMessagingSecureThreadEntity,
 } from '@mj-biz-apps/secure-messaging-entities';
 import { PortalSessionContext, PortalAuthService } from '../services/PortalAuthService.js';
 import {
@@ -76,6 +76,8 @@ export class OwnedMessageStore implements MessageStore {
             throw new Error(entity.LatestResult?.CompleteMessage || 'Failed to create message');
         }
 
+        await this.touchThread(threadId, systemUser);
+
         await notifyMessage({
             threadId,
             messageId: entity.ID,
@@ -94,30 +96,22 @@ export class OwnedMessageStore implements MessageStore {
     ): Promise<CreateMessageResult> {
         const md = new Metadata();
 
-        // Resolve the thread's portal session for the recipient + contact PersonID.
-        const rv = new RunView();
-        const sessionResult = await rv.RunView<mjBizAppsSecureMessagingPortalSessionEntity>({
-            EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
-            ExtraFilter: `ThreadID = '${threadId.replace(/'/g, "''")}'`,
-            OrderBy: 'LastAccessedAt DESC',
-            MaxRows: 1,
-            ResultType: 'entity_object',
-        }, systemUser);
-        const portalSession = sessionResult.Success ? sessionResult.Results?.[0] : undefined;
-        if (!portalSession) {
-            throw new Error(`No portal session found for thread ${threadId}`);
-        }
-
-        const recipientEmail = await PortalAuthService.Instance.getContactEmail(portalSession.ContactID, systemUser);
+        // In v2 the thread is the unit of conversation and owns the contact. Resolve the thread to
+        // its contact, then the contact's (per-contact) portal session — the message records that
+        // session for audit and the contact's email as the recipient.
+        const thread = await this.loadThread(threadId, systemUser);
+        const contactId = thread.ContactID;
+        const recipientEmail = await PortalAuthService.Instance.getContactEmail(contactId, systemUser);
+        const { sessionId } = await PortalAuthService.Instance.ensureSessionForContact(contactId, systemUser);
 
         const entity = await md.GetEntityObject<mjBizAppsSecureMessagingSecureMessageEntity>(
             'MJ_BizApps_SecureMessaging: Secure Messages',
             systemUser
         );
         entity.NewRecord();
-        entity.PortalSessionID = portalSession.ID;
+        entity.PortalSessionID = sessionId;
         entity.ThreadID = threadId;
-        entity.PersonID = portalSession.ContactID;
+        entity.PersonID = contactId;
         entity.Direction = 'Outbound';
         entity.Sender = input.senderEmail;
         entity.Recipient = recipientEmail;
@@ -133,15 +127,45 @@ export class OwnedMessageStore implements MessageStore {
             throw new Error(entity.LatestResult?.CompleteMessage || 'Failed to create outbound message');
         }
 
+        // Reuse the already-loaded thread to stamp LastMessageAt (inbox ordering).
+        thread.LastMessageAt = new Date();
+        await thread.Save();
+
         await notifyMessage({
             threadId,
             messageId: entity.ID,
             direction: 'Outbound',
-            sessionId: portalSession.ID,
+            sessionId,
             contactEmail: recipientEmail,
         });
 
         return { messageId: entity.ID };
+    }
+
+    /** Loads a SecureThread by ID (entity object), throwing if it does not exist. */
+    private async loadThread(
+        threadId: string,
+        systemUser: UserInfo
+    ): Promise<mjBizAppsSecureMessagingSecureThreadEntity> {
+        const rv = new RunView();
+        const res = await rv.RunView<mjBizAppsSecureMessagingSecureThreadEntity>({
+            EntityName: 'MJ_BizApps_SecureMessaging: Secure Threads',
+            ExtraFilter: `ID = '${threadId.replace(/'/g, "''")}'`,
+            MaxRows: 1,
+            ResultType: 'entity_object',
+        }, systemUser);
+        const thread = res.Success ? res.Results?.[0] : undefined;
+        if (!thread) {
+            throw new Error(`Secure thread ${threadId} not found`);
+        }
+        return thread;
+    }
+
+    /** Stamps the thread's LastMessageAt to now (denormalized for inbox ordering, PRD §4/§6). */
+    private async touchThread(threadId: string, systemUser: UserInfo): Promise<void> {
+        const thread = await this.loadThread(threadId, systemUser);
+        thread.LastMessageAt = new Date();
+        await thread.Save();
     }
 
     async importMessages(
@@ -181,6 +205,15 @@ export class OwnedMessageStore implements MessageStore {
                 throw new Error(entity.LatestResult?.CompleteMessage || 'Failed to import message');
             }
             messageIds.push(entity.ID);
+        }
+
+        // Stamp the thread's LastMessageAt to the newest imported message time so a promoted thread
+        // sorts correctly in the inbox from the moment it is created (PRD §4/§6).
+        if (input.messages.length > 0) {
+            const newest = Math.max(...input.messages.map(m => (m.receivedAt ? new Date(m.receivedAt).getTime() : Date.now())));
+            const thread = await this.loadThread(input.threadId, systemUser);
+            thread.LastMessageAt = new Date(newest);
+            await thread.Save();
         }
 
         return { messageIds };

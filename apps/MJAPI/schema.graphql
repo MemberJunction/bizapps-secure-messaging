@@ -5838,6 +5838,7 @@ input CreatemjBizAppsSecureMessagingMessageFileInput {
 }
 
 input CreatemjBizAppsSecureMessagingPortalMagicLinkInput {
+  DeepLinkThreadID: String
   ExpiresAt: Timestamp
   ID: String
   PortalSessionID: String
@@ -5848,16 +5849,12 @@ input CreatemjBizAppsSecureMessagingPortalMagicLinkInput {
 }
 
 input CreatemjBizAppsSecureMessagingPortalSessionInput {
-  ChannelID: String
   ContactID: String
   ExpiresAt: Timestamp
   ID: String
-  IsArchived: Boolean
-  IsDeleted: Boolean
   LastAccessedAt: Timestamp
   RestoreContext___: RestoreContextInput
   Status: String
-  ThreadID: String
   TokenHash: String
 }
 
@@ -5879,6 +5876,18 @@ input CreatemjBizAppsSecureMessagingSecureMessageInput {
   Status: String
   Subject: String
   ThreadID: String
+}
+
+input CreatemjBizAppsSecureMessagingSecureThreadInput {
+  ContactID: String
+  CreatedByUserID: String
+  ID: String
+  IsDeleted: Boolean
+  LastMessageAt: Timestamp
+  RestoreContext___: RestoreContextInput
+  SourceChannel: String
+  Status: String
+  Subject: String
 }
 
 type CustomColumnCandidate {
@@ -23007,6 +23016,7 @@ type Mutation {
   CreatemjBizAppsSecureMessagingPortalMagicLink(input: CreatemjBizAppsSecureMessagingPortalMagicLinkInput!): mjBizAppsSecureMessagingPortalMagicLink_!
   CreatemjBizAppsSecureMessagingPortalSession(input: CreatemjBizAppsSecureMessagingPortalSessionInput!): mjBizAppsSecureMessagingPortalSession_!
   CreatemjBizAppsSecureMessagingSecureMessage(input: CreatemjBizAppsSecureMessagingSecureMessageInput!): mjBizAppsSecureMessagingSecureMessage_!
+  CreatemjBizAppsSecureMessagingSecureThread(input: CreatemjBizAppsSecureMessagingSecureThreadInput!): mjBizAppsSecureMessagingSecureThread_!
   DeleteFile(ID: String!, options___: DeleteOptionsInput!): MJFile_!
   DeleteFileCategory(ID: String!, options___: DeleteOptionsInput!): MJFileCategory_!
   DeleteMJAIAction(ID: String!, options___: DeleteOptionsInput!): MJAIAction_!
@@ -23377,7 +23387,12 @@ type Mutation {
   DeletemjBizAppsCommonPerson(ID: String!, options___: DeleteOptionsInput!): mjBizAppsCommonPerson_!
   DeletemjBizAppsCommonRelationship(ID: String!, options___: DeleteOptionsInput!): mjBizAppsCommonRelationship_!
   DeletemjBizAppsCommonRelationshipType(ID: String!, options___: DeleteOptionsInput!): mjBizAppsCommonRelationshipType_!
+  DeletemjBizAppsSecureMessagingFileRequest(ID: String!, options___: DeleteOptionsInput!): mjBizAppsSecureMessagingFileRequest_!
   DeletemjBizAppsSecureMessagingMessageFile(ID: String!, options___: DeleteOptionsInput!): mjBizAppsSecureMessagingMessageFile_!
+  DeletemjBizAppsSecureMessagingPortalMagicLink(ID: String!, options___: DeleteOptionsInput!): mjBizAppsSecureMessagingPortalMagicLink_!
+  DeletemjBizAppsSecureMessagingPortalSession(ID: String!, options___: DeleteOptionsInput!): mjBizAppsSecureMessagingPortalSession_!
+  DeletemjBizAppsSecureMessagingSecureMessage(ID: String!, options___: DeleteOptionsInput!): mjBizAppsSecureMessagingSecureMessage_!
+  DeletemjBizAppsSecureMessagingSecureThread(ID: String!, options___: DeleteOptionsInput!): mjBizAppsSecureMessagingSecureThread_!
   EmbedText(modelSize: String!, textToEmbed: [String!]!): EmbedTextResult!
   EndLiveKitRoom(roomName: String!): Boolean!
   ExecuteMCPTool(input: ExecuteMCPToolInput!): ExecuteMCPToolResult!
@@ -23934,6 +23949,7 @@ type Mutation {
   UpdatemjBizAppsSecureMessagingPortalMagicLink(input: UpdatemjBizAppsSecureMessagingPortalMagicLinkInput!): mjBizAppsSecureMessagingPortalMagicLink_!
   UpdatemjBizAppsSecureMessagingPortalSession(input: UpdatemjBizAppsSecureMessagingPortalSessionInput!): mjBizAppsSecureMessagingPortalSession_!
   UpdatemjBizAppsSecureMessagingSecureMessage(input: UpdatemjBizAppsSecureMessagingSecureMessageInput!): mjBizAppsSecureMessagingSecureMessage_!
+  UpdatemjBizAppsSecureMessagingSecureThread(input: UpdatemjBizAppsSecureMessagingSecureThreadInput!): mjBizAppsSecureMessagingSecureThread_!
   VectorizeEntity(batchSize: Float, entityDocumentID: String!, entityID: String!): VectorizeEntityResult!
   startSqlLogging(input: StartSqlLoggingInput!): SqlLoggingSession!
   stopAllSqlLogging: Boolean!
@@ -25647,6 +25663,9 @@ type Query {
   RunmjBizAppsSecureMessagingSecureMessageDynamicView(input: RunDynamicViewInput!): RunmjBizAppsSecureMessagingSecureMessageViewResult!
   RunmjBizAppsSecureMessagingSecureMessageViewByID(input: RunViewByIDInput!): RunmjBizAppsSecureMessagingSecureMessageViewResult!
   RunmjBizAppsSecureMessagingSecureMessageViewByName(input: RunViewByNameInput!): RunmjBizAppsSecureMessagingSecureMessageViewResult!
+  RunmjBizAppsSecureMessagingSecureThreadDynamicView(input: RunDynamicViewInput!): RunmjBizAppsSecureMessagingSecureThreadViewResult!
+  RunmjBizAppsSecureMessagingSecureThreadViewByID(input: RunViewByIDInput!): RunmjBizAppsSecureMessagingSecureThreadViewResult!
+  RunmjBizAppsSecureMessagingSecureThreadViewByName(input: RunViewByNameInput!): RunmjBizAppsSecureMessagingSecureThreadViewResult!
 
   """Returns recent lines from the RSU pipeline log"""
   RuntimeSchemaUpdateLogTail(lines: Int! = 100): [String!]!
@@ -25690,6 +25709,7 @@ type Query {
   mjBizAppsSecureMessagingPortalMagicLink(ID: String!): mjBizAppsSecureMessagingPortalMagicLink_
   mjBizAppsSecureMessagingPortalSession(ID: String!): mjBizAppsSecureMessagingPortalSession_
   mjBizAppsSecureMessagingSecureMessage(ID: String!): mjBizAppsSecureMessagingSecureMessage_
+  mjBizAppsSecureMessagingSecureThread(ID: String!): mjBizAppsSecureMessagingSecureThread_
   readSqlLogFile(maxLines: Int, sessionId: String!): String!
   sqlLoggingConfig: SqlLoggingConfig!
 }
@@ -30316,6 +30336,16 @@ type RunmjBizAppsSecureMessagingSecureMessageViewResult {
   ErrorMessage: String
   ExecutionTime: Int
   Results: [mjBizAppsSecureMessagingSecureMessage_!]!
+  RowCount: Int
+  Success: Boolean!
+  TotalRowCount: Int
+  UserViewRunID: String
+}
+
+type RunmjBizAppsSecureMessagingSecureThreadViewResult {
+  ErrorMessage: String
+  ExecutionTime: Int
+  Results: [mjBizAppsSecureMessagingSecureThread_!]!
   RowCount: Int
   Success: Boolean!
   TotalRowCount: Int
@@ -36565,6 +36595,7 @@ input UpdatemjBizAppsSecureMessagingMessageFileInput {
 }
 
 input UpdatemjBizAppsSecureMessagingPortalMagicLinkInput {
+  DeepLinkThreadID: String
   ExpiresAt: Timestamp
   ID: String!
   OldValues___: [KeyValuePairInput!]
@@ -36576,17 +36607,13 @@ input UpdatemjBizAppsSecureMessagingPortalMagicLinkInput {
 }
 
 input UpdatemjBizAppsSecureMessagingPortalSessionInput {
-  ChannelID: String
   ContactID: String
   ExpiresAt: Timestamp
   ID: String!
-  IsArchived: Boolean
-  IsDeleted: Boolean
   LastAccessedAt: Timestamp
   OldValues___: [KeyValuePairInput!]
   RestoreContext___: RestoreContextInput
   Status: String
-  ThreadID: String
   TokenHash: String
 }
 
@@ -36609,6 +36636,19 @@ input UpdatemjBizAppsSecureMessagingSecureMessageInput {
   Status: String
   Subject: String
   ThreadID: String
+}
+
+input UpdatemjBizAppsSecureMessagingSecureThreadInput {
+  ContactID: String
+  CreatedByUserID: String
+  ID: String!
+  IsDeleted: Boolean
+  LastMessageAt: Timestamp
+  OldValues___: [KeyValuePairInput!]
+  RestoreContext___: RestoreContextInput
+  SourceChannel: String
+  Status: String
+  Subject: String
 }
 
 type UserFavoriteResult {
@@ -37056,6 +37096,8 @@ type mjBizAppsSecureMessagingMessageFile_ {
 Single-use magic links for re-authenticating expired portal sessions. Short-lived (15 min default), redeems into a fresh session token.
 """
 type mjBizAppsSecureMessagingPortalMagicLink_ {
+  DeepLinkThreadID: String
+
   """When the magic link expires. Default is 15 minutes from creation."""
   ExpiresAt: Timestamp!
   ID: String!
@@ -37079,7 +37121,6 @@ type mjBizAppsSecureMessagingPortalMagicLink_ {
 Tracks active secure messaging sessions for external contacts. Each session maps a contact to a channel thread and is authenticated via a hashed opaque token.
 """
 type mjBizAppsSecureMessagingPortalSession_ {
-  ChannelID: String!
   ContactID: String!
 
   """
@@ -37089,25 +37130,12 @@ type mjBizAppsSecureMessagingPortalSession_ {
   ID: String!
 
   """
-  When 1, this conversation (thread) is archived: hidden from the staff inbox default view and shown under the Archived category. Staff-toggled; does not affect contact access.
-  """
-  IsArchived: Boolean!
-
-  """
-  When 1, this conversation (thread) is soft-deleted: hidden from the inbox and all categories except Trash, from which it can be restored. Records are never hard-deleted (compliance/audit). Staff-toggled.
-  """
-  IsDeleted: Boolean!
-
-  """
   Last time the session was accessed. Used for session extension and cleanup.
   """
   LastAccessedAt: Timestamp!
 
   """Session lifecycle status: Active, Expired, or Revoked"""
   Status: String!
-
-  """Groups messages into a conversation thread"""
-  ThreadID: String!
 
   """
   SHA-256 hash of the opaque session token (sm_ prefix). Raw token is never stored.
@@ -37167,4 +37195,51 @@ type mjBizAppsSecureMessagingSecureMessage_ {
   _mj__CreatedAt: Timestamp!
   _mj__UpdatedAt: Timestamp!
   mjBizAppsSecureMessagingMJ_BizApps_SecureMessaging_MessageFiles_SecureMessageIDArray: [mjBizAppsSecureMessagingMessageFile_!]!
+}
+
+"""
+A first-class secure conversation (thread) between the organization and one external contact. Owns the subject, lifecycle status, and all messages/files/requests via FKs. The unit of the contact portal inbox; magic links deep-link into a thread.
+"""
+type mjBizAppsSecureMessagingSecureThread_ {
+  """
+  Soft reference to the external contact (MJ_BizApps_Common.Person.ID). Not a hard FK so the schema stays standalone.
+  """
+  ContactID: String!
+
+  """
+  Soft reference to the MJ user (staff) who created the thread; NULL for promoted/backfilled threads. Not a hard FK so the schema stays standalone.
+  """
+  CreatedByUserID: String
+  ID: String!
+
+  """
+  Soft delete (staff Trash). Records are never hard-deleted — compliance/audit.
+  """
+  IsDeleted: Boolean!
+
+  """
+  Timestamp of the most recent message in the thread (denormalized for inbox ordering).
+  """
+  LastMessageAt: Timestamp
+
+  """
+  NULL for threads that originated natively in the secure channel; the insecure channel name (e.g. Email, SMS) for threads created by promotion (PRD §9 bridges).
+  """
+  SourceChannel: String
+
+  """
+  Thread lifecycle: Active (open), Closed (contact-visible read-only), Archived (hidden from default lists). Contact-visible, unlike the old session-level archive flags.
+  """
+  Status: String!
+
+  """
+  The conversation subject line (TitanFile-channel style), set by staff at compose or derived at promotion.
+  """
+  Subject: String!
+  _mj__CreatedAt: Timestamp!
+  _mj__UpdatedAt: Timestamp!
+  mjBizAppsSecureMessagingMJ_BizApps_SecureMessaging_FileRequests_ThreadIDArray: [mjBizAppsSecureMessagingFileRequest_!]!
+  mjBizAppsSecureMessagingMJ_BizApps_SecureMessaging_MessageFiles_ThreadIDArray: [mjBizAppsSecureMessagingMessageFile_!]!
+  mjBizAppsSecureMessagingMJ_BizApps_SecureMessaging_PortalMagicLinks_DeepLinkThreadIDArray: [mjBizAppsSecureMessagingPortalMagicLink_!]!
+  mjBizAppsSecureMessagingMJ_BizApps_SecureMessaging_SecureMessages_ThreadIDArray: [mjBizAppsSecureMessagingSecureMessage_!]!
 }

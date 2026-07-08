@@ -6,7 +6,7 @@ import { MJAuthBase } from '@memberjunction/ng-auth-services';
 import { GraphQLDataProvider, GraphQLFileStorageClient, GraphQLActionClient } from '@memberjunction/graphql-dataprovider';
 import { ActionResult, ActionParam } from '@memberjunction/actions-base';
 import { mjBizAppsCommonPersonEntity } from '@mj-biz-apps/common-entities';
-import { mjBizAppsSecureMessagingSecureMessageEntity, mjBizAppsSecureMessagingPortalSessionEntity } from '@mj-biz-apps/secure-messaging-entities';
+import { mjBizAppsSecureMessagingSecureMessageEntity, mjBizAppsSecureMessagingSecureThreadEntity } from '@mj-biz-apps/secure-messaging-entities';
 import { ContactSelection } from './secure-messaging.contracts';
 
 /* ─── Interfaces ─── */
@@ -2111,18 +2111,18 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
     if (deleting && !confirm('Move this conversation to Trash? It will be hidden but can be restored.')) return;
     try {
       const rv = new RunView();
-      const res = await rv.RunView<mjBizAppsSecureMessagingPortalSessionEntity>({
-        EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
-        ExtraFilter: `ThreadID = '${threadId.replace(/'/g, "''")}'`,
+      const res = await rv.RunView<mjBizAppsSecureMessagingSecureThreadEntity>({
+        EntityName: 'MJ_BizApps_SecureMessaging: Secure Threads',
+        ExtraFilter: `ID = '${threadId.replace(/'/g, "''")}'`,
         MaxRows: 1,
         ResultType: 'entity_object',
       });
-      const session = res.Success ? res.Results?.[0] : undefined;
-      if (!session) return;
+      const thread = res.Success ? res.Results?.[0] : undefined;
+      if (!thread) return;
 
-      session.IsDeleted = deleting;
-      if (!(await session.Save())) {
-        console.error('Failed to update delete state:', session.LatestResult?.CompleteMessage);
+      thread.IsDeleted = deleting;
+      if (!(await thread.Save())) {
+        console.error('Failed to update delete state:', thread.LatestResult?.CompleteMessage);
         return;
       }
 
@@ -2150,10 +2150,10 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
   }
 
   /**
-   * Archive (or unarchive) the selected message's conversation. Archiving is a thread-level
-   * flag on the PortalSession — a simple status toggle on a record staff owns, so it's done
-   * via the typed entity directly (no Action needed; Izzy doesn't archive). The thread then
-   * drops out of the inbox and appears under the Archived category.
+   * Archive (or unarchive) the selected message's conversation. Archiving is a lifecycle status on
+   * the SecureThread (Active ⇄ Archived) — a simple toggle on a record staff owns, done via the
+   * typed entity directly (no Action needed; Izzy doesn't archive). The thread then drops out of
+   * the inbox and appears under the Archived category.
    */
   async onArchive(): Promise<void> {
     const threadId = this.selectedMessage?.threadId;
@@ -2161,18 +2161,18 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
     const archiving = !this.archivedThreadIds.has(threadId);
     try {
       const rv = new RunView();
-      const res = await rv.RunView<mjBizAppsSecureMessagingPortalSessionEntity>({
-        EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
-        ExtraFilter: `ThreadID = '${threadId.replace(/'/g, "''")}'`,
+      const res = await rv.RunView<mjBizAppsSecureMessagingSecureThreadEntity>({
+        EntityName: 'MJ_BizApps_SecureMessaging: Secure Threads',
+        ExtraFilter: `ID = '${threadId.replace(/'/g, "''")}'`,
         MaxRows: 1,
         ResultType: 'entity_object',
       });
-      const session = res.Success ? res.Results?.[0] : undefined;
-      if (!session) return;
+      const thread = res.Success ? res.Results?.[0] : undefined;
+      if (!thread) return;
 
-      session.IsArchived = archiving;
-      if (!(await session.Save())) {
-        console.error('Failed to archive thread:', session.LatestResult?.CompleteMessage);
+      thread.Status = archiving ? 'Archived' : 'Active';
+      if (!(await thread.Save())) {
+        console.error('Failed to archive thread:', thread.LatestResult?.CompleteMessage);
         return;
       }
 
@@ -2471,14 +2471,14 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
     try {
       const rv = new RunView();
       const result = await rv.RunView({
-        EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
-        ExtraFilter: 'IsArchived = 1',
+        EntityName: 'MJ_BizApps_SecureMessaging: Secure Threads',
+        ExtraFilter: `Status = 'Archived'`,
         MaxRows: 1000,
         ResultType: 'simple',
       });
       if (result.Success && result.Results) {
         for (const r of result.Results) {
-          const tid = (r as Record<string, unknown>)['ThreadID'] as string;
+          const tid = (r as Record<string, unknown>)['ID'] as string;
           if (tid) this.archivedThreadIds.add(tid);
         }
       }
@@ -2493,14 +2493,14 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
     try {
       const rv = new RunView();
       const result = await rv.RunView({
-        EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
+        EntityName: 'MJ_BizApps_SecureMessaging: Secure Threads',
         ExtraFilter: 'IsDeleted = 1',
         MaxRows: 1000,
         ResultType: 'simple',
       });
       if (result.Success && result.Results) {
         for (const r of result.Results) {
-          const tid = (r as Record<string, unknown>)['ThreadID'] as string;
+          const tid = (r as Record<string, unknown>)['ID'] as string;
           if (tid) this.deletedThreadIds.add(tid);
         }
       }

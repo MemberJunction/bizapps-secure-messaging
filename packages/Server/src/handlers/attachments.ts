@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
-import { getSystemUser } from '@memberjunction/server';
-import { PortalRequest } from './middleware.js';
+import { PortalRequest, assertThreadAccess } from './middleware.js';
 import { getFileStore } from '@mj-biz-apps/secure-messaging-core';
 
 /**
@@ -9,16 +8,11 @@ import { getFileStore } from '@mj-biz-apps/secure-messaging-core';
  * Lists all files attached to messages in the thread.
  */
 export async function getThreadAttachments(req: Request, res: Response): Promise<void> {
-    const { threadId } = req.params;
-    const session = (req as PortalRequest).portalSession;
-
-    if (session.threadId !== threadId) {
-        res.status(403).json({ error: 'Access denied to this thread' });
-        return;
-    }
+    const access = await assertThreadAccess(req as PortalRequest, res);
+    if (!access) return;
+    const { systemUser, threadId } = access;
 
     try {
-        const systemUser = await getSystemUser();
         const files = await getFileStore().listThreadFiles(threadId, systemUser);
         res.json({
             attachments: files.map(f => ({
@@ -47,13 +41,9 @@ export async function getThreadAttachments(req: Request, res: Response): Promise
  * specific message; otherwise it is attached at the thread level.
  */
 export async function uploadAttachment(req: Request, res: Response): Promise<void> {
-    const { threadId } = req.params;
-    const session = (req as PortalRequest).portalSession;
-
-    if (session.threadId !== threadId) {
-        res.status(403).json({ error: 'Access denied to this thread' });
-        return;
-    }
+    const access = await assertThreadAccess(req as PortalRequest, res);
+    if (!access) return;
+    const { systemUser, threadId } = access;
 
     const file = (req as Request & { file?: Express.Multer.File }).file;
     if (!file || !file.buffer || file.buffer.length === 0) {
@@ -62,7 +52,6 @@ export async function uploadAttachment(req: Request, res: Response): Promise<voi
     }
 
     try {
-        const systemUser = await getSystemUser();
         const stored = await getFileStore().store(
             {
                 filename: file.originalname,
@@ -103,17 +92,12 @@ export async function uploadAttachment(req: Request, res: Response): Promise<voi
  * Returns a pre-authenticated download URL for a stored file.
  */
 export async function downloadAttachment(req: Request, res: Response): Promise<void> {
-    const threadId = String(req.params.threadId);
+    const access = await assertThreadAccess(req as PortalRequest, res);
+    if (!access) return;
+    const { systemUser, threadId } = access;
     const attachmentId = String(req.params.attachmentId);
-    const session = (req as PortalRequest).portalSession;
-
-    if (session.threadId !== threadId) {
-        res.status(403).json({ error: 'Access denied to this thread' });
-        return;
-    }
 
     try {
-        const systemUser = await getSystemUser();
         const url = await getFileStore().getDownloadUrl(attachmentId, threadId, systemUser);
         res.json({ url });
     } catch (error) {

@@ -472,18 +472,32 @@ export class SecureMessagingActionPanelComponent implements OnInit {
     return String((res.Results as Record<string, unknown>[])[0].ID);
   }
 
-  /** Newest portal session ID for a thread. */
+  /**
+   * Newest active portal session ID for a thread. In v2 sessions are per-contact (not per-thread),
+   * so resolve the thread's contact first, then that contact's newest active session.
+   */
   private async resolvePortalSessionId(threadId: string): Promise<string | null> {
     const rv = new RunView();
-    const result = await rv.RunView({
+    const threadRes = await rv.RunView({
+      EntityName: 'MJ_BizApps_SecureMessaging: Secure Threads',
+      ExtraFilter: `ID = '${threadId.replace(/'/g, "''")}'`,
+      Fields: ['ID', 'ContactID'],
+      MaxRows: 1,
+      ResultType: 'simple',
+    });
+    const thread = threadRes.Success ? (threadRes.Results?.[0] as Record<string, unknown> | undefined) : undefined;
+    if (!thread) return null;
+    const contactId = String(thread['ContactID']);
+
+    const sessRes = await rv.RunView({
       EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
-      ExtraFilter: `ThreadID = '${threadId.replace(/'/g, "''")}'`,
+      ExtraFilter: `ContactID = '${contactId.replace(/'/g, "''")}' AND Status = 'Active'`,
       OrderBy: 'LastAccessedAt DESC',
       MaxRows: 1,
       ResultType: 'simple',
     });
-    if (result.Success && result.Results && result.Results.length > 0) {
-      return (result.Results[0] as Record<string, unknown>)['ID'] as string;
+    if (sessRes.Success && sessRes.Results && sessRes.Results.length > 0) {
+      return (sessRes.Results[0] as Record<string, unknown>)['ID'] as string;
     }
     return null;
   }

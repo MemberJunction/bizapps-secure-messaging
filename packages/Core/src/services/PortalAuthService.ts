@@ -1,6 +1,11 @@
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { CompositeKey, Metadata, RunView, UserInfo } from '@memberjunction/core';
 import { BaseSingleton } from '@memberjunction/global';
+import {
+    mjBizAppsSecureMessagingPortalSessionEntity,
+    mjBizAppsSecureMessagingPortalMagicLinkEntity,
+    mjBizAppsSecureMessagingSecureThreadEntity,
+} from '@mj-biz-apps/secure-messaging-entities';
 
 /** Prefix for session tokens */
 const SESSION_TOKEN_PREFIX = 'sm_';
@@ -10,13 +15,21 @@ const MAGIC_LINK_PREFIX = 'sm_ml_';
 const DEFAULT_SESSION_TTL_DAYS = 7;
 /** Default magic link TTL in minutes */
 const DEFAULT_MAGIC_LINK_TTL_MINUTES = 15;
+/** Fallback subject when a thread is created without one. */
+const DEFAULT_THREAD_SUBJECT = 'Secure conversation';
 
+/**
+ * The authenticated portal context for a contact. In v2 a session authenticates the CONTACT
+ * (not a single thread) — one session grants access to all of that contact's threads — so the
+ * thread is no longer part of the session. `threadId` is the OPTIONAL deep-link target carried by
+ * a magic link (its `DeepLinkThreadID`); it is undefined for a bare session-token validation, in
+ * which case the widget resolves the current thread from the contact's inbox.
+ */
 export interface PortalSessionContext {
     sessionId: string;
-    channelId: string;
     contactId: string;
     contactEmail: string;
-    threadId: string;
+    threadId?: string;
 }
 
 export interface MagicLinkResult {
@@ -31,7 +44,7 @@ export interface MagicLinkRedemptionResult {
 }
 
 /**
- * Input for provisioning a brand-new secure thread for a contact (session + magic link).
+ * Input for provisioning a brand-new secure thread for a contact (thread + session + magic link).
  * Writing the first message is the caller's job (avoids a Core service↔store cycle).
  */
 export interface StartSecureThreadInput {
@@ -39,6 +52,12 @@ export interface StartSecureThreadInput {
     contactEmail: string;
     /** Optional display name, used only when creating a new Person. */
     contactName?: string;
+    /** The thread subject (TitanFile-style subject line). Falls back to a generic subject. */
+    subject?: string;
+    /** Originating insecure channel for promoted threads (e.g. 'Email', 'SMS'); omit for native. */
+    sourceChannel?: string;
+    /** Soft reference to the staff MJ user creating the thread; omit for promoted/system threads. */
+    createdByUserId?: string;
 }
 
 /** Result of provisioning a new secure thread. The magic link is delivered out-of-band. */
@@ -51,7 +70,7 @@ export interface StartSecureThreadResult {
 }
 
 /**
- * One historical message being imported into a secure thread during promotion (PRD §10.1).
+ * One historical message being imported into a secure thread during promotion (PRD §9).
  * These are COPIES of prior insecure-channel messages, preserved so the contact sees the full
  * history once authenticated. They are flagged imported + tagged with their source channel.
  */
@@ -69,7 +88,7 @@ export interface PromotedMessageInput {
 }
 
 /**
- * Input for promoting an existing insecure (Email/SMS) thread into a secure thread (PRD §10.1).
+ * Input for promoting an existing insecure (Email/SMS) thread into a secure thread (PRD §9).
  * Provisions a contact + secure thread + session + magic link, then the caller bulk-imports the
  * prior messages. Backs both the Izzy action-diff "switch to secure channel" flow and the
  * Outlook "Secure Send" add-in.
@@ -103,7 +122,7 @@ function hashToken(rawToken: string): string {
 
 /**
  * Service for managing portal session authentication.
- * Handles session creation, validation, and magic link flows.
+ * Handles per-contact session creation, validation, thread provisioning, and magic link flows.
  *
  * Extends {@link BaseSingleton} so there is exactly one instance per process even when
  * bundlers duplicate this module across execution paths (per MJ singleton policy).
@@ -132,41 +151,78 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
     }
 
     /**
-     * Creates a new portal session for a contact on a channel.
-     * Returns the raw session token (only returned once — caller must deliver it to the contact).
+     * Ensures the contact has exactly one Active portal session and returns it. Sessions are
+     * per-contact in v2 (one session spans all of the contact's threads), so an existing Active
+     * session is reused; only when none exists is a fresh one minted. The raw session token is
+     * returned ONLY when a new session is created — an existing session's token was issued once and
+     * cannot be recovered, so callers re-authenticate into it via a magic link.
      */
-    async createSession(
-        channelId: string,
+    async ensureSessionForContact(
         contactId: string,
-        threadId: string,
         systemUser: UserInfo
-    ): Promise<{ sessionId: string; rawToken: string }> {
+    ): Promise<{ sessionId: string; rawToken?: string }> {
+        const rv = new RunView();
+        const existing = await rv.RunView<mjBizAppsSecureMessagingPortalSessionEntity>({
+            EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
+            ExtraFilter: `ContactID = '${contactId.replace(/'/g, "''")}' AND Status = 'Active'`,
+            OrderBy: 'LastAccessedAt DESC',
+            MaxRows: 1,
+            ResultType: 'entity_object',
+        }, systemUser);
+        if (existing.Success && existing.Results.length > 0) {
+            return { sessionId: existing.Results[0].ID };
+        }
+
         const rawToken = generateToken(SESSION_TOKEN_PREFIX);
-        const tokenHash = hashToken(rawToken);
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + DEFAULT_SESSION_TTL_DAYS);
 
         const md = new Metadata();
-        const entity = await md.GetEntityObject('MJ_BizApps_SecureMessaging: Portal Sessions', systemUser);
-        entity.NewRecord();
-        entity.Set('ChannelID', channelId);
-        entity.Set('ContactID', contactId);
-        entity.Set('ThreadID', threadId);
-        entity.Set('TokenHash', tokenHash);
-        entity.Set('Status', 'Active');
-        entity.Set('ExpiresAt', expiresAt.toISOString());
-        entity.Set('LastAccessedAt', new Date().toISOString());
+        const session = await md.GetEntityObject<mjBizAppsSecureMessagingPortalSessionEntity>(
+            'MJ_BizApps_SecureMessaging: Portal Sessions', systemUser);
+        session.NewRecord();
+        session.ContactID = contactId;
+        session.TokenHash = hashToken(rawToken);
+        session.Status = 'Active';
+        session.ExpiresAt = expiresAt;
+        session.LastAccessedAt = new Date();
 
-        const saved = await entity.Save();
-        if (!saved) {
-            throw new Error('Failed to create portal session');
+        if (!(await session.Save())) {
+            throw new Error(session.LatestResult?.CompleteMessage || 'Failed to create portal session');
         }
-
-        return { sessionId: entity.Get('ID'), rawToken };
+        return { sessionId: session.ID, rawToken };
     }
 
     /**
-     * Validates a raw session token and returns the session context.
+     * Creates a new SecureThread for a contact and returns its ID. The thread is the first-class
+     * unit of conversation in v2 — messages, files, requests and signatures all FK to it.
+     */
+    async createThread(
+        contactId: string,
+        subject: string | undefined,
+        systemUser: UserInfo,
+        options?: { sourceChannel?: string; createdByUserId?: string }
+    ): Promise<string> {
+        const md = new Metadata();
+        const thread = await md.GetEntityObject<mjBizAppsSecureMessagingSecureThreadEntity>(
+            'MJ_BizApps_SecureMessaging: Secure Threads', systemUser);
+        thread.NewRecord();
+        thread.ContactID = contactId;
+        thread.Subject = (subject && subject.trim()) || DEFAULT_THREAD_SUBJECT;
+        thread.Status = 'Active';
+        thread.SourceChannel = options?.sourceChannel ?? null;
+        thread.CreatedByUserID = options?.createdByUserId ?? null;
+        thread.LastMessageAt = null;
+        thread.IsDeleted = false;
+
+        if (!(await thread.Save())) {
+            throw new Error(thread.LatestResult?.CompleteMessage || 'Failed to create secure thread');
+        }
+        return thread.ID;
+    }
+
+    /**
+     * Validates a raw session token and returns the session context (identity only — no thread).
      * Extends the session TTL on each successful validation.
      */
     async validateSessionToken(
@@ -179,51 +235,47 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
 
         const tokenHash = hashToken(rawToken);
         const rv = new RunView();
-        const result = await rv.RunView({
+        const result = await rv.RunView<mjBizAppsSecureMessagingPortalSessionEntity>({
             EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
             ExtraFilter: `TokenHash = '${tokenHash}' AND Status = 'Active' AND ExpiresAt > SYSDATETIMEOFFSET()`,
+            ResultType: 'entity_object',
         }, systemUser);
 
         if (!result.Success || result.Results.length === 0) {
             return null;
         }
 
-        const session = result.Results[0] as Record<string, string>;
-
-        // Extend session TTL
-        const md = new Metadata();
-        const entity = await md.GetEntityObject('MJ_BizApps_SecureMessaging: Portal Sessions', systemUser);
-        await entity.InnerLoad(CompositeKey.FromID(session.ID));
+        // Extend the session TTL on the loaded entity.
+        const session = result.Results[0];
         const newExpiry = new Date();
         newExpiry.setDate(newExpiry.getDate() + DEFAULT_SESSION_TTL_DAYS);
-        entity.Set('ExpiresAt', newExpiry.toISOString());
-        entity.Set('LastAccessedAt', new Date().toISOString());
-        await entity.Save();
+        session.ExpiresAt = newExpiry;
+        session.LastAccessedAt = new Date();
+        await session.Save();
 
-        // Look up contact email
         const contactEmail = await this.getContactEmail(session.ContactID, systemUser);
 
         return {
             sessionId: session.ID,
-            channelId: session.ChannelID,
             contactId: session.ContactID,
             contactEmail,
-            threadId: session.ThreadID,
         };
     }
 
     /**
-     * Generates a magic link for an existing session.
+     * Generates a magic link for an existing session, optionally deep-linking to a specific thread.
      */
     async generateMagicLink(
         sessionId: string,
-        systemUser: UserInfo
+        systemUser: UserInfo,
+        deepLinkThreadId?: string
     ): Promise<MagicLinkResult> {
-        // Verify session exists
+        // Verify the session exists.
         const rv = new RunView();
-        const sessionResult = await rv.RunView({
+        const sessionResult = await rv.RunView<mjBizAppsSecureMessagingPortalSessionEntity>({
             EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
-            ExtraFilter: `ID = '${sessionId}'`,
+            ExtraFilter: `ID = '${sessionId.replace(/'/g, "''")}'`,
+            ResultType: 'entity_object',
         }, systemUser);
 
         if (!sessionResult.Success || sessionResult.Results.length === 0) {
@@ -231,44 +283,46 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
         }
 
         const rawToken = generateToken(MAGIC_LINK_PREFIX);
-        const tokenHash = hashToken(rawToken);
         const expiresAt = new Date();
         expiresAt.setMinutes(expiresAt.getMinutes() + DEFAULT_MAGIC_LINK_TTL_MINUTES);
 
         const md = new Metadata();
-        const entity = await md.GetEntityObject('MJ_BizApps_SecureMessaging: Portal Magic Links', systemUser);
-        entity.NewRecord();
-        entity.Set('PortalSessionID', sessionId);
-        entity.Set('TokenHash', tokenHash);
-        entity.Set('Status', 'Pending');
-        entity.Set('ExpiresAt', expiresAt.toISOString());
+        const link = await md.GetEntityObject<mjBizAppsSecureMessagingPortalMagicLinkEntity>(
+            'MJ_BizApps_SecureMessaging: Portal Magic Links', systemUser);
+        link.NewRecord();
+        link.PortalSessionID = sessionId;
+        link.TokenHash = hashToken(rawToken);
+        link.Status = 'Pending';
+        link.ExpiresAt = expiresAt;
+        link.DeepLinkThreadID = deepLinkThreadId ?? null;
 
-        const saved = await entity.Save();
-        if (!saved) {
-            return { success: false, errorMessage: 'Failed to create magic link' };
+        if (!(await link.Save())) {
+            return { success: false, errorMessage: link.LatestResult?.CompleteMessage || 'Failed to create magic link' };
         }
 
         return { success: true, rawToken };
     }
 
     /**
-     * Provisions a brand-new secure thread for a contact: finds-or-creates the Person by
-     * email, mints a fresh thread + channel id, opens a portal session, and issues a magic
-     * link. The caller writes the first message (via the message store) — this keeps the
-     * service free of a store dependency. This single operation backs both staff "compose"
-     * and Izzy's thread-promotion (§8.3 in the PRD).
+     * Provisions a brand-new secure thread for a contact: finds-or-creates the Person by email,
+     * creates the SecureThread, ensures the contact's portal session, and issues a magic link that
+     * deep-links to the new thread. The caller writes the first message (via the message store) —
+     * this keeps the service free of a store dependency. Backs both staff "compose" and Izzy's
+     * thread-promotion (PRD §9).
      */
     async startSecureThread(
         input: StartSecureThreadInput,
         systemUser: UserInfo
     ): Promise<StartSecureThreadResult> {
         const contactId = await this.findOrCreatePerson(input.contactEmail, input.contactName, systemUser);
-        const threadId = randomUUID();
-        const channelId = randomUUID(); // logical grouping id (no FK in the standalone app)
+        const threadId = await this.createThread(contactId, input.subject, systemUser, {
+            sourceChannel: input.sourceChannel,
+            createdByUserId: input.createdByUserId,
+        });
 
-        const { sessionId } = await this.createSession(channelId, contactId, threadId, systemUser);
+        const { sessionId } = await this.ensureSessionForContact(contactId, systemUser);
 
-        const link = await this.generateMagicLink(sessionId, systemUser);
+        const link = await this.generateMagicLink(sessionId, systemUser, threadId);
         if (!link.success || !link.rawToken) {
             throw new Error(link.errorMessage || 'Failed to issue magic link for the new thread');
         }
@@ -278,17 +332,23 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
 
     /**
      * Provisions a secure thread for a contact the same way {@link startSecureThread} does, as the
-     * destination for an existing insecure (Email/SMS) thread being promoted (PRD §10.1). The
-     * actual copying of `input.messages` into the thread is the caller's job (via the message
-     * store's bulk import) — this service stays free of a store dependency. `importedCount` echoes
-     * how many messages the caller is expected to import, for convenience.
+     * destination for an existing insecure (Email/SMS) thread being promoted (PRD §9). The actual
+     * copying of `input.messages` into the thread is the caller's job (via the message store's bulk
+     * import) — this service stays free of a store dependency. `importedCount` echoes how many
+     * messages the caller is expected to import, for convenience.
      */
     async promoteThread(
         input: PromoteThreadInput,
         systemUser: UserInfo
     ): Promise<PromoteThreadResult> {
         const provisioned = await this.startSecureThread(
-            { contactEmail: input.contactEmail, contactName: input.contactName },
+            {
+                contactEmail: input.contactEmail,
+                contactName: input.contactName,
+                subject: input.subject,
+                sourceChannel: input.sourceChannel,
+                createdByUserId: input.createdByUserId,
+            },
             systemUser
         );
         return { ...provisioned, importedCount: input.messages.length };
@@ -296,7 +356,8 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
 
     /**
      * Returns the ID of the contact Person matching the email (case-insensitive), creating a
-     * minimal Person record if none exists. Uses the configured contact entity.
+     * minimal Person record if none exists. Uses the configured contact entity, whose name is
+     * configurable — so this method uses the dynamic Get/Set accessors rather than a fixed type.
      */
     private async findOrCreatePerson(email: string, name: string | undefined, systemUser: UserInfo): Promise<string> {
         const trimmed = email.trim();
@@ -329,8 +390,8 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
     }
 
     /**
-     * Redeems a magic link token. Returns a fresh session token.
-     * The magic link is marked as 'Used' and a new session token is generated.
+     * Redeems a magic link token. Marks the link 'Used', re-issues a fresh session token for the
+     * parent (per-contact) session, and returns the context deep-linked to the link's target thread.
      */
     async redeemMagicLink(
         rawToken: string,
@@ -342,54 +403,69 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
 
         const tokenHash = hashToken(rawToken);
         const rv = new RunView();
-        const result = await rv.RunView({
+        const result = await rv.RunView<mjBizAppsSecureMessagingPortalMagicLinkEntity>({
             EntityName: 'MJ_BizApps_SecureMessaging: Portal Magic Links',
             ExtraFilter: `TokenHash = '${tokenHash}' AND Status = 'Pending' AND ExpiresAt > SYSDATETIMEOFFSET()`,
+            ResultType: 'entity_object',
         }, systemUser);
 
         if (!result.Success || result.Results.length === 0) {
             return null;
         }
 
-        const magicLink = result.Results[0] as Record<string, string>;
+        const magicLink = result.Results[0];
+        const deepLinkThreadId = magicLink.DeepLinkThreadID ?? undefined;
 
-        // Mark magic link as used
+        // Mark the magic link as used.
+        magicLink.Status = 'Used';
+        magicLink.UsedAt = new Date();
+        await magicLink.Save();
+
+        // Re-issue a fresh session token for the parent (per-contact) session.
         const md = new Metadata();
-        const mlEntity = await md.GetEntityObject('MJ_BizApps_SecureMessaging: Portal Magic Links', systemUser);
-        await mlEntity.InnerLoad(CompositeKey.FromID(magicLink.ID));
-        mlEntity.Set('Status', 'Used');
-        mlEntity.Set('UsedAt', new Date().toISOString());
-        await mlEntity.Save();
-
-        // Generate a fresh session token for the parent session
+        const session = await md.GetEntityObject<mjBizAppsSecureMessagingPortalSessionEntity>(
+            'MJ_BizApps_SecureMessaging: Portal Sessions', systemUser);
+        await session.InnerLoad(CompositeKey.FromID(magicLink.PortalSessionID));
         const newRawToken = generateToken(SESSION_TOKEN_PREFIX);
-        const newTokenHash = hashToken(newRawToken);
-
-        const sessionEntity = await md.GetEntityObject('MJ_BizApps_SecureMessaging: Portal Sessions', systemUser);
-        await sessionEntity.InnerLoad(CompositeKey.FromID(magicLink.PortalSessionID));
-        sessionEntity.Set('TokenHash', newTokenHash);
-        sessionEntity.Set('Status', 'Active');
+        session.TokenHash = hashToken(newRawToken);
+        session.Status = 'Active';
         const newExpiry = new Date();
         newExpiry.setDate(newExpiry.getDate() + DEFAULT_SESSION_TTL_DAYS);
-        sessionEntity.Set('ExpiresAt', newExpiry.toISOString());
-        sessionEntity.Set('LastAccessedAt', new Date().toISOString());
-        await sessionEntity.Save();
+        session.ExpiresAt = newExpiry;
+        session.LastAccessedAt = new Date();
+        await session.Save();
 
-        const contactEmail = await this.getContactEmail(
-            sessionEntity.Get('ContactID'),
-            systemUser
-        );
+        const contactEmail = await this.getContactEmail(session.ContactID, systemUser);
 
         return {
             sessionContext: {
                 sessionId: magicLink.PortalSessionID,
-                channelId: sessionEntity.Get('ChannelID'),
-                contactId: sessionEntity.Get('ContactID'),
+                contactId: session.ContactID,
                 contactEmail,
-                threadId: sessionEntity.Get('ThreadID'),
+                threadId: deepLinkThreadId,
             },
             newSessionToken: newRawToken,
         };
+    }
+
+    /**
+     * Authorization check for the v2 per-contact session model: returns true iff the thread exists,
+     * is not soft-deleted, and belongs to the given contact. Replaces the v1 "session.threadId ===
+     * threadId" gate now that one session grants access to ALL of the contact's threads.
+     */
+    async contactOwnsThread(contactId: string, threadId: string, systemUser: UserInfo): Promise<boolean> {
+        if (!contactId || !threadId) {
+            return false;
+        }
+        const rv = new RunView();
+        const res = await rv.RunView<mjBizAppsSecureMessagingSecureThreadEntity>({
+            EntityName: 'MJ_BizApps_SecureMessaging: Secure Threads',
+            ExtraFilter: `ID = '${threadId.replace(/'/g, "''")}' AND ContactID = '${contactId.replace(/'/g, "''")}' AND IsDeleted = 0`,
+            Fields: ['ID'],
+            MaxRows: 1,
+            ResultType: 'simple',
+        }, systemUser);
+        return res.Success && res.Results.length > 0;
     }
 
     /** Resolve a contact's email from the configured People entity. Public — reused by stores. */

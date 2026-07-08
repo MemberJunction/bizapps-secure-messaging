@@ -230,7 +230,6 @@ import {
 })
 export class ConversationComponent implements OnInit {
     @Input() threadId = '';
-    @Input() channelId = '';
     @Input() contactEmail = '';
 
     @ViewChild('messageContainer') messageContainer!: ElementRef;

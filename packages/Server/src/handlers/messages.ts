@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
-import { getSystemUser } from '@memberjunction/server';
-import { PortalRequest } from './middleware.js';
+import { PortalRequest, assertThreadAccess } from './middleware.js';
 import { getMessageStore } from '@mj-biz-apps/secure-messaging-core';
 
 /**
@@ -13,17 +12,12 @@ import { getMessageStore } from '@mj-biz-apps/secure-messaging-core';
  * or the Channel Messages adapter when SECURE_MESSAGING_MESSAGE_BACKEND=channel).
  */
 export async function getThreadMessages(req: Request, res: Response): Promise<void> {
-    const { threadId } = req.params;
+    const access = await assertThreadAccess(req as PortalRequest, res);
+    if (!access) return;
+    const { systemUser, threadId } = access;
     const session = (req as PortalRequest).portalSession;
 
-    // Ensure the session owns this thread
-    if (session.threadId !== threadId) {
-        res.status(403).json({ error: 'Access denied to this thread' });
-        return;
-    }
-
     try {
-        const systemUser = await getSystemUser();
         const messages = await getMessageStore().getThreadMessages(session, threadId, systemUser);
         res.json({ messages });
     } catch (error) {
@@ -41,14 +35,11 @@ export async function getThreadMessages(req: Request, res: Response): Promise<vo
  * Body: { content: string, subject?: string }
  */
 export async function createThreadMessage(req: Request, res: Response): Promise<void> {
-    const { threadId } = req.params;
+    const access = await assertThreadAccess(req as PortalRequest, res);
+    if (!access) return;
+    const { systemUser, threadId } = access;
     const session = (req as PortalRequest).portalSession;
     const { content, subject } = req.body;
-
-    if (session.threadId !== threadId) {
-        res.status(403).json({ error: 'Access denied to this thread' });
-        return;
-    }
 
     if (!content || typeof content !== 'string' || content.trim().length === 0) {
         res.status(400).json({ error: 'Message content is required' });
@@ -56,7 +47,6 @@ export async function createThreadMessage(req: Request, res: Response): Promise<
     }
 
     try {
-        const systemUser = await getSystemUser();
         const result = await getMessageStore().createMessage(
             session,
             threadId,

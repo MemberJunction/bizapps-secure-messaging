@@ -40,7 +40,6 @@ interface SessionInfo {
   tokenMasked: string;
   expiresLabel: string;
   lastAccessLabel: string;
-  threadId: string | null;
 }
 
 interface AuditEvent {
@@ -108,10 +107,10 @@ const ADV_PREF_KEY = 'sm.workspace.advanced';
     </div>
 
     <!-- Shared action panel (Request files / Send for signature) -->
-    @if (actionPanel && session.threadId) {
+    @if (actionPanel && activeThreadId) {
       <mj-secure-messaging-action-panel
         [mode]="actionPanel"
-        [threadId]="session.threadId"
+        [threadId]="activeThreadId"
         [contactEmail]="contactEmail"
         [contactName]="contactName"
         (done)="onActionDone()"
@@ -438,7 +437,7 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
   docs: DocRow[] = [];
   audit: AuditEvent[] = [];
 
-  session: SessionInfo = { id: null, status: 'None', tokenMasked: '—', expiresLabel: '—', lastAccessLabel: '—', threadId: null };
+  session: SessionInfo = { id: null, status: 'None', tokenMasked: '—', expiresLabel: '—', lastAccessLabel: '—' };
   sessionBusy = false;
 
   /** Open mode for the shared action panel (Request files / Send for signature); null = closed. */
@@ -547,31 +546,52 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
     }
   }
 
-  /** Load the contact's portal sessions; pick the newest as the active one and gather threads. */
+  /** The thread the shared action panel targets — the contact's newest thread (v2: sessions are
+   *  per-contact, so the action panel is scoped to a thread, not the session). */
+  get activeThreadId(): string | null {
+    return this.threadIds[0] ?? null;
+  }
+
+  /**
+   * Load the contact's portal session (identity) and their threads. In v2 a session is per-contact
+   * (one session spans all threads), and threads are their own rows — so the thread list comes from
+   * SecureThread (by ContactID), not from session rows.
+   */
   private async loadSessions(): Promise<void> {
     if (!this.contactId) return;
     const rv = new RunView();
-    const res = await rv.RunView({
-      EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
-      ExtraFilter: `ContactID = '${this.esc(this.contactId)}'`,
-      OrderBy: 'LastAccessedAt DESC',
-      ResultType: 'simple',
-    });
-    if (!res.Success) return;
-    const rows = res.Results as Record<string, unknown>[];
-    this.threadIds = [...new Set(rows.map(r => String(r.ThreadID)).filter(Boolean))];
+    const [sessRes, threadRes] = await rv.RunViews([
+      {
+        EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
+        ExtraFilter: `ContactID = '${this.esc(this.contactId)}'`,
+        OrderBy: 'LastAccessedAt DESC',
+        ResultType: 'simple',
+      },
+      {
+        EntityName: 'MJ_BizApps_SecureMessaging: Secure Threads',
+        ExtraFilter: `ContactID = '${this.esc(this.contactId)}' AND IsDeleted = 0`,
+        OrderBy: 'LastMessageAt DESC',
+        ResultType: 'simple',
+      },
+    ]);
 
-    const newest = rows[0];
-    if (newest) {
-      const status = (newest.Status as SessionInfo['status']) || 'None';
-      this.session = {
-        id: String(newest.ID),
-        status,
-        tokenMasked: this.maskToken(newest.TokenHash as string),
-        expiresLabel: this.relativeFuture(newest.ExpiresAt as string) + ' (sliding)',
-        lastAccessLabel: this.relativePast(newest.LastAccessedAt as string),
-        threadId: String(newest.ThreadID),
-      };
+    if (threadRes.Success && threadRes.Results) {
+      const trows = threadRes.Results as Record<string, unknown>[];
+      this.threadIds = [...new Set(trows.map(r => String(r.ID)).filter(Boolean))];
+    }
+
+    if (sessRes.Success && sessRes.Results) {
+      const newest = (sessRes.Results as Record<string, unknown>[])[0];
+      if (newest) {
+        const status = (newest.Status as SessionInfo['status']) || 'None';
+        this.session = {
+          id: String(newest.ID),
+          status,
+          tokenMasked: this.maskToken(newest.TokenHash as string),
+          expiresLabel: this.relativeFuture(newest.ExpiresAt as string) + ' (sliding)',
+          lastAccessLabel: this.relativePast(newest.LastAccessedAt as string),
+        };
+      }
     }
   }
 
@@ -867,14 +887,14 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
 
   act(kind: 'message' | 'request' | 'signature'): void {
     // Notify the host of the intent (lets it observe/override; harmless if unobserved).
-    this.actionRequested.emit({ kind, contactId: this.contactId, threadId: this.session.threadId });
+    this.actionRequested.emit({ kind, contactId: this.contactId, threadId: this.activeThreadId });
 
     if (kind === 'message') {
       // Compose is a separate surface (Phase 2) — not part of the request/signature panel.
       this.toast('Opening compose…');
       return;
     }
-    if (!this.session.threadId) {
+    if (!this.activeThreadId) {
       this.toast('No active conversation thread to act on.');
       return;
     }
@@ -892,7 +912,7 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
       this.computeStats();
       this.cdr.detectChanges();
     })();
-    if (kind) this.actionCompleted.emit({ kind, contactId: this.contactId, threadId: this.session.threadId });
+    if (kind) this.actionCompleted.emit({ kind, contactId: this.contactId, threadId: this.activeThreadId });
     this.toast('Done.');
   }
 

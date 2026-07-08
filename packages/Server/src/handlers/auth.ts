@@ -30,8 +30,8 @@ export async function validateToken(req: Request, res: Response): Promise<void> 
         res.json({
             sessionId: session.sessionId,
             contactEmail: session.contactEmail,
-            channelId: session.channelId,
-            threadId: session.threadId,
+            // v2: a session is per-contact and spans all their threads — no thread is implied by a
+            // bare token validation (the widget resolves the current thread from the inbox / deep link).
             token, // Return the same token — it's still valid
         });
     } catch (error) {
@@ -105,7 +105,7 @@ export async function redeemMagicLink(req: Request, res: Response): Promise<void
         res.json({
             sessionId: result.sessionContext.sessionId,
             contactEmail: result.sessionContext.contactEmail,
-            channelId: result.sessionContext.channelId,
+            // The deep-link target thread carried by the magic link (undefined for a non-deep link).
             threadId: result.sessionContext.threadId,
             token: result.newSessionToken,
         });

@@ -17,7 +17,7 @@ import { MaxLength } from 'class-validator';
 import * as mj_core_schema_server_object_types from '@memberjunction/server'
 
 
-import { mjBizAppsSecureMessagingFileRequestEntity, mjBizAppsSecureMessagingMessageFileEntity, mjBizAppsSecureMessagingPortalMagicLinkEntity, mjBizAppsSecureMessagingPortalSessionEntity, mjBizAppsSecureMessagingSecureMessageEntity } from '@mj-biz-apps/secure-messaging-entities';
+import { mjBizAppsSecureMessagingFileRequestEntity, mjBizAppsSecureMessagingMessageFileEntity, mjBizAppsSecureMessagingPortalMagicLinkEntity, mjBizAppsSecureMessagingPortalSessionEntity, mjBizAppsSecureMessagingSecureMessageEntity, mjBizAppsSecureMessagingSecureThreadEntity } from '@mj-biz-apps/secure-messaging-entities';
     
 
 //****************************************************************************
@@ -34,7 +34,7 @@ export class mjBizAppsSecureMessagingFileRequest_ {
     PortalSessionID: string;
         
     @Field() 
-    @MaxLength(255)
+    @MaxLength(36)
     ThreadID: string;
         
     @Field() 
@@ -219,6 +219,13 @@ export class mjBizAppsSecureMessagingFileRequestResolver extends ResolverBase {
         return this.UpdateRecord('MJ_BizApps_SecureMessaging: File Requests', input, provider, userPayload, pubSub);
     }
     
+    @Mutation(() => mjBizAppsSecureMessagingFileRequest_)
+    async DeletemjBizAppsSecureMessagingFileRequest(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_SecureMessaging: File Requests', key, options, provider, userPayload, pubSub);
+    }
+    
 }
 
 //****************************************************************************
@@ -239,7 +246,7 @@ export class mjBizAppsSecureMessagingMessageFile_ {
     ExternalMessageID?: string;
         
     @Field() 
-    @MaxLength(255)
+    @MaxLength(36)
     ThreadID: string;
         
     @Field({nullable: true, description: `Soft reference to MJ: Artifacts.ID wrapping the uploaded file.`}) 
@@ -464,6 +471,10 @@ export class mjBizAppsSecureMessagingPortalMagicLink_ {
     @Field() 
     _mj__UpdatedAt: Date;
         
+    @Field({nullable: true}) 
+    @MaxLength(36)
+    DeepLinkThreadID?: string;
+        
 }
 
 //****************************************************************************
@@ -488,6 +499,9 @@ export class CreatemjBizAppsSecureMessagingPortalMagicLinkInput {
 
     @Field({ nullable: true })
     UsedAt: Date | null;
+
+    @Field({ nullable: true })
+    DeepLinkThreadID: string | null;
 
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
@@ -516,6 +530,9 @@ export class UpdatemjBizAppsSecureMessagingPortalMagicLinkInput {
 
     @Field({ nullable: true })
     UsedAt?: Date | null;
+
+    @Field({ nullable: true })
+    DeepLinkThreadID?: string | null;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];
@@ -601,6 +618,13 @@ export class mjBizAppsSecureMessagingPortalMagicLinkResolver extends ResolverBas
         return this.UpdateRecord('MJ_BizApps_SecureMessaging: Portal Magic Links', input, provider, userPayload, pubSub);
     }
     
+    @Mutation(() => mjBizAppsSecureMessagingPortalMagicLink_)
+    async DeletemjBizAppsSecureMessagingPortalMagicLink(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_SecureMessaging: Portal Magic Links', key, options, provider, userPayload, pubSub);
+    }
+    
 }
 
 //****************************************************************************
@@ -614,15 +638,7 @@ export class mjBizAppsSecureMessagingPortalSession_ {
         
     @Field() 
     @MaxLength(36)
-    ChannelID: string;
-        
-    @Field() 
-    @MaxLength(36)
     ContactID: string;
-        
-    @Field({description: `Groups messages into a conversation thread`}) 
-    @MaxLength(255)
-    ThreadID: string;
         
     @Field({description: `SHA-256 hash of the opaque session token (sm_ prefix). Raw token is never stored.`}) 
     @MaxLength(128)
@@ -644,12 +660,6 @@ export class mjBizAppsSecureMessagingPortalSession_ {
     @Field() 
     _mj__UpdatedAt: Date;
         
-    @Field(() => Boolean, {description: `When 1, this conversation (thread) is archived: hidden from the staff inbox default view and shown under the Archived category. Staff-toggled; does not affect contact access.`}) 
-    IsArchived: boolean;
-        
-    @Field(() => Boolean, {description: `When 1, this conversation (thread) is soft-deleted: hidden from the inbox and all categories except Trash, from which it can be restored. Records are never hard-deleted (compliance/audit). Staff-toggled.`}) 
-    IsDeleted: boolean;
-        
     @Field(() => [mjBizAppsSecureMessagingPortalMagicLink_])
     mjBizAppsSecureMessagingMJ_BizApps_SecureMessaging_PortalMagicLinks_PortalSessionIDArray: mjBizAppsSecureMessagingPortalMagicLink_[]; // Link to mjBizAppsSecureMessagingMJ_BizApps_SecureMessaging_PortalMagicLinks
     
@@ -670,13 +680,7 @@ export class CreatemjBizAppsSecureMessagingPortalSessionInput {
     ID?: string;
 
     @Field({ nullable: true })
-    ChannelID?: string;
-
-    @Field({ nullable: true })
     ContactID?: string;
-
-    @Field({ nullable: true })
-    ThreadID?: string;
 
     @Field({ nullable: true })
     TokenHash?: string;
@@ -689,12 +693,6 @@ export class CreatemjBizAppsSecureMessagingPortalSessionInput {
 
     @Field({ nullable: true })
     LastAccessedAt?: Date;
-
-    @Field(() => Boolean, { nullable: true })
-    IsArchived?: boolean;
-
-    @Field(() => Boolean, { nullable: true })
-    IsDeleted?: boolean;
 
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
@@ -710,13 +708,7 @@ export class UpdatemjBizAppsSecureMessagingPortalSessionInput {
     ID: string;
 
     @Field({ nullable: true })
-    ChannelID?: string;
-
-    @Field({ nullable: true })
     ContactID?: string;
-
-    @Field({ nullable: true })
-    ThreadID?: string;
 
     @Field({ nullable: true })
     TokenHash?: string;
@@ -729,12 +721,6 @@ export class UpdatemjBizAppsSecureMessagingPortalSessionInput {
 
     @Field({ nullable: true })
     LastAccessedAt?: Date;
-
-    @Field(() => Boolean, { nullable: true })
-    IsArchived?: boolean;
-
-    @Field(() => Boolean, { nullable: true })
-    IsDeleted?: boolean;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];
@@ -850,6 +836,13 @@ export class mjBizAppsSecureMessagingPortalSessionResolver extends ResolverBase 
         return this.UpdateRecord('MJ_BizApps_SecureMessaging: Portal Sessions', input, provider, userPayload, pubSub);
     }
     
+    @Mutation(() => mjBizAppsSecureMessagingPortalSession_)
+    async DeletemjBizAppsSecureMessagingPortalSession(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_SecureMessaging: Portal Sessions', key, options, provider, userPayload, pubSub);
+    }
+    
 }
 
 //****************************************************************************
@@ -866,7 +859,7 @@ export class mjBizAppsSecureMessagingSecureMessage_ {
     PortalSessionID: string;
         
     @Field() 
-    @MaxLength(255)
+    @MaxLength(36)
     ThreadID: string;
         
     @Field({nullable: true, description: `Soft reference to the person (e.g. MJ_BizApps_Common.People.ID). Not a hard FK so the schema stays standalone.`}) 
@@ -1130,6 +1123,264 @@ export class mjBizAppsSecureMessagingSecureMessageResolver extends ResolverBase 
     ) {
         const provider = GetReadWriteProvider(providers);
         return this.UpdateRecord('MJ_BizApps_SecureMessaging: Secure Messages', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsSecureMessagingSecureMessage_)
+    async DeletemjBizAppsSecureMessagingSecureMessage(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_SecureMessaging: Secure Messages', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
+// ENTITY CLASS for MJ_BizApps_SecureMessaging: Secure Threads
+//****************************************************************************
+@ObjectType({ description: `A first-class secure conversation (thread) between the organization and one external contact. Owns the subject, lifecycle status, and all messages/files/requests via FKs. The unit of the contact portal inbox; magic links deep-link into a thread.` })
+export class mjBizAppsSecureMessagingSecureThread_ {
+    @Field() 
+    @MaxLength(36)
+    ID: string;
+        
+    @Field({description: `Soft reference to the external contact (MJ_BizApps_Common.Person.ID). Not a hard FK so the schema stays standalone.`}) 
+    @MaxLength(36)
+    ContactID: string;
+        
+    @Field({description: `The conversation subject line (TitanFile-channel style), set by staff at compose or derived at promotion.`}) 
+    @MaxLength(500)
+    Subject: string;
+        
+    @Field({description: `Thread lifecycle: Active (open), Closed (contact-visible read-only), Archived (hidden from default lists). Contact-visible, unlike the old session-level archive flags.`}) 
+    @MaxLength(20)
+    Status: string;
+        
+    @Field({nullable: true, description: `NULL for threads that originated natively in the secure channel; the insecure channel name (e.g. Email, SMS) for threads created by promotion (PRD §9 bridges).`}) 
+    @MaxLength(50)
+    SourceChannel?: string;
+        
+    @Field({nullable: true, description: `Soft reference to the MJ user (staff) who created the thread; NULL for promoted/backfilled threads. Not a hard FK so the schema stays standalone.`}) 
+    @MaxLength(36)
+    CreatedByUserID?: string;
+        
+    @Field({nullable: true, description: `Timestamp of the most recent message in the thread (denormalized for inbox ordering).`}) 
+    LastMessageAt?: Date;
+        
+    @Field(() => Boolean, {description: `Soft delete (staff Trash). Records are never hard-deleted — compliance/audit.`}) 
+    IsDeleted: boolean;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field(() => [mjBizAppsSecureMessagingPortalMagicLink_])
+    mjBizAppsSecureMessagingMJ_BizApps_SecureMessaging_PortalMagicLinks_DeepLinkThreadIDArray: mjBizAppsSecureMessagingPortalMagicLink_[]; // Link to mjBizAppsSecureMessagingMJ_BizApps_SecureMessaging_PortalMagicLinks
+    
+    @Field(() => [mjBizAppsSecureMessagingSecureMessage_])
+    mjBizAppsSecureMessagingMJ_BizApps_SecureMessaging_SecureMessages_ThreadIDArray: mjBizAppsSecureMessagingSecureMessage_[]; // Link to mjBizAppsSecureMessagingMJ_BizApps_SecureMessaging_SecureMessages
+    
+    @Field(() => [mjBizAppsSecureMessagingMessageFile_])
+    mjBizAppsSecureMessagingMJ_BizApps_SecureMessaging_MessageFiles_ThreadIDArray: mjBizAppsSecureMessagingMessageFile_[]; // Link to mjBizAppsSecureMessagingMJ_BizApps_SecureMessaging_MessageFiles
+    
+    @Field(() => [mjBizAppsSecureMessagingFileRequest_])
+    mjBizAppsSecureMessagingMJ_BizApps_SecureMessaging_FileRequests_ThreadIDArray: mjBizAppsSecureMessagingFileRequest_[]; // Link to mjBizAppsSecureMessagingMJ_BizApps_SecureMessaging_FileRequests
+    
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_SecureMessaging: Secure Threads
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsSecureMessagingSecureThreadInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    ContactID?: string;
+
+    @Field({ nullable: true })
+    Subject?: string;
+
+    @Field({ nullable: true })
+    Status?: string;
+
+    @Field({ nullable: true })
+    SourceChannel: string | null;
+
+    @Field({ nullable: true })
+    CreatedByUserID: string | null;
+
+    @Field({ nullable: true })
+    LastMessageAt: Date | null;
+
+    @Field(() => Boolean, { nullable: true })
+    IsDeleted?: boolean;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_SecureMessaging: Secure Threads
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsSecureMessagingSecureThreadInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    ContactID?: string;
+
+    @Field({ nullable: true })
+    Subject?: string;
+
+    @Field({ nullable: true })
+    Status?: string;
+
+    @Field({ nullable: true })
+    SourceChannel?: string | null;
+
+    @Field({ nullable: true })
+    CreatedByUserID?: string | null;
+
+    @Field({ nullable: true })
+    LastMessageAt?: Date | null;
+
+    @Field(() => Boolean, { nullable: true })
+    IsDeleted?: boolean;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+//****************************************************************************
+// RESOLVER for MJ_BizApps_SecureMessaging: Secure Threads
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsSecureMessagingSecureThreadViewResult {
+    @Field(() => [mjBizAppsSecureMessagingSecureThread_])
+    Results: mjBizAppsSecureMessagingSecureThread_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsSecureMessagingSecureThread_)
+export class mjBizAppsSecureMessagingSecureThreadResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsSecureMessagingSecureThreadViewResult)
+    async RunmjBizAppsSecureMessagingSecureThreadViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsSecureMessagingSecureThreadViewResult)
+    async RunmjBizAppsSecureMessagingSecureThreadViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsSecureMessagingSecureThreadViewResult)
+    async RunmjBizAppsSecureMessagingSecureThreadDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_SecureMessaging: Secure Threads';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsSecureMessagingSecureThread_, { nullable: true })
+    async mjBizAppsSecureMessagingSecureThread(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsSecureMessagingSecureThread_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_SecureMessaging: Secure Threads', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsSecureMessaging', 'vwSecureThreads')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_SecureMessaging: Secure Threads', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_SecureMessaging: Secure Threads', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @FieldResolver(() => [mjBizAppsSecureMessagingPortalMagicLink_])
+    async mjBizAppsSecureMessagingMJ_BizApps_SecureMessaging_PortalMagicLinks_DeepLinkThreadIDArray(@Root() mjbizappssecuremessagingsecurethread_: mjBizAppsSecureMessagingSecureThread_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        this.CheckUserReadPermissions('MJ_BizApps_SecureMessaging: Portal Magic Links', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsSecureMessaging', 'vwPortalMagicLinks')} WHERE ${provider.QuoteIdentifier('DeepLinkThreadID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_SecureMessaging: Portal Magic Links', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [mjbizappssecuremessagingsecurethread_.ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_SecureMessaging: Portal Magic Links', rows, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+        
+    @FieldResolver(() => [mjBizAppsSecureMessagingSecureMessage_])
+    async mjBizAppsSecureMessagingMJ_BizApps_SecureMessaging_SecureMessages_ThreadIDArray(@Root() mjbizappssecuremessagingsecurethread_: mjBizAppsSecureMessagingSecureThread_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        this.CheckUserReadPermissions('MJ_BizApps_SecureMessaging: Secure Messages', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsSecureMessaging', 'vwSecureMessages')} WHERE ${provider.QuoteIdentifier('ThreadID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_SecureMessaging: Secure Messages', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [mjbizappssecuremessagingsecurethread_.ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_SecureMessaging: Secure Messages', rows, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+        
+    @FieldResolver(() => [mjBizAppsSecureMessagingMessageFile_])
+    async mjBizAppsSecureMessagingMJ_BizApps_SecureMessaging_MessageFiles_ThreadIDArray(@Root() mjbizappssecuremessagingsecurethread_: mjBizAppsSecureMessagingSecureThread_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        this.CheckUserReadPermissions('MJ_BizApps_SecureMessaging: Message Files', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsSecureMessaging', 'vwMessageFiles')} WHERE ${provider.QuoteIdentifier('ThreadID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_SecureMessaging: Message Files', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [mjbizappssecuremessagingsecurethread_.ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_SecureMessaging: Message Files', rows, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+        
+    @FieldResolver(() => [mjBizAppsSecureMessagingFileRequest_])
+    async mjBizAppsSecureMessagingMJ_BizApps_SecureMessaging_FileRequests_ThreadIDArray(@Root() mjbizappssecuremessagingsecurethread_: mjBizAppsSecureMessagingSecureThread_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        this.CheckUserReadPermissions('MJ_BizApps_SecureMessaging: File Requests', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsSecureMessaging', 'vwFileRequests')} WHERE ${provider.QuoteIdentifier('ThreadID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_SecureMessaging: File Requests', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [mjbizappssecuremessagingsecurethread_.ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_SecureMessaging: File Requests', rows, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+        
+    @Mutation(() => mjBizAppsSecureMessagingSecureThread_)
+    async CreatemjBizAppsSecureMessagingSecureThread(
+        @Arg('input', () => CreatemjBizAppsSecureMessagingSecureThreadInput) input: CreatemjBizAppsSecureMessagingSecureThreadInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_SecureMessaging: Secure Threads', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsSecureMessagingSecureThread_)
+    async UpdatemjBizAppsSecureMessagingSecureThread(
+        @Arg('input', () => UpdatemjBizAppsSecureMessagingSecureThreadInput) input: UpdatemjBizAppsSecureMessagingSecureThreadInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_SecureMessaging: Secure Threads', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsSecureMessagingSecureThread_)
+    async DeletemjBizAppsSecureMessagingSecureThread(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_SecureMessaging: Secure Threads', key, options, provider, userPayload, pubSub);
     }
     
 }

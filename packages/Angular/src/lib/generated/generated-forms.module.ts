@@ -20,6 +20,7 @@ import { mjBizAppsSecureMessagingMessageFileFormComponent } from "./Entities/mjB
 import { mjBizAppsSecureMessagingPortalMagicLinkFormComponent } from "./Entities/mjBizAppsSecureMessagingPortalMagicLink/mjbizappssecuremessagingportalmagiclink.form.component";
 import { mjBizAppsSecureMessagingPortalSessionFormComponent } from "./Entities/mjBizAppsSecureMessagingPortalSession/mjbizappssecuremessagingportalsession.form.component";
 import { mjBizAppsSecureMessagingSecureMessageFormComponent } from "./Entities/mjBizAppsSecureMessagingSecureMessage/mjbizappssecuremessagingsecuremessage.form.component";
+import { mjBizAppsSecureMessagingSecureThreadFormComponent } from "./Entities/mjBizAppsSecureMessagingSecureThread/mjbizappssecuremessagingsecurethread.form.component";
    
 
 @NgModule({
@@ -28,7 +29,8 @@ declarations: [
     mjBizAppsSecureMessagingMessageFileFormComponent,
     mjBizAppsSecureMessagingPortalMagicLinkFormComponent,
     mjBizAppsSecureMessagingPortalSessionFormComponent,
-    mjBizAppsSecureMessagingSecureMessageFormComponent],
+    mjBizAppsSecureMessagingSecureMessageFormComponent,
+    mjBizAppsSecureMessagingSecureThreadFormComponent],
 imports: [
     CommonModule,
     FormsModule,

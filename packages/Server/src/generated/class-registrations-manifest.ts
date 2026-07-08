@@ -19,13 +19,14 @@ import {
     StartSecureThreadAction,
 } from '@mj-biz-apps/secure-messaging-actions';
 
-// @mj-biz-apps/secure-messaging-entities (5 classes)
+// @mj-biz-apps/secure-messaging-entities (6 classes)
 import {
     mjBizAppsSecureMessagingFileRequestEntity,
     mjBizAppsSecureMessagingMessageFileEntity,
     mjBizAppsSecureMessagingPortalMagicLinkEntity,
     mjBizAppsSecureMessagingPortalSessionEntity,
     mjBizAppsSecureMessagingSecureMessageEntity,
+    mjBizAppsSecureMessagingSecureThreadEntity,
 } from '@mj-biz-apps/secure-messaging-entities';
 
 /**
@@ -43,13 +44,14 @@ export const CLASS_REGISTRATIONS: any[] = [
     mjBizAppsSecureMessagingPortalMagicLinkEntity,
     mjBizAppsSecureMessagingPortalSessionEntity,
     mjBizAppsSecureMessagingSecureMessageEntity,
+    mjBizAppsSecureMessagingSecureThreadEntity,
 ];
 
 /** Marker constant indicating the manifest has been loaded. */
 export const CLASS_REGISTRATIONS_MANIFEST_LOADED = true;
 
 /** Total @RegisterClass decorated classes discovered in dependency tree */
-export const CLASS_REGISTRATIONS_COUNT = 9;
+export const CLASS_REGISTRATIONS_COUNT = 10;
 
 /** Packages imported by this manifest */
 export const CLASS_REGISTRATIONS_PACKAGES = [

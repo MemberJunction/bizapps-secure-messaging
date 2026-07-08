@@ -78,6 +78,8 @@ interface PromoteBody {
     contactName?: string;
     sourceChannel?: string;
     messages?: PromotedMessageInput[];
+    /** Optional thread subject; falls back to the first message's subject, then a generic default. */
+    subject?: string;
     /** Optional: the initiating staff member's email, for run-as attribution. */
     initiatedByEmail?: string;
 }
@@ -125,6 +127,7 @@ export async function promoteThread(req: Request, res: Response): Promise<void> 
             {
                 contactEmail: body.contactEmail,
                 contactName: body.contactName,
+                subject: body.subject || body.messages[0]?.subject,
                 sourceChannel: body.sourceChannel,
                 messages: body.messages,
             },

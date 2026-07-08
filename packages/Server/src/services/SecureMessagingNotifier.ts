@@ -41,10 +41,11 @@ export async function secureMessagingNotifier(event: MessageNotification): Promi
     try {
         const systemUser = await getSystemUser();
 
-        // Mint a fresh single-use magic link for this thread's session so the contact can click in.
+        // Mint a fresh single-use magic link on the contact's session, deep-linked to this thread,
+        // so the contact clicks straight into the conversation that has the new message.
         let portalUrl = notify.portalBaseUrl;
         if (event.sessionId) {
-            const link = await PortalAuthService.Instance.generateMagicLink(event.sessionId, systemUser);
+            const link = await PortalAuthService.Instance.generateMagicLink(event.sessionId, systemUser, event.threadId);
             if (link.success && link.rawToken) {
                 portalUrl = `${notify.portalBaseUrl}/?ml=${encodeURIComponent(link.rawToken)}`;
             }

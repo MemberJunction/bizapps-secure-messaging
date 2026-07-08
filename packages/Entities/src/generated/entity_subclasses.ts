@@ -25,7 +25,8 @@ export const mjBizAppsSecureMessagingFileRequestSchema = z.object({
     ThreadID: z.string().describe(`
         * * Field Name: ThreadID
         * * Display Name: Thread ID
-        * * SQL Data Type: nvarchar(255)`),
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_SecureMessaging: Secure Threads (vwSecureThreads.ID)`),
     Title: z.string().describe(`
         * * Field Name: Title
         * * Display Name: Title
@@ -92,7 +93,8 @@ export const mjBizAppsSecureMessagingMessageFileSchema = z.object({
     ThreadID: z.string().describe(`
         * * Field Name: ThreadID
         * * Display Name: Thread ID
-        * * SQL Data Type: nvarchar(255)`),
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_SecureMessaging: Secure Threads (vwSecureThreads.ID)`),
     ArtifactID: z.string().nullable().describe(`
         * * Field Name: ArtifactID
         * * Display Name: Artifact ID
@@ -179,6 +181,11 @@ export const mjBizAppsSecureMessagingPortalMagicLinkSchema = z.object({
         * * Display Name: Updated At
         * * SQL Data Type: datetimeoffset
         * * Default Value: getutcdate()`),
+    DeepLinkThreadID: z.string().nullable().describe(`
+        * * Field Name: DeepLinkThreadID
+        * * Display Name: Deep Link Thread ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_SecureMessaging: Secure Threads (vwSecureThreads.ID)`),
 });
 
 export type mjBizAppsSecureMessagingPortalMagicLinkEntityType = z.infer<typeof mjBizAppsSecureMessagingPortalMagicLinkSchema>;
@@ -192,19 +199,10 @@ export const mjBizAppsSecureMessagingPortalSessionSchema = z.object({
         * * Display Name: ID
         * * SQL Data Type: uniqueidentifier
         * * Default Value: newsequentialid()`),
-    ChannelID: z.string().describe(`
-        * * Field Name: ChannelID
-        * * Display Name: Channel ID
-        * * SQL Data Type: uniqueidentifier`),
     ContactID: z.string().describe(`
         * * Field Name: ContactID
         * * Display Name: Contact ID
         * * SQL Data Type: uniqueidentifier`),
-    ThreadID: z.string().describe(`
-        * * Field Name: ThreadID
-        * * Display Name: Thread ID
-        * * SQL Data Type: nvarchar(255)
-        * * Description: Groups messages into a conversation thread`),
     TokenHash: z.string().describe(`
         * * Field Name: TokenHash
         * * Display Name: Token Hash
@@ -242,18 +240,6 @@ export const mjBizAppsSecureMessagingPortalSessionSchema = z.object({
         * * Display Name: Updated At
         * * SQL Data Type: datetimeoffset
         * * Default Value: getutcdate()`),
-    IsArchived: z.boolean().describe(`
-        * * Field Name: IsArchived
-        * * Display Name: Is Archived
-        * * SQL Data Type: bit
-        * * Default Value: 0
-        * * Description: When 1, this conversation (thread) is archived: hidden from the staff inbox default view and shown under the Archived category. Staff-toggled; does not affect contact access.`),
-    IsDeleted: z.boolean().describe(`
-        * * Field Name: IsDeleted
-        * * Display Name: Is Deleted
-        * * SQL Data Type: bit
-        * * Default Value: 0
-        * * Description: When 1, this conversation (thread) is soft-deleted: hidden from the inbox and all categories except Trash, from which it can be restored. Records are never hard-deleted (compliance/audit). Staff-toggled.`),
 });
 
 export type mjBizAppsSecureMessagingPortalSessionEntityType = z.infer<typeof mjBizAppsSecureMessagingPortalSessionSchema>;
@@ -275,7 +261,8 @@ export const mjBizAppsSecureMessagingSecureMessageSchema = z.object({
     ThreadID: z.string().describe(`
         * * Field Name: ThreadID
         * * Display Name: Thread ID
-        * * SQL Data Type: nvarchar(255)`),
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_SecureMessaging: Secure Threads (vwSecureThreads.ID)`),
     PersonID: z.string().nullable().describe(`
         * * Field Name: PersonID
         * * Display Name: Person ID
@@ -364,6 +351,71 @@ export const mjBizAppsSecureMessagingSecureMessageSchema = z.object({
 });
 
 export type mjBizAppsSecureMessagingSecureMessageEntityType = z.infer<typeof mjBizAppsSecureMessagingSecureMessageSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_SecureMessaging: Secure Threads
+ */
+export const mjBizAppsSecureMessagingSecureThreadSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()`),
+    ContactID: z.string().describe(`
+        * * Field Name: ContactID
+        * * Display Name: Contact ID
+        * * SQL Data Type: uniqueidentifier
+        * * Description: Soft reference to the external contact (MJ_BizApps_Common.Person.ID). Not a hard FK so the schema stays standalone.`),
+    Subject: z.string().describe(`
+        * * Field Name: Subject
+        * * Display Name: Subject
+        * * SQL Data Type: nvarchar(500)
+        * * Description: The conversation subject line (TitanFile-channel style), set by staff at compose or derived at promotion.`),
+    Status: z.union([z.literal('Active'), z.literal('Archived'), z.literal('Closed')]).describe(`
+        * * Field Name: Status
+        * * Display Name: Status
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: Active
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Active
+    *   * Archived
+    *   * Closed
+        * * Description: Thread lifecycle: Active (open), Closed (contact-visible read-only), Archived (hidden from default lists). Contact-visible, unlike the old session-level archive flags.`),
+    SourceChannel: z.string().nullable().describe(`
+        * * Field Name: SourceChannel
+        * * Display Name: Source Channel
+        * * SQL Data Type: nvarchar(50)
+        * * Description: NULL for threads that originated natively in the secure channel; the insecure channel name (e.g. Email, SMS) for threads created by promotion (PRD §9 bridges).`),
+    CreatedByUserID: z.string().nullable().describe(`
+        * * Field Name: CreatedByUserID
+        * * Display Name: Created By User ID
+        * * SQL Data Type: uniqueidentifier
+        * * Description: Soft reference to the MJ user (staff) who created the thread; NULL for promoted/backfilled threads. Not a hard FK so the schema stays standalone.`),
+    LastMessageAt: z.date().nullable().describe(`
+        * * Field Name: LastMessageAt
+        * * Display Name: Last Message At
+        * * SQL Data Type: datetimeoffset
+        * * Description: Timestamp of the most recent message in the thread (denormalized for inbox ordering).`),
+    IsDeleted: z.boolean().describe(`
+        * * Field Name: IsDeleted
+        * * Display Name: Is Deleted
+        * * SQL Data Type: bit
+        * * Default Value: 0
+        * * Description: Soft delete (staff Trash). Records are never hard-deleted — compliance/audit.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+});
+
+export type mjBizAppsSecureMessagingSecureThreadEntityType = z.infer<typeof mjBizAppsSecureMessagingSecureThreadSchema>;
  
  
 
@@ -398,18 +450,6 @@ export class mjBizAppsSecureMessagingFileRequestEntity extends BaseEntity<mjBizA
     }
 
     /**
-    * MJ_BizApps_SecureMessaging: File Requests - AllowDeleteAPI is set to 0 in the database.  Delete is not allowed, so this method is generated to override the base class method and throw an error. To enable delete for this entity, set AllowDeleteAPI to 1 in the database.
-    * @public
-    * @method
-    * @override
-    * @memberof mjBizAppsSecureMessagingFileRequestEntity
-    * @throws {Error} - Delete is not allowed for MJ_BizApps_SecureMessaging: File Requests, to enable it set AllowDeleteAPI to 1 in the database.
-    */
-    public override async Delete(): Promise<boolean> {
-        throw new Error('Delete is not allowed for MJ_BizApps_SecureMessaging: File Requests, to enable it set AllowDeleteAPI to 1 in the database.');
-    }
-
-    /**
     * * Field Name: ID
     * * Display Name: ID
     * * SQL Data Type: uniqueidentifier
@@ -438,7 +478,8 @@ export class mjBizAppsSecureMessagingFileRequestEntity extends BaseEntity<mjBizA
     /**
     * * Field Name: ThreadID
     * * Display Name: Thread ID
-    * * SQL Data Type: nvarchar(255)
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_SecureMessaging: Secure Threads (vwSecureThreads.ID)
     */
     get ThreadID(): string {
         return this.Get('ThreadID');
@@ -619,7 +660,8 @@ export class mjBizAppsSecureMessagingMessageFileEntity extends BaseEntity<mjBizA
     /**
     * * Field Name: ThreadID
     * * Display Name: Thread ID
-    * * SQL Data Type: nvarchar(255)
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_SecureMessaging: Secure Threads (vwSecureThreads.ID)
     */
     get ThreadID(): string {
         return this.Get('ThreadID');
@@ -743,18 +785,6 @@ export class mjBizAppsSecureMessagingPortalMagicLinkEntity extends BaseEntity<mj
     }
 
     /**
-    * MJ_BizApps_SecureMessaging: Portal Magic Links - AllowDeleteAPI is set to 0 in the database.  Delete is not allowed, so this method is generated to override the base class method and throw an error. To enable delete for this entity, set AllowDeleteAPI to 1 in the database.
-    * @public
-    * @method
-    * @override
-    * @memberof mjBizAppsSecureMessagingPortalMagicLinkEntity
-    * @throws {Error} - Delete is not allowed for MJ_BizApps_SecureMessaging: Portal Magic Links, to enable it set AllowDeleteAPI to 1 in the database.
-    */
-    public override async Delete(): Promise<boolean> {
-        throw new Error('Delete is not allowed for MJ_BizApps_SecureMessaging: Portal Magic Links, to enable it set AllowDeleteAPI to 1 in the database.');
-    }
-
-    /**
     * * Field Name: ID
     * * Display Name: ID
     * * SQL Data Type: uniqueidentifier
@@ -857,6 +887,19 @@ export class mjBizAppsSecureMessagingPortalMagicLinkEntity extends BaseEntity<mj
     get __mj_UpdatedAt(): Date {
         return this.Get('__mj_UpdatedAt');
     }
+
+    /**
+    * * Field Name: DeepLinkThreadID
+    * * Display Name: Deep Link Thread ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_SecureMessaging: Secure Threads (vwSecureThreads.ID)
+    */
+    get DeepLinkThreadID(): string | null {
+        return this.Get('DeepLinkThreadID');
+    }
+    set DeepLinkThreadID(value: string | null) {
+        this.Set('DeepLinkThreadID', value);
+    }
 }
 
 
@@ -891,18 +934,6 @@ export class mjBizAppsSecureMessagingPortalSessionEntity extends BaseEntity<mjBi
     }
 
     /**
-    * MJ_BizApps_SecureMessaging: Portal Sessions - AllowDeleteAPI is set to 0 in the database.  Delete is not allowed, so this method is generated to override the base class method and throw an error. To enable delete for this entity, set AllowDeleteAPI to 1 in the database.
-    * @public
-    * @method
-    * @override
-    * @memberof mjBizAppsSecureMessagingPortalSessionEntity
-    * @throws {Error} - Delete is not allowed for MJ_BizApps_SecureMessaging: Portal Sessions, to enable it set AllowDeleteAPI to 1 in the database.
-    */
-    public override async Delete(): Promise<boolean> {
-        throw new Error('Delete is not allowed for MJ_BizApps_SecureMessaging: Portal Sessions, to enable it set AllowDeleteAPI to 1 in the database.');
-    }
-
-    /**
     * * Field Name: ID
     * * Display Name: ID
     * * SQL Data Type: uniqueidentifier
@@ -916,18 +947,6 @@ export class mjBizAppsSecureMessagingPortalSessionEntity extends BaseEntity<mjBi
     }
 
     /**
-    * * Field Name: ChannelID
-    * * Display Name: Channel ID
-    * * SQL Data Type: uniqueidentifier
-    */
-    get ChannelID(): string {
-        return this.Get('ChannelID');
-    }
-    set ChannelID(value: string) {
-        this.Set('ChannelID', value);
-    }
-
-    /**
     * * Field Name: ContactID
     * * Display Name: Contact ID
     * * SQL Data Type: uniqueidentifier
@@ -937,19 +956,6 @@ export class mjBizAppsSecureMessagingPortalSessionEntity extends BaseEntity<mjBi
     }
     set ContactID(value: string) {
         this.Set('ContactID', value);
-    }
-
-    /**
-    * * Field Name: ThreadID
-    * * Display Name: Thread ID
-    * * SQL Data Type: nvarchar(255)
-    * * Description: Groups messages into a conversation thread
-    */
-    get ThreadID(): string {
-        return this.Get('ThreadID');
-    }
-    set ThreadID(value: string) {
-        this.Set('ThreadID', value);
     }
 
     /**
@@ -1030,34 +1036,6 @@ export class mjBizAppsSecureMessagingPortalSessionEntity extends BaseEntity<mjBi
     get __mj_UpdatedAt(): Date {
         return this.Get('__mj_UpdatedAt');
     }
-
-    /**
-    * * Field Name: IsArchived
-    * * Display Name: Is Archived
-    * * SQL Data Type: bit
-    * * Default Value: 0
-    * * Description: When 1, this conversation (thread) is archived: hidden from the staff inbox default view and shown under the Archived category. Staff-toggled; does not affect contact access.
-    */
-    get IsArchived(): boolean {
-        return this.Get('IsArchived');
-    }
-    set IsArchived(value: boolean) {
-        this.Set('IsArchived', value);
-    }
-
-    /**
-    * * Field Name: IsDeleted
-    * * Display Name: Is Deleted
-    * * SQL Data Type: bit
-    * * Default Value: 0
-    * * Description: When 1, this conversation (thread) is soft-deleted: hidden from the inbox and all categories except Trash, from which it can be restored. Records are never hard-deleted (compliance/audit). Staff-toggled.
-    */
-    get IsDeleted(): boolean {
-        return this.Get('IsDeleted');
-    }
-    set IsDeleted(value: boolean) {
-        this.Set('IsDeleted', value);
-    }
 }
 
 
@@ -1092,18 +1070,6 @@ export class mjBizAppsSecureMessagingSecureMessageEntity extends BaseEntity<mjBi
     }
 
     /**
-    * MJ_BizApps_SecureMessaging: Secure Messages - AllowDeleteAPI is set to 0 in the database.  Delete is not allowed, so this method is generated to override the base class method and throw an error. To enable delete for this entity, set AllowDeleteAPI to 1 in the database.
-    * @public
-    * @method
-    * @override
-    * @memberof mjBizAppsSecureMessagingSecureMessageEntity
-    * @throws {Error} - Delete is not allowed for MJ_BizApps_SecureMessaging: Secure Messages, to enable it set AllowDeleteAPI to 1 in the database.
-    */
-    public override async Delete(): Promise<boolean> {
-        throw new Error('Delete is not allowed for MJ_BizApps_SecureMessaging: Secure Messages, to enable it set AllowDeleteAPI to 1 in the database.');
-    }
-
-    /**
     * * Field Name: ID
     * * Display Name: ID
     * * SQL Data Type: uniqueidentifier
@@ -1132,7 +1098,8 @@ export class mjBizAppsSecureMessagingSecureMessageEntity extends BaseEntity<mjBi
     /**
     * * Field Name: ThreadID
     * * Display Name: Thread ID
-    * * SQL Data Type: nvarchar(255)
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_SecureMessaging: Secure Threads (vwSecureThreads.ID)
     */
     get ThreadID(): string {
         return this.Get('ThreadID');
@@ -1338,5 +1305,168 @@ export class mjBizAppsSecureMessagingSecureMessageEntity extends BaseEntity<mjBi
     }
     set SourceChannel(value: string | null) {
         this.Set('SourceChannel', value);
+    }
+}
+
+
+/**
+ * MJ_BizApps_SecureMessaging: Secure Threads - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsSecureMessaging
+ * * Base Table: SecureThread
+ * * Base View: vwSecureThreads
+ * * @description A first-class secure conversation (thread) between the organization and one external contact. Owns the subject, lifecycle status, and all messages/files/requests via FKs. The unit of the contact portal inbox; magic links deep-link into a thread.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_SecureMessaging: Secure Threads')
+export class mjBizAppsSecureMessagingSecureThreadEntity extends BaseEntity<mjBizAppsSecureMessagingSecureThreadEntityType> {
+    /**
+    * Loads the MJ_BizApps_SecureMessaging: Secure Threads record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_SecureMessaging: Secure Threads record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsSecureMessagingSecureThreadEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: ContactID
+    * * Display Name: Contact ID
+    * * SQL Data Type: uniqueidentifier
+    * * Description: Soft reference to the external contact (MJ_BizApps_Common.Person.ID). Not a hard FK so the schema stays standalone.
+    */
+    get ContactID(): string {
+        return this.Get('ContactID');
+    }
+    set ContactID(value: string) {
+        this.Set('ContactID', value);
+    }
+
+    /**
+    * * Field Name: Subject
+    * * Display Name: Subject
+    * * SQL Data Type: nvarchar(500)
+    * * Description: The conversation subject line (TitanFile-channel style), set by staff at compose or derived at promotion.
+    */
+    get Subject(): string {
+        return this.Get('Subject');
+    }
+    set Subject(value: string) {
+        this.Set('Subject', value);
+    }
+
+    /**
+    * * Field Name: Status
+    * * Display Name: Status
+    * * SQL Data Type: nvarchar(20)
+    * * Default Value: Active
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Active
+    *   * Archived
+    *   * Closed
+    * * Description: Thread lifecycle: Active (open), Closed (contact-visible read-only), Archived (hidden from default lists). Contact-visible, unlike the old session-level archive flags.
+    */
+    get Status(): 'Active' | 'Archived' | 'Closed' {
+        return this.Get('Status');
+    }
+    set Status(value: 'Active' | 'Archived' | 'Closed') {
+        this.Set('Status', value);
+    }
+
+    /**
+    * * Field Name: SourceChannel
+    * * Display Name: Source Channel
+    * * SQL Data Type: nvarchar(50)
+    * * Description: NULL for threads that originated natively in the secure channel; the insecure channel name (e.g. Email, SMS) for threads created by promotion (PRD §9 bridges).
+    */
+    get SourceChannel(): string | null {
+        return this.Get('SourceChannel');
+    }
+    set SourceChannel(value: string | null) {
+        this.Set('SourceChannel', value);
+    }
+
+    /**
+    * * Field Name: CreatedByUserID
+    * * Display Name: Created By User ID
+    * * SQL Data Type: uniqueidentifier
+    * * Description: Soft reference to the MJ user (staff) who created the thread; NULL for promoted/backfilled threads. Not a hard FK so the schema stays standalone.
+    */
+    get CreatedByUserID(): string | null {
+        return this.Get('CreatedByUserID');
+    }
+    set CreatedByUserID(value: string | null) {
+        this.Set('CreatedByUserID', value);
+    }
+
+    /**
+    * * Field Name: LastMessageAt
+    * * Display Name: Last Message At
+    * * SQL Data Type: datetimeoffset
+    * * Description: Timestamp of the most recent message in the thread (denormalized for inbox ordering).
+    */
+    get LastMessageAt(): Date | null {
+        return this.Get('LastMessageAt');
+    }
+    set LastMessageAt(value: Date | null) {
+        this.Set('LastMessageAt', value);
+    }
+
+    /**
+    * * Field Name: IsDeleted
+    * * Display Name: Is Deleted
+    * * SQL Data Type: bit
+    * * Default Value: 0
+    * * Description: Soft delete (staff Trash). Records are never hard-deleted — compliance/audit.
+    */
+    get IsDeleted(): boolean {
+        return this.Get('IsDeleted');
+    }
+    set IsDeleted(value: boolean) {
+        this.Set('IsDeleted', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
     }
 }

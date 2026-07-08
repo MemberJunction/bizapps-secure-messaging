@@ -23,8 +23,7 @@ import { AuthService, AuthState } from '../services/auth.service.js';
             <!-- Authenticated: show conversation -->
             <sm-conversation
                 *ngIf="authService.state === 'authenticated' && authService.session"
-                [threadId]="authService.session!.threadId"
-                [channelId]="authService.session!.channelId"
+                [threadId]="authService.session!.threadId || ''"
                 [contactEmail]="authService.session!.contactEmail"
                 (fileUploaded)="fileUploadedEvent.emit($event)"
             ></sm-conversation>
@@ -57,7 +56,7 @@ export class SecureMessagingComponent implements OnInit {
     @Input('brand-color') brandColor = '#1a73e8';
 
     @Output('session-ready') sessionReady = new EventEmitter<{
-        sessionId: string; contactEmail: string; threadId: string;
+        sessionId: string; contactEmail: string; threadId?: string;
     }>();
     @Output('session-expired') sessionExpired = new EventEmitter<void>();
     @Output('message-sent') messageSentEvent = new EventEmitter<{ messageId: string }>();
