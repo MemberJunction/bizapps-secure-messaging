@@ -1,54 +1,64 @@
 # MJ Secure Messaging
 
-A free MemberJunction Open App that adds a **Secure Web** channel for encrypted, token-based conversations with external contacts. Installs as a native MJ Explorer application — staff manage messages from a full inbox view inside MJ Explorer, while external contacts interact through an embeddable widget on your website.
+A free MemberJunction Open App: a **secure client portal** for exchanging messages, documents, and
+e-signatures with external contacts. Contacts enter through **passwordless magic links** that
+deep-link them into subject-lined **conversation threads** — no accounts, no passwords — while staff
+work the same threads from an **Executive Inbox** inside MJ Explorer. An embeddable
+`<mj-secure-messaging>` widget puts the contact side on any website you own.
 
 ## The Problem
 
-When an MJ-powered AI agent handles customer interactions via email or SMS, sensitive conversations — renewals, document collection, PII exchange — present a security risk. Email content lives on external mail servers, SMS is inherently insecure, and neither provides a controlled audit trail. Organizations need a way to redirect sensitive conversations to a secure, auditable channel where data stays in their own database.
+Sensitive conversations — renewals, document collection, PII, signatures — routinely happen over
+email and SMS, where content lives on external mail servers with no lifecycle and no controlled
+audit trail. Client-portal products solve this but bring their own friction: client accounts,
+passwords, 2FA resets. This app gives you the portal without the friction: the sensitive content
+stays in **your own MemberJunction database**, and the contact's entire experience is one click on
+a private link.
 
 ## How It Works
 
 ```
-AI agent detects sensitive conversation
-  → Server creates PortalSession + generates token
-  → Contact receives secure link via email/SMS
-  → Contact clicks link → widget validates token
-  → Conversation continues securely in the browser
-  → Messages flow through MJ's standard AI pipeline
-  → Staff manage and reply from the MJ Explorer inbox
+Staff compose (or an insecure email/SMS thread is promoted)
+  → a SecureThread is created for the contact
+  → the contact gets a single-use magic link (email nudge)
+  → clicking it lands them INSIDE that conversation — read, reply, upload, sign
+  → each contact has one portal session across all their threads;
+    with multiple threads they also get an inbox to move between them
+  → staff read and reply from the Executive Inbox in MJ Explorer
 ```
 
-**Key benefits over email:**
-- Sensitive content stays in your database, not scattered across email servers
-- Session tokens expire and can be revoked
-- No passwords — token-based and magic link authentication
-- Messages flow through MJ's standard ChannelMessage pipeline (AI, approvals, audit)
+**Key properties:**
+- The **thread** is a first-class record — subject line, lifecycle (`Active → Closed → Archived`),
+  and every message, file, file request, and signature request hangs off it
+- **Passwordless**: single-use magic links redeem into sliding, revocable sessions; raw tokens are
+  never stored (SHA-256 hashes only)
+- **File Requests** with a real lifecycle: staff request documents, contacts fulfill (multiple
+  files per request); requests can be cancelled by staff or expire at their due date, and only
+  open ones are shown to the contact
+- **E-signature** through the core MJ eSignature engine (DocuSign, PandaDoc, Dropbox Sign) with
+  visual signature-field placement — sent and tracked per thread
+- **Closed threads render read-only** for the contact; archive/trash for staff
+- Sensitive content stays in your database, with MJ Record Changes providing the audit trail
 
-## Executive Inbox (MJ Explorer)
+## Staff Experience (MJ Explorer)
 
-After installation, **Secure Messages** appears as a first-class application in the MJ Explorer app switcher. Staff see a 3-pane inbox — sidebar navigation, message list, and full message detail with reply — built on MJ's design tokens so it automatically inherits your organization's light/dark theme.
+After installation, **Secure Messages** appears in the MJ Explorer app switcher.
+
+- **Executive Inbox** — a 3-pane inbox over the secure threads: categories
+  (Inbox/Starred/Archived/Trash), per-contact workspaces, search/sort, unread badges, starring,
+  attachment display, and an inline reply bar.
+- **Client Workspace** — a per-contact "client 360": that contact's threads, file requests,
+  signatures, documents, session/security controls (revoke, send new link), and audit trail, with
+  a basic/advanced progressive-disclosure toggle. Staff can cancel open file requests from here.
 
 ![Secure Messages Executive Inbox](docs/images/executive-view.png)
 
-**Features:**
-- Unread indicators and badge counts
-- Status badges: NEW, DELIVERED, NEEDS REVIEW, REPLIED
-- Starred messages
-- Search and sort (by date, sender, or status)
-- End-to-end encryption indicator per message
-- Attachment display
-- Inline reply bar
-
-## Client Workspace (contact 360)
-
-Alongside the inbox, staff get a per-contact **Client Workspace** — a "client 360" unifying that contact's conversations, file requests, signatures, documents, session/security controls, and audit trail, with a basic/advanced progressive-disclosure toggle. From the inbox, clicking a contact opens their workspace; clicking a thread inside the workspace returns to the inbox focused on that conversation (with a "Back to {contact} workspace" control). It's the same app, one nav item — the navigation is coordinated internally, so the app stays drop-in.
-
 ### Embedding the Client Workspace in your own app
 
-The workspace is also a general-purpose Angular component any MJ host app can embed to show a contact's secure-messaging 360 inside its own screens. Import the module and bind the contract:
+The workspace is also a general-purpose Angular component any MJ host app can embed:
 
 ```typescript
-import { SecureMessagingModule } from '@mj-biz-apps/secure-messaging-ng-bootstrap';
+import { SecureMessagingModule } from '@mj-biz-apps/secure-messaging-ng';
 // in your module: imports: [ SecureMessagingModule ]
 ```
 
@@ -78,24 +88,14 @@ import { SecureMessagingModule } from '@mj-biz-apps/secure-messaging-ng-bootstra
 | `modeChanged: 'basic' \| 'advanced'` | The user toggles advanced mode |
 | `closeRequested` | The workspace asks to be dismissed |
 
-Contract types (`OpenThreadRequest`, `WorkspaceActionRequest`, `ContactSelection`) are exported from the same package. The component self-loads its data via MJ's `Metadata`/`RunView`, so the host only needs a live MJ provider — no other wiring.
+Contract types (`OpenThreadRequest`, `WorkspaceActionRequest`, `ContactSelection`) are exported
+from the same package. The component self-loads its data via MJ's `Metadata`/`RunView`, so the
+host only needs a live MJ provider — no other wiring.
 
-## Installation
+## Contact Experience (the widget)
 
-```bash
-mj app install https://github.com/MJ-Central/app-secure-messaging
-```
-
-This will:
-1. Create the `__mj_BizAppsSecureMessaging` database schema
-2. Run migrations (PortalSession, PortalMagicLink tables)
-3. Register the "Secure Web" channel type and communication provider
-4. Register the Secure Messages application in MJ Explorer
-5. Install server and client bootstrap packages
-
-## Embedding the Contact Widget
-
-For external contacts to initiate and continue secure conversations, embed the Angular Element widget on your website:
+External contacts use the embeddable Angular Element — typically hosted on your own site at the
+URL your magic links point to (`SECURE_MESSAGING_PORTAL_URL`):
 
 ```html
 <script src="mj-secure-messaging.js"></script>
@@ -105,23 +105,25 @@ For external contacts to initiate and continue secure conversations, embed the A
 ></mj-secure-messaging>
 ```
 
+A contact arriving on a magic link lands directly in the linked conversation. A contact with more
+than one thread gets an **inbox** (subject, last activity, status) with an "All conversations"
+back affordance; a contact with one thread never sees it. Closed threads are readable but the
+compose box is hidden. Messages support staged attachments (committed on send) and fulfillment of
+open file requests.
+
 Build the widget bundle:
 
 ```bash
-cd packages/ng-secure-messaging
+cd packages/Element
 npm install
 npm run build:bundle
 ```
 
 ### Widget Theming
 
-The widget is built on MemberJunction's Material 3 design tokens (`--mat-sys-*`), so it
-automatically inherits the host MJ instance's theme — including light/dark mode — just
-like the Executive Inbox. No per-widget color configuration is required.
-
-To override just the accent/brand color (e.g. to match a specific page), set the
-`brand-color` attribute or the `--sm-brand-color` variable; it takes precedence over
-`--mat-sys-primary`:
+The widget ships with sensible Material-3-style defaults and does not require the MJ runtime or
+MJ design tokens. To match your site's accent color, set the `brand-color` attribute or the
+`--sm-brand-color` CSS variable:
 
 ```css
 mj-secure-messaging {
@@ -134,64 +136,112 @@ mj-secure-messaging {
 | Attribute | Description | Default |
 |-----------|-------------|---------|
 | `api-base-url` | Base URL for the Secure Messaging API | Inferred from current origin |
-| `token` | Session token (or reads from URL `?token=` param) | — |
+| `token` | Session token (or reads from URL `?token=` / `?ml=` params) | — |
 | `brand-color` | Hex color for header and buttons | `#1a73e8` |
 
 | Event | Detail | Description |
 |-------|--------|-------------|
-| `session-ready` | `{ sessionId, contactEmail, threadId }` | Auth succeeded |
+| `session-ready` | `{ sessionId, contactEmail, threadId? }` | Auth succeeded (`threadId` present when a magic link deep-linked) |
 | `session-expired` | — | Token invalid or expired |
-| `message-sent` | `{ messageId }` | User sent a message |
+| `message-sent` | `{ messageId }` | Contact sent a message |
+| `file-uploaded` | `{ attachmentId, filename }` | Contact uploaded a file |
+
+## Installation
+
+```bash
+mj app install https://github.com/MemberJunction/app-secure-messaging
+```
+
+This will:
+1. Create the `__mj_BizAppsSecureMessaging` database schema and run migrations
+2. Run CodeGen to register the entities (SecureThread, SecureMessage, PortalSession, …)
+3. Register the **Secure Messages** application, actions, and metadata in MJ Explorer
+4. Install the server and client bootstrap packages
+
+See [docs/INSTALL.md](docs/INSTALL.md) for the full provisioning walkthrough (fresh database,
+credentials for file storage and e-signature, and the notify hook).
+
+### Configuration (environment)
+
+| Variable | Purpose |
+|----------|---------|
+| `SECURE_MESSAGING_PORTAL_URL` | Public origin of the contact widget — magic links point here |
+| `SECURE_MESSAGING_EMAIL_PROVIDER` / `FROM_EMAIL` / `FROM_NAME` | Outbound nudge emails via MJ's CommunicationEngine (no-ops when unset) |
+| `SECURE_MESSAGING_PROMOTE_SECRET` | HMAC signing secret for the server-to-server `/promote` endpoint (disabled when unset) |
+| `SECURE_MESSAGING_MESSAGE_BACKEND` | `owned` (default, self-contained) or `channel` (mirror into Izzy's Channel Messages) |
+
+File storage (Box, etc.) and e-signature (DocuSign, etc.) credentials are configured in-app
+through MJ's Credential Engine — see [docs/INSTALL.md](docs/INSTALL.md).
 
 ## REST API
 
-Mounted at `/secure-messaging/api/v1`.
+Mounted at `/secure-messaging/api/v1`. Contact-facing routes authenticate with opaque portal
+session tokens (`Authorization: Bearer sm_*`), not MJ user accounts.
 
 **Auth (public):**
-- `POST /auth/validate` — Validate a session token
-- `POST /auth/magic-link` — Request a magic link
-- `POST /auth/magic-link/redeem` — Redeem a magic link
+- `POST /auth/validate` — validate a session token
+- `POST /auth/magic-link` — request a magic link for a session
+- `POST /auth/magic-link/redeem` — redeem a magic link (single-use) into a fresh session token
 
-**Messages (protected — `Authorization: Bearer sm_*`):**
-- `GET /threads/:threadId/messages` — Get thread messages
-- `POST /threads/:threadId/messages` — Send a message
+**Promote (server-to-server, HMAC-signed):**
+- `POST /promote` — promote an insecure (email/SMS) conversation into a secure thread: creates the
+  contact, thread, session, and magic link, and imports the prior message history
 
-**Attachments (protected):**
-- `GET /threads/:threadId/attachments` — List attachments
-- `POST /threads/:threadId/attachments` — Upload an attachment
+**Threads (protected):**
+- `GET  /threads` — the authenticated contact's threads (their portal inbox)
+- `GET  /threads/:threadId/messages` · `POST /threads/:threadId/messages`
+- `GET  /threads/:threadId/attachments` · `POST /threads/:threadId/attachments` ·
+  `GET /threads/:threadId/attachments/:id/download`
+- `GET  /threads/:threadId/file-requests` · `POST .../file-requests` ·
+  `POST .../file-requests/:id/fulfill` (multipart; pass `complete=false` for all but the last of a
+  multi-file fulfillment)
+- `GET  /threads/:threadId/signature-requests` · `POST .../signature-requests` ·
+  `POST .../signature-requests/:id/refresh-status` · `POST .../signature-requests/:id/void` ·
+  `GET  .../signature-requests/:id/signed-document`
+
+Every thread-scoped route verifies the authenticated contact owns the thread.
 
 ## Authentication Model
 
-**No passwords, no OAuth, no user accounts required.**
+**No passwords, no OAuth, no contact accounts.**
 
-- **Session tokens** (`sm_*`): 256-bit random, SHA-256 hashed in DB, 7-day sliding TTL
-- **Magic links** (`sm_ml_*`): Single-use re-auth, 15-minute TTL, redeemed into a fresh session token
-- Raw tokens are never stored — only SHA-256 hashes exist in the database
+- **Sessions are per-contact**: one active session grants portal access to all of that contact's
+  threads. 256-bit random tokens (`sm_*`), SHA-256 hashed in the DB, 7-day sliding TTL, revocable
+  by staff.
+- **Magic links** (`sm_ml_*`): single-use, 15-minute TTL, redeem into a fresh session token, and
+  optionally **deep-link to a specific thread**.
+- Raw tokens are never stored — only SHA-256 hashes exist in the database.
+- Transport is TLS; content is stored in your own database (this is not end-to-end encryption).
 
 ## Architecture
 
 ```
 mj-secure-messaging/
-├── mj-app.json                    # Open App manifest
-├── migrations/                    # Skyway SQL migrations
-├── metadata/
-│   ├── applications/              # Registers Secure Messages in MJ Explorer
-│   ├── entities/                  # PortalSession, PortalMagicLink entities
-│   ├── channel-types/             # Secure Web channel type
-│   └── communication-providers/   # Secure Web provider
+├── mj-app.json                 # Open App manifest
+├── migrations/                 # Skyway SQL migrations (SecureThread, SecureMessage, …)
+├── metadata/                   # Application, actions, entity overrides (mj-sync)
 ├── packages/
-│   ├── server/                    # Auth service, REST API, communication provider
-│   ├── server-bootstrap/          # Server startup registration
-│   ├── ng-secure-messaging/       # Angular Element widget (external contacts)
-│   └── ng-bootstrap/              # MJ Explorer Executive inbox + app registration
-└── test/                          # Demo page, API test scripts, UI previews
+│   ├── Entities/               # Generated entity subclasses (CodeGen)
+│   ├── Actions/                # MJ Actions (generated + custom)
+│   ├── Core/                   # PortalAuthService, message/file stores, config
+│   ├── Server/                 # REST handlers, resolvers, notify hook, bootstrap
+│   ├── Angular/                # Staff UI (inbox, workspace) + shared conversation components
+│   └── Element/                # <mj-secure-messaging> widget bundle (Angular Element)
+└── docs/                       # PRD, INSTALL, build charter
 ```
 
 ## Requirements
 
-- MemberJunction >= 5.0.0
-- SQL Server (for `__mj_BizAppsSecureMessaging` schema)
+- MemberJunction >= 5.43.0
+- SQL Server (for the `__mj_BizAppsSecureMessaging` schema)
 - Node.js >= 20
+
+## Roadmap (v2)
+
+- **Outlook "Secure Send" add-in** — promote a compose draft into a secure thread from Outlook
+- **Izzy bridge** — AI-driven "switch to secure channel" promotion from email/SMS
+- Signed-document auto-return: completed envelopes re-appear in the thread as a message file
+- Optional returning-contact registration
 
 ## License
 

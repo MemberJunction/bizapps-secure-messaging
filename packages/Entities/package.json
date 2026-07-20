@@ -8,12 +8,14 @@
   "publishConfig": {
     "access": "public"
   },
-  "files": ["/dist"],
+  "files": [
+    "/dist"
+  ],
   "scripts": {
     "build": "tsc && tsc-alias -f"
   },
   "author": "MemberJunction.com",
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
     "tsc-alias": "^1.8.16",
     "typescript": "^5.9.3"
@@ -27,6 +29,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/MemberJunction/bizapps-secure-messaging"
+    "url": "https://github.com/MemberJunction/app-secure-messaging"
   }
 }

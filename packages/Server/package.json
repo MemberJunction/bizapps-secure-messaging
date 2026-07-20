@@ -8,13 +8,15 @@
   "publishConfig": {
     "access": "public"
   },
-  "files": ["/dist"],
+  "files": [
+    "/dist"
+  ],
   "scripts": {
     "prebuild": "mj codegen manifest --exclude-packages @memberjunction --output ./src/generated/class-registrations-manifest.ts || echo 'Warning: mj codegen manifest not available, using existing manifest'",
     "build": "tsc && tsc-alias -f"
   },
   "author": "MemberJunction.com",
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
     "@types/express": "^5.0.0",
     "@types/multer": "^2.0.0",
@@ -47,6 +49,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/MemberJunction/bizapps-secure-messaging"
+    "url": "https://github.com/MemberJunction/app-secure-messaging"
   }
 }

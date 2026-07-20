@@ -1,59 +1,81 @@
-# Secure Messaging — Install / Fresh-DB Provisioning
+# Secure Messaging — Installation & Provisioning
 
-> The checklist to stand this app up on a **clean database**. Steps marked **[you]** are yours to run
-> (DB + all `mj` CLI + MJAPI); steps marked **[app]** are config in this repo. Ordering is strict:
-> the pipeline is **migrate → codegen → sync**, and credentials come after the schema exists.
+> The checklist to stand this app up against a MemberJunction database. The happy path is
+> `mj app install` (see the README); this document is the manual/dev walkthrough — useful for
+> fresh-database provisioning, development installs from source, and the credential setup that
+> every install needs. Ordering is strict: **migrate → codegen → build → sync**, and credentials
+> come after the schema exists.
 
-## 1. Database + MJ core  **[you]**
-1. `CREATE DATABASE` for the fresh instance.
-2. Create the two SQL logins/users this app's `.env` expects: `MJ_Connect` (runtime) and
-   `MJ_CodeGen` (codegen), with the passwords already in `.env`.
-3. Bootstrap the **`__mj` core schema** into the new DB (standard MJ install).
-4. Bootstrap **`__mj_BizAppsCommon`** — Secure Messaging soft-references `Person` there
-   (`SecureThread.ContactID`, `PortalSession.ContactID`). Without it, contact lookups + the
-   `mjBizAppsCommonPerson` GraphQL query 404.
+## 1. Database prerequisites
 
-## 2. Point the app at the new DB  **[app]**
-- Edit `.env` → set `DB_DATABASE` to the new database name. **Nothing else in `.env` changes** —
-  the encryption key, Azure/MS-Graph, DocuSign, Box, and `SECURE_MESSAGING_*` values all carry over.
-- `.env` is gitignored — never commit it.
+The app installs **into an existing MemberJunction database** — it owns only its
+`__mj_BizAppsSecureMessaging` schema and expects the rest to be there:
 
-## 3. Pipeline  **[you]**
-Run in this order (the app's scripts wrap the CLI):
-1. `npm run mj:migrate` — runs the full chain, ending with `…SecureThread_Entity.sql`. On a clean DB
-   the backfill sections no-op (verified); the run creates the final v2 schema.
-2. `npm run mj:codegen` — registers our entities (`SecureThread` + the rest) with
-   `BaseTable`/`SchemaName`/`vw*`/SPs and writes the generated TS + Angular forms. **Verify it created
-   entities under `__mj_BizAppsSecureMessaging` and did NOT touch `__mj` / `__mj_BizAppsCommon`.**
-3. `npm run build` — packages build in dependency order. **Expect breakage here on the first run
-   after codegen** — that's the Slice-0 rewire (Core/Server/UI still reference the dropped session
-   columns + string ThreadID). Claude fixes those; not an install error.
-4. `npx mj sync push` (once builds are green) — pushes metadata overrides + action/application records.
+1. A SQL Server database with the **`__mj` core schema** bootstrapped (standard MJ install),
+   running **MJ >= 5.43**.
+2. The **`__mj_BizAppsCommon`** schema (from the `bizapps-common` app) — Secure Messaging
+   soft-references `Person` there (`SecureThread.ContactID`, `PortalSession.ContactID`). Without
+   it, contact lookups and the `mjBizAppsCommonPerson` GraphQL query 404.
+3. Two SQL logins the `.env` references: a runtime user (e.g. `MJ_Connect`) and a codegen user
+   (e.g. `MJ_CodeGen`) with DDL rights.
 
-## 4. Credentials re-setup (after schema + codegen)  **[you, via Explorer UI]**
-These live in the DB, so a fresh DB means re-creating them. All go through the **MJ Credential Engine**
-(encrypted with `MJ_BASE_ENCRYPTION_KEY`, already in `.env`).
-1. **Encryption key row** — ensure the `MJ_BASE_ENCRYPTION_KEY` is registered so credential
-   encrypt/decrypt validates ("All 1 encryption key(s) validated successfully").
-2. **Box (file storage)** — create the Box.com **Credential** (OAuth; the JSON uses both `clientId`
-   *and* `clientID` keys — the dual-key workaround), a **File Storage Account** pointing at it, and
-   **activate the Box.com provider**. Box refresh tokens rotate on every use, so the stored token
-   likely needs re-minting via `scripts/box-oauth-exchange.mjs`.
-3. **DocuSign (e-signature)** — create the DocuSign **Credential** (integration key + RSA private key
-   + user/account IDs) and a **Signature Account**. Grant consent once via the consent URL.
+## 2. Configure `.env`
 
-## 5. Notify hook (already configured in `.env`)  **[verify]**
-`SECURE_MESSAGING_EMAIL_PROVIDER=Microsoft Graph` + the `AZURE_*` app-registration values drive the
-outbound magic-link email. The Azure app needs `Mail.Send` application permission + admin consent and
-must send as `AZURE_ACCOUNT_EMAIL`. No-ops gracefully if unconfigured.
+Copy your MJ connection settings and set `DB_DATABASE` to the target database. The app's own
+settings (all optional-but-recommended):
 
-## 6. Boot + smoke test  **[you + Claude]**
-1. Start MJAPI (`:4101`) and MJExplorer (`:4301`); widget on `:4400`. **[you start MJAPI]**
-2. Secure Messaging app appears in the Explorer switcher → thread-grouped inbox loads.
-3. Magic link deep-links into a thread in the widget; message round-trips both directions.
-4. File upload/download (Box) both sides; send-for-signature (DocuSign) with field placement.
+| Variable | Purpose |
+|----------|---------|
+| `SECURE_MESSAGING_PORTAL_URL` | Public origin of the contact widget — magic links point here |
+| `SECURE_MESSAGING_EMAIL_PROVIDER` / `FROM_EMAIL` / `FROM_NAME` | Outbound nudge emails via MJ's CommunicationEngine (no-op when unset) |
+| `SECURE_MESSAGING_PROMOTE_SECRET` | HMAC secret enabling the server-to-server `/promote` endpoint |
+| `SECURE_MESSAGING_MESSAGE_BACKEND` | `owned` (default) or `channel` |
+| `MJ_BASE_ENCRYPTION_KEY` | Required for the Credential Engine (file storage / e-signature creds) |
 
----
-**Why fresh over reusing `SM_TEST_2`:** it exercises the real install path we ship, and the only thing
-lost is dev backfill test data. It also sidesteps the one hazard on the old DB — CodeGen had already
-built schemabound views over the session columns this migration drops.
+`.env` is gitignored — never commit it.
+
+## 3. Pipeline
+
+Run in this order (the app's npm scripts wrap the MJ CLI):
+
+1. `npm run mj:migrate` — applies the app's migrations into its own schema (the app keeps an
+   isolated Flyway history in `__mj_BizAppsSecureMessaging`; pass
+   `--schema __mj_BizAppsSecureMessaging` if invoking the CLI directly).
+2. `npm run mj:codegen` — registers the entities (`SecureThread`, `SecureMessage`,
+   `PortalSession`, …) with their views/SPs and regenerates the typed code. Verify it created
+   entities under `__mj_BizAppsSecureMessaging` and did **not** touch `__mj` / `__mj_BizAppsCommon`.
+3. `npm run build` — all packages build in dependency order.
+4. `npx mj sync push --dir=metadata` — pushes the application, actions, and entity-metadata
+   overrides. The **Secure Messages** Explorer app has `DefaultForNewUser=0`; assign it to users
+   via User Applications (then restart MJAPI so its user cache picks the assignment up).
+
+## 4. Credentials (per-database, via the Explorer UI)
+
+Credentials live in the database (MJ **Credential Engine**, encrypted with
+`MJ_BASE_ENCRYPTION_KEY`), so a fresh database means creating them again:
+
+1. **Encryption key** — confirm the key registers on boot
+   ("All 1 encryption key(s) validated successfully" in the MJAPI log).
+2. **File storage (e.g. Box)** — create the provider **Credential** (for Box OAuth, include both
+   `clientId` and `clientID` keys in the credential JSON — the driver reads the latter), a
+   **File Storage Account** pointing at it, and activate the provider. Note Box refresh tokens
+   rotate on every use; re-mint via `scripts/box-oauth-exchange.mjs` if the stored one is stale.
+3. **E-signature (e.g. DocuSign)** — create the **Credential** (integration key + RSA private key
+   + user/account IDs) and a **Signature Account**; grant consent once via the provider's consent
+   URL.
+
+## 5. Notify hook
+
+With `SECURE_MESSAGING_EMAIL_PROVIDER` + from-address set (e.g. Microsoft Graph via an Azure app
+registration with `Mail.Send` application permission and admin consent), staff outbound messages
+email the contact a magic-link nudge that deep-links into the thread. Gracefully no-ops when
+unconfigured.
+
+## 6. Smoke test
+
+1. Start MJAPI and MJ Explorer; serve the widget (its dev harness runs on `:4400`).
+2. **Secure Messages** appears in the Explorer app switcher → the thread-grouped inbox loads.
+3. Compose to a contact → the contact's magic link deep-links into the thread in the widget →
+   messages round-trip both directions.
+4. File upload/download works on both sides; send-for-signature (with visual field placement)
+   creates a real envelope.

@@ -4,6 +4,12 @@
 > v1 codebase and a deep product teardown of TitanFile (July 2026). v1's PRD conflated two product
 > models (single-thread chat window vs. client portal); this version decides the model and lays out
 > the path from what's built to the vision. The v1 PRD is preserved in git history.
+>
+> **Ship status (July 2026):** app **v1.0** ships build-plan phases 1–4 (§11): the SecureThread
+> model, request lifecycles, the contact portal inbox, and the staff surfaces — all verified
+> end-to-end (messages, files, e-signature). App **v2** targets the bridges (§9: the Outlook
+> "Secure Send" add-in — built on the `outlook-secure-send` branch — and the Izzy trigger), plus
+> signed-document auto-return, registration (§5), and the later items in §11.
 
 ---
 
