@@ -1,0 +1,20 @@
+/*
+ * Global styles for the MJ Secure Messaging widget.
+ *
+ * The widget uses MemberJunction's Material 3 design tokens (--mat-sys-*) so it inherits
+ * the host MJ instance's theme (including light/dark). Each usage carries a hardcoded
+ * fallback so the widget still renders if a token is unavailable on the embed page.
+ *
+ * The only widget-specific knob is the documented `brand-color` attribute, exposed as
+ * --sm-brand-color, which (when set) overrides --mat-sys-primary for accents/buttons:
+ *   var(--sm-brand-color, var(--mat-sys-primary, #1a73e8))
+ */
+
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+}

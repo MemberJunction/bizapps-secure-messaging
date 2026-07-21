@@ -1,0 +1,32 @@
+/**
+ * MJExplorer Application-Specific Styles
+ *
+ * The MJ Explorer design system (Golden Layout, Kendo theme, MJ component styles,
+ * MD3 design tokens) is imported from @memberjunction/ng-explorer-app. This file
+ * should only hold app-specific customizations on top of it.
+ */
+
+@use "@memberjunction/ng-explorer-app/dist/styles.scss" as *;
+
+/* Application-specific layout adjustments */
+html,
+body,
+my-app {
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+my-app {
+    display: flex;
+    flex-direction: column;
+}
+
+kendo-drawer-container {
+    flex: 1 1 auto;
+    overflow-y: auto;
+}
+
+.k-icon {
+    font-size: 20px;
+}

@@ -99,18 +99,35 @@ mj-secure-messaging/
 │   │   │       └── auth.service.ts     # Auth state management
 │   │   ├── build_element.sh            # Bundles into single JS file
 │   │   └── dist/mj-secure-messaging.js # Output: embeddable widget
-│   └── ng-bootstrap/               # Client bootstrap (MJ Explorer)
+│   └── ng-bootstrap/               # Staff UI + client bootstrap (MJ Explorer)
+│       └── src/lib/
+│           ├── secure-messaging-executive.resource.ts  # MJ resource + two-lens coordinator
+│           ├── secure-messaging-executive.component.ts  # Inbox (triage)
+│           ├── secure-messaging-client-workspace.component.ts  # Contact 360 (embeddable)
+│           ├── secure-messaging-action-panel.component.ts  # Shared request/signature panel
+│           └── secure-messaging.contracts.ts           # @Input/@Output contract types
 └── test/
     ├── demo.html                   # Widget demo page
     ├── test-endpoints.sh           # Integration test suite (12 tests)
     └── seed-test-data.sql          # Test data setup
 ```
 
+### Staff Surfaces (two lenses)
+
+Staff get two complementary surfaces, both rendered through the single `SecureMessagingResource` MJ entry point:
+
+- **Executive Inbox** (`secure-messaging-executive.component`) — message-centric triage across all contacts.
+- **Client Workspace** (`secure-messaging-client-workspace.component`) — contact-centric 360 for one contact (threads, requests, signatures, documents, session/security, audit), with a basic/advanced toggle.
+
+`SecureMessagingResource` is the **coordinator**: it swaps between the two and persists view state (`view`/`contactId`/`threadId`) to its query params, so refresh and browser back/forward restore the right lens. Navigation flow: inbox → (click contact) → workspace → (click thread) → inbox focused on that thread → (Back) → workspace. All internal — the app registers **one** nav item ("Inbox") and stays drop-in.
+
+**Two consumption modes, one contract.** The components expose a host-agnostic `@Input`/`@Output` contract (`secure-messaging.contracts.ts`). In the standalone OpenApp, `SecureMessagingResource` is the host. Any other MJ Angular app can instead embed `<mj-secure-messaging-client-workspace>` directly (import `SecureMessagingModule` from `@mj-biz-apps/secure-messaging-ng-bootstrap`), binding `contactId` and reacting to `openThreadRequested`/`actionCompleted`/`modeChanged`. See the README "Client Workspace" section for the embed contract.
+
 ---
 
 ## Database Schema
 
-Created in the `secure_messaging` schema.
+Created in the `__mj_BizAppsSecureMessaging` schema.
 
 ### PortalSession
 
@@ -399,11 +416,11 @@ Contact sees the reply in the conversation
 The app registers itself with MJ via metadata JSON files:
 
 ### Entities
-- **Portal Sessions** → `secure_messaging.PortalSession`
+- **Portal Sessions** → `__mj_BizAppsSecureMessaging.PortalSession`
   - Available via GraphQL (`IncludeInAPI: true`)
   - Create/Update allowed, Delete disabled (sessions must expire naturally)
   - Change tracking enabled
-- **Portal Magic Links** → `secure_messaging.PortalMagicLink`
+- **Portal Magic Links** → `__mj_BizAppsSecureMessaging.PortalMagicLink`
   - Same API settings as Portal Sessions
 
 ### Channel Type
@@ -423,11 +440,11 @@ The app registers itself with MJ via metadata JSON files:
 As an MJ OpenApp, installation is handled by MJ's app loader:
 
 ```bash
-mj app install https://github.com/MJ-Central/app-secure-messaging
+mj app install https://github.com/MemberJunction/bizapps-secure-messaging
 ```
 
 This:
-1. Creates the `secure_messaging` schema (if not exists)
+1. Creates the `__mj_BizAppsSecureMessaging` schema (if not exists)
 2. Runs migrations (creates `PortalSession` and `PortalMagicLink` tables)
 3. Syncs metadata (registers entities, channel type, communication provider)
 4. Installs server bootstrap package (auto-registers on API startup)

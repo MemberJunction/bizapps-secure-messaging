@@ -1,10 +1,11 @@
 {
   "version": "1.0.0",
   "push": { "autoCreateMissingRecords": true },
+  "_comment": "channel-types and communication-providers live in ../metadata-channel-optional/ (NOT this scanned tree) because they target the Channel Messages system (e.g. Izzy), which a standalone MJ+BizAppsCommon install does not have ('Channel Types' isn't a core MJ entity). The default app uses the owned SecureMessage store; the 'channel' adapter is opt-in. To install into a Channel host, sync those dirs separately.",
   "directoryOrder": [
-    "communication-providers",
-    "channel-types",
     "entities",
+    "action-categories",
+    "actions",
     "applications"
   ]
 }

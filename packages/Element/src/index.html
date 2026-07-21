@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MJ Secure Messaging</title>
+  <style>
+    html, body { height: 100%; margin: 0; }
+    mj-secure-messaging { display: block; height: 100vh; }
+  </style>
+</head>
+<body>
+  <!-- Dev harness: point the widget at the local MJAPI portal API.
+       The session token is read from the ?token= URL param by the component. -->
+  <mj-secure-messaging api-base-url="http://localhost:4101/secure-messaging/api/v1"></mj-secure-messaging>
+</body>
+</html>

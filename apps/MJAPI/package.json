@@ -1,0 +1,36 @@
+{
+  "name": "mj_api",
+  "version": "1.0.0",
+  "description": "Test-harness MJAPI server for the MJ Secure Messaging Open App",
+  "main": "index.js",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --experimental-specifier-resolution=node --import ./register.js -r dotenv/config ./src/index.ts",
+    "check-types": "tsc -noEmit",
+    "build": "tsc && tsc-alias -f"
+  },
+  "author": "MemberJunction.com",
+  "license": "ISC",
+  "devDependencies": {
+    "dotenv": "17.2.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@memberjunction/ai": "^5.43.0",
+    "@memberjunction/core": "^5.43.0",
+    "@memberjunction/global": "^5.43.0",
+    "@memberjunction/server": "^5.43.0",
+    "@memberjunction/server-bootstrap": "^5.43.0",
+    "@memberjunction/sqlserver-dataprovider": "^5.43.0",
+    "@memberjunction/templates": "^5.43.0",
+    "class-validator": "^0.14.3",
+    "@mj-biz-apps/secure-messaging-server": "1.0.0",
+    "@mj-biz-apps/common-server": "^5.30.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MemberJunction/bizapps-secure-messaging"
+  }
+}

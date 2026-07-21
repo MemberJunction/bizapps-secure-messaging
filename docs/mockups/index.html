@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Secure Messaging — Mockups Overview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="shared.css">
+<style>
+  body { min-height:100vh; }
+  .hero { background:linear-gradient(135deg, var(--mj-brand-navy), #134a73); color:#fff; padding:54px 32px 60px; }
+  .hero-inner { max-width:1100px; margin:0 auto; }
+  .hero .eyebrow { font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--mj-brand-accent); display:flex; align-items:center; gap:9px; }
+  .hero h1 { font-size:38px; font-weight:800; letter-spacing:-.02em; margin:14px 0 12px; }
+  .hero p { font-size:16px; line-height:1.6; color:#cbd5e1; max-width:720px; margin:0; }
+  .hero-meta { display:flex; gap:22px; margin-top:24px; flex-wrap:wrap; }
+  .hero-meta .m { display:flex; align-items:center; gap:9px; font-size:13px; color:#e2e8f0; }
+  .hero-meta .m i { color:var(--mj-brand-accent); }
+
+  .wrap { max-width:1100px; margin:-34px auto 0; padding:0 32px 60px; }
+  .cards { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
+  .mock-card { background:var(--mj-bg-surface); border:1px solid var(--mj-border-default); border-radius:var(--mj-radius-xl); box-shadow:var(--mj-shadow-md); overflow:hidden; display:flex; flex-direction:column; transition:all .18s; text-decoration:none; color:inherit; }
+  .mock-card:hover { transform:translateY(-4px); box-shadow:var(--mj-shadow-xl); border-color:var(--mj-brand-primary); }
+  .mc-thumb { height:140px; display:flex; align-items:center; justify-content:center; font-size:46px; color:#fff; position:relative; }
+  .mc-1 { background:linear-gradient(135deg,#1e293b,#0f172a); }
+  .mc-2 { background:linear-gradient(135deg,#0076b6,#005a8a); }
+  .mc-3 { background:linear-gradient(135deg,#6366f1,#8b5cf6); }
+  .mc-tag { position:absolute; top:12px; left:12px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; background:rgba(255,255,255,.2); padding:4px 9px; border-radius:var(--mj-radius-full); }
+  .mc-body { padding:20px; flex:1; display:flex; flex-direction:column; }
+  .mc-body h3 { margin:0 0 6px; font-size:17px; font-weight:700; }
+  .mc-body p { margin:0 0 14px; font-size:13px; line-height:1.55; color:var(--mj-text-muted); flex:1; }
+  .mc-feat { list-style:none; padding:0; margin:0 0 16px; }
+  .mc-feat li { font-size:12px; color:var(--mj-text-secondary); padding:3px 0; display:flex; align-items:center; gap:8px; }
+  .mc-feat li i { color:var(--mj-success); font-size:11px; width:13px; }
+  .mc-go { display:flex; align-items:center; justify-content:space-between; font-size:13px; font-weight:700; color:var(--mj-brand-primary); }
+
+  .section { margin-top:42px; }
+  .section h2 { font-size:20px; font-weight:800; letter-spacing:-.01em; margin:0 0 6px; }
+  .section .lead { font-size:13.5px; color:var(--mj-text-muted); margin:0 0 18px; }
+
+  .matrix { width:100%; border-collapse:collapse; background:var(--mj-bg-surface); border:1px solid var(--mj-border-default); border-radius:var(--mj-radius-lg); overflow:hidden; box-shadow:var(--mj-shadow-sm); }
+  .matrix th, .matrix td { text-align:left; padding:12px 16px; font-size:13px; border-bottom:1px solid var(--mj-border-subtle); }
+  .matrix thead th { background:var(--mj-bg-surface-sunken); font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--mj-text-muted); font-weight:700; }
+  .matrix tbody tr:last-child td { border-bottom:none; }
+  .matrix td.feat { font-weight:600; color:var(--mj-text-primary); }
+  .yes { color:var(--mj-success); } .partial { color:var(--mj-warning); } .no { color:var(--mj-text-disabled); }
+  .matrix .who { font-size:11px; color:var(--mj-text-muted); }
+
+  .notecards { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
+  .note { background:var(--mj-bg-surface); border:1px solid var(--mj-border-default); border-radius:var(--mj-radius-lg); padding:18px; box-shadow:var(--mj-shadow-sm); }
+  .note h4 { margin:0 0 8px; font-size:14px; display:flex; align-items:center; gap:9px; }
+  .note h4 i { color:var(--mj-brand-primary); }
+  .note p { margin:0; font-size:13px; color:var(--mj-text-muted); line-height:1.55; }
+  .note .src { font-size:11px; color:var(--mj-text-disabled); margin-top:8px; }
+
+  .foot { text-align:center; color:var(--mj-text-disabled); font-size:12px; margin-top:46px; }
+  @media (max-width:880px){ .cards{ grid-template-columns:1fr; } .notecards{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="eyebrow"><i class="fa-solid fa-shield-halved"></i> MJ Secure Messaging · Design Exploration</div>
+    <h1>Three navigable concepts for the next secure-messaging experience</h1>
+    <p>High-fidelity, clickable HTML mockups built on MemberJunction's design tokens — informed by the current app and a study of TitanFile, Liscio, and ShareFile. Each prototype is fully interactive: switch screens, open threads, draft AI replies, upload files, sign documents, and explore the audit trail.</p>
+    <div class="hero-meta">
+      <div class="m"><i class="fa-solid fa-palette"></i> MJ Explorer tokens (light)</div>
+      <div class="m"><i class="fa-solid fa-mouse-pointer"></i> Fully navigable</div>
+      <div class="m"><i class="fa-solid fa-magnifying-glass-chart"></i> Competitor-informed</div>
+      <div class="m"><i class="fa-brands fa-font-awesome"></i> Font Awesome + Inter</div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="cards">
+    <a class="mock-card" href="1-executive-inbox.html">
+      <div class="mc-thumb mc-1"><span class="mc-tag">Staff · MJ Explorer</span><i class="fa-solid fa-inbox"></i></div>
+      <div class="mc-body">
+        <h3>1 · Executive Inbox</h3>
+        <p>The evolved 3-pane staff inbox — now with AI-drafted replies you approve or edit, a Files tab, and a full per-message audit trail.</p>
+        <ul class="mc-feat">
+          <li><i class="fa-solid fa-check"></i> AI draft reply w/ confidence + approve/edit</li>
+          <li><i class="fa-solid fa-check"></i> Conversation · Files · Activity tabs</li>
+          <li><i class="fa-solid fa-check"></i> Request files &amp; send-for-signature</li>
+          <li><i class="fa-solid fa-check"></i> Proof-of-delivery / proof-of-access</li>
+        </ul>
+        <div class="mc-go">Open prototype <i class="fa-solid fa-arrow-right"></i></div>
+      </div>
+    </a>
+
+    <a class="mock-card" href="2-client-portal.html">
+      <div class="mc-thumb mc-2"><span class="mc-tag">Contact-facing</span><i class="fa-solid fa-comments"></i></div>
+      <div class="mc-body">
+        <h3>2 · Client Portal</h3>
+        <p>The embeddable widget reimagined as a friendly, brandable secure portal — chat, a personal to-do list, documents, uploads, and guided e-signature.</p>
+        <ul class="mc-feat">
+          <li><i class="fa-solid fa-check"></i> Messages · To-Do · Documents</li>
+          <li><i class="fa-solid fa-check"></i> File-request upload &amp; guided signing</li>
+          <li><i class="fa-solid fa-check"></i> Live brand-color theming</li>
+          <li><i class="fa-solid fa-check"></i> Passwordless / session-expired flow</li>
+        </ul>
+        <div class="mc-go">Open prototype <i class="fa-solid fa-arrow-right"></i></div>
+      </div>
+    </a>
+
+    <a class="mock-card" href="3-client-workspace.html">
+      <div class="mc-thumb mc-3"><span class="mc-tag">Staff · Differentiator</span><i class="fa-solid fa-folder-open"></i></div>
+      <div class="mc-body">
+        <h3>3 · Client Workspace</h3>
+        <p>A "client 360" that unifies every thread, document, request and signature for one contact — plus live session controls and the complete compliance audit trail.</p>
+        <ul class="mc-feat">
+          <li><i class="fa-solid fa-check"></i> Per-client workspace (TitanFile pattern)</li>
+          <li><i class="fa-solid fa-check"></i> Session &amp; security controls + revoke</li>
+          <li><i class="fa-solid fa-check"></i> Requests &amp; signatures tracker</li>
+          <li><i class="fa-solid fa-check"></i> Exportable chain-of-custody</li>
+        </ul>
+        <div class="mc-go">Open prototype <i class="fa-solid fa-arrow-right"></i></div>
+      </div>
+    </a>
+  </div>
+
+  <!-- COMPETITIVE MATRIX -->
+  <div class="section">
+    <h2>How the concepts close the competitive gap</h2>
+    <p class="lead">What today's app already does, what leading competitors offer, and which mockup introduces each capability.</p>
+    <table class="matrix">
+      <thead><tr><th>Capability</th><th>Today's app</th><th>Competitors (TitanFile / Liscio)</th><th>Introduced in</th></tr></thead>
+      <tbody>
+        <tr><td class="feat">Two-way secure messaging</td><td><i class="fa-solid fa-circle-check yes"></i> Yes</td><td><i class="fa-solid fa-circle-check yes"></i> Core</td><td class="who">All three</td></tr>
+        <tr><td class="feat">Passwordless token / magic-link auth</td><td><i class="fa-solid fa-circle-check yes"></i> Yes (a strength)</td><td><i class="fa-solid fa-circle-half-stroke partial"></i> Mostly password setup</td><td class="who">Portal (expired state)</td></tr>
+        <tr><td class="feat">File requests ("secure submit")</td><td><i class="fa-solid fa-circle-check yes"></i> Backend ready</td><td><i class="fa-solid fa-circle-check yes"></i> Yes</td><td class="who">Inbox + Portal + Workspace</td></tr>
+        <tr><td class="feat">E-signature (guided)</td><td><i class="fa-solid fa-circle-half-stroke partial"></i> Request entity exists</td><td><i class="fa-solid fa-circle-check yes"></i> Liscio guided sign</td><td class="who">Portal guided signing</td></tr>
+        <tr><td class="feat">Per-client workspace</td><td><i class="fa-solid fa-circle-half-stroke partial"></i> Basic grouping</td><td><i class="fa-solid fa-circle-check yes"></i> TitanFile core</td><td class="who">Client Workspace</td></tr>
+        <tr><td class="feat">Audit trail · proof of delivery/access</td><td><i class="fa-solid fa-circle-half-stroke partial"></i> Record Changes (not surfaced)</td><td><i class="fa-solid fa-circle-check yes"></i> Headline feature</td><td class="who">Inbox + Workspace</td></tr>
+        <tr><td class="feat">Client to-do / tasks</td><td><i class="fa-solid fa-circle-xmark no"></i> No</td><td><i class="fa-solid fa-circle-check yes"></i> Liscio</td><td class="who">Client Portal</td></tr>
+        <tr><td class="feat">AI-drafted replies + human approval</td><td><i class="fa-solid fa-circle-check yes"></i> Pipeline exists</td><td><i class="fa-solid fa-circle-half-stroke partial"></i> Emerging (Liscio AI)</td><td class="who">Executive Inbox</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- RESEARCH NOTES -->
+  <div class="section">
+    <h2>What the research surfaced</h2>
+    <p class="lead">Key takeaways from studying the current tool and competing products.</p>
+    <div class="notecards">
+      <div class="note"><h4><i class="fa-solid fa-shield-halved"></i> TitanFile — workspaces &amp; audit</h4><p>Email-like simplicity, per-client/matter secure workspaces, two-way unlimited file + message exchange, "Secure Submit" links, and a heavy emphasis on timestamped audit trails — <em>proof of delivery</em> and <em>proof of access</em> — as a compliance selling point.</p><p class="src">titanfile.com — Secure Portal + "8 Reasons Clients Love TitanFile"</p></div>
+      <div class="note"><h4><i class="fa-solid fa-mobile-screen"></i> Liscio — tasks &amp; guided e-sign</h4><p>Mobile-first client messaging, built-in e-signature with a <em>guided</em> signing experience that coaches clients step-by-step, task tracking and follow-ups woven into the conversation, and an AI assistant for firms.</p><p class="src">liscio.me + Moxo / SmartVault comparisons</p></div>
+      <div class="note"><h4><i class="fa-solid fa-star"></i> Our differentiators to lean into</h4><p>Passwordless token + magic-link auth (zero client setup), messages flowing through MJ's AI pipeline with human approval, and a native audit trail via Record Changes. The mockups surface these instead of leaving them in the backend.</p><p class="src">OVERVIEW.md + current executive-view component</p></div>
+      <div class="note"><h4><i class="fa-solid fa-palette"></i> Native MJ styling</h4><p>Built on MJ Explorer's <code>--mat-sys-*</code> / <code>--mj-*</code> tokens (Inter, slate-dark sidebar signature, 8/12/16 radii, semantic status colors) so the staff surfaces drop into Explorer and inherit light/dark theming.</p><p class="src">_tokens.scss + Dashboard Best Practices guide</p></div>
+    </div>
+  </div>
+
+  <div class="foot">
+    Prototype mockups · not production code · MJ Secure Messaging · June 2026<br>
+    See <strong>RESEARCH.md</strong> in this folder for the full competitive analysis &amp; design rationale.
+  </div>
+</div>
+
+</body>
+</html>
