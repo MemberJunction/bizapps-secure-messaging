@@ -449,23 +449,37 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
     }
 
     /**
-     * Authorization check for the v2 per-contact session model: returns true iff the thread exists,
-     * is not soft-deleted, and belongs to the given contact. Replaces the v1 "session.threadId ===
+     * Authorization check for the v2 per-contact session model: returns the thread's lifecycle
+     * Status iff the thread exists, is not soft-deleted, and belongs to the given contact — else
+     * null (no access). Exposing the status lets write-path callers enforce read-only on Closed /
+     * Archived threads (PRD §7) without a second query. Replaces the v1 "session.threadId ===
      * threadId" gate now that one session grants access to ALL of the contact's threads.
      */
-    async contactOwnsThread(contactId: string, threadId: string, systemUser: UserInfo): Promise<boolean> {
+    async contactThreadStatus(
+        contactId: string,
+        threadId: string,
+        systemUser: UserInfo
+    ): Promise<'Active' | 'Closed' | 'Archived' | null> {
         if (!contactId || !threadId) {
-            return false;
+            return null;
         }
         const rv = new RunView();
-        const res = await rv.RunView<mjBizAppsSecureMessagingSecureThreadEntity>({
+        const res = await rv.RunView<{ ID: string; Status: 'Active' | 'Closed' | 'Archived' }>({
             EntityName: 'MJ_BizApps_SecureMessaging: Secure Threads',
             ExtraFilter: `ID = '${threadId.replace(/'/g, "''")}' AND ContactID = '${contactId.replace(/'/g, "''")}' AND IsDeleted = 0`,
-            Fields: ['ID'],
+            Fields: ['ID', 'Status'],
             MaxRows: 1,
             ResultType: 'simple',
         }, systemUser);
-        return res.Success && res.Results.length > 0;
+        if (!res.Success || res.Results.length === 0) {
+            return null;
+        }
+        return res.Results[0].Status;
+    }
+
+    /** Convenience wrapper over {@link contactThreadStatus}: does the contact own the thread at all? */
+    async contactOwnsThread(contactId: string, threadId: string, systemUser: UserInfo): Promise<boolean> {
+        return (await this.contactThreadStatus(contactId, threadId, systemUser)) !== null;
     }
 
     /** Resolve a contact's email from the configured People entity. Public — reused by stores. */

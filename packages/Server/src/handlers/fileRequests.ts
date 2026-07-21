@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { CompositeKey, Metadata, RunView } from '@memberjunction/core';
 import { mjBizAppsSecureMessagingFileRequestEntity } from '@mj-biz-apps/secure-messaging-entities';
-import { PortalRequest, assertThreadAccess } from './middleware.js';
+import { PortalRequest, assertThreadAccess, assertThreadWritable } from './middleware.js';
 import { getFileStore } from '@mj-biz-apps/secure-messaging-core';
 
 /** A Pending request whose DueAt has passed is treated as Expired (PRD §7, enforced lazily). */
@@ -72,6 +72,7 @@ export async function getFileRequests(req: Request, res: Response): Promise<void
 export async function createFileRequest(req: Request, res: Response): Promise<void> {
     const access = await assertThreadAccess(req as PortalRequest, res);
     if (!access) return;
+    if (!assertThreadWritable(access, res)) return;
     const { systemUser, threadId } = access;
     const session = (req as PortalRequest).portalSession;
     const { title, instructions, dueAt } = req.body;
@@ -117,6 +118,7 @@ export async function createFileRequest(req: Request, res: Response): Promise<vo
 export async function fulfillFileRequest(req: Request, res: Response): Promise<void> {
     const access = await assertThreadAccess(req as PortalRequest, res);
     if (!access) return;
+    if (!assertThreadWritable(access, res)) return;
     const { systemUser, threadId } = access;
     const requestId = String(req.params.requestId);
     // Default true (a single upload fulfills); pass complete=false for intermediate multi-file uploads.

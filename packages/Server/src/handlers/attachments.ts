@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { PortalRequest, assertThreadAccess } from './middleware.js';
+import { PortalRequest, assertThreadAccess, assertThreadWritable } from './middleware.js';
 import { getFileStore } from '@mj-biz-apps/secure-messaging-core';
 
 /**
@@ -43,6 +43,7 @@ export async function getThreadAttachments(req: Request, res: Response): Promise
 export async function uploadAttachment(req: Request, res: Response): Promise<void> {
     const access = await assertThreadAccess(req as PortalRequest, res);
     if (!access) return;
+    if (!assertThreadWritable(access, res)) return;
     const { systemUser, threadId } = access;
 
     const file = (req as Request & { file?: Express.Multer.File }).file;

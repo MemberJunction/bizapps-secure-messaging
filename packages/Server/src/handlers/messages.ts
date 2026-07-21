@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { PortalRequest, assertThreadAccess } from './middleware.js';
+import { PortalRequest, assertThreadAccess, assertThreadWritable } from './middleware.js';
 import { getMessageStore } from '@mj-biz-apps/secure-messaging-core';
 
 /**
@@ -37,6 +37,7 @@ export async function getThreadMessages(req: Request, res: Response): Promise<vo
 export async function createThreadMessage(req: Request, res: Response): Promise<void> {
     const access = await assertThreadAccess(req as PortalRequest, res);
     if (!access) return;
+    if (!assertThreadWritable(access, res)) return;
     const { systemUser, threadId } = access;
     const session = (req as PortalRequest).portalSession;
     const { content, subject } = req.body;
