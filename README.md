@@ -149,7 +149,7 @@ mj-secure-messaging {
 ## Installation
 
 ```bash
-mj app install https://github.com/MemberJunction/app-secure-messaging
+mj app install https://github.com/MemberJunction/bizapps-secure-messaging
 ```
 
 This will:

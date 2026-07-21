@@ -440,7 +440,7 @@ The app registers itself with MJ via metadata JSON files:
 As an MJ OpenApp, installation is handled by MJ's app loader:
 
 ```bash
-mj app install https://github.com/MJ-Central/app-secure-messaging
+mj app install https://github.com/MemberJunction/bizapps-secure-messaging
 ```
 
 This:
