@@ -20,6 +20,11 @@ concurrency:
 
 jobs:
   build-and-publish:
+    # KILL SWITCH: auto-publish on push to main is intentionally disabled while
+    # the first release is published manually at 1.0.0. To re-enable the
+    # automated changeset publish flow, remove this `if:` guard (or set it back
+    # to the default by deleting this line).
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.targetVersion == '__ENABLE__' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

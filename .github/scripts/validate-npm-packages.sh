@@ -51,8 +51,15 @@ if [ ${#MISSING[@]} -gt 0 ]; then
     echo "  - $pkg"
   done
   echo ""
-  echo "For each missing package, publish a 0.0.0 placeholder manually before"
-  echo "the automated workflow can take over."
+  echo "📋 Required actions:"
+  echo ""
+  echo "For each missing package, run:"
+  echo "  npx setup-npm-trusted-publish <package-name>"
+  echo ""
+  echo "Then configure OIDC at:"
+  echo "  https://www.npmjs.com/package/<package-name>/access"
+  echo ""
+  echo "See PUBLISH_SETUP.md for detailed instructions."
   exit 1
 fi
 
