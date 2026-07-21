@@ -23387,7 +23387,11 @@ type Mutation {
   DeletemjBizAppsCommonPerson(ID: String!, options___: DeleteOptionsInput!): mjBizAppsCommonPerson_!
   DeletemjBizAppsCommonRelationship(ID: String!, options___: DeleteOptionsInput!): mjBizAppsCommonRelationship_!
   DeletemjBizAppsCommonRelationshipType(ID: String!, options___: DeleteOptionsInput!): mjBizAppsCommonRelationshipType_!
+  DeletemjBizAppsSecureMessagingFileRequest(ID: String!, options___: DeleteOptionsInput!): mjBizAppsSecureMessagingFileRequest_!
   DeletemjBizAppsSecureMessagingMessageFile(ID: String!, options___: DeleteOptionsInput!): mjBizAppsSecureMessagingMessageFile_!
+  DeletemjBizAppsSecureMessagingPortalMagicLink(ID: String!, options___: DeleteOptionsInput!): mjBizAppsSecureMessagingPortalMagicLink_!
+  DeletemjBizAppsSecureMessagingPortalSession(ID: String!, options___: DeleteOptionsInput!): mjBizAppsSecureMessagingPortalSession_!
+  DeletemjBizAppsSecureMessagingSecureMessage(ID: String!, options___: DeleteOptionsInput!): mjBizAppsSecureMessagingSecureMessage_!
   DeletemjBizAppsSecureMessagingSecureThread(ID: String!, options___: DeleteOptionsInput!): mjBizAppsSecureMessagingSecureThread_!
   EmbedText(modelSize: String!, textToEmbed: [String!]!): EmbedTextResult!
   EndLiveKitRoom(roomName: String!): Boolean!
@@ -37091,7 +37095,7 @@ type mjBizAppsSecureMessagingMessageFile_ {
 }
 
 """
-Single-use magic links for re-authenticating expired portal sessions. Short-lived (15 min default), redeems into a fresh session token.
+Single-use magic links — the passwordless entry path. Short-lived (15 min default), redeems into a fresh session token, and may deep-link to a specific thread.
 """
 type mjBizAppsSecureMessagingPortalMagicLink_ {
   DeepLinkThreadID: String
@@ -37116,7 +37120,7 @@ type mjBizAppsSecureMessagingPortalMagicLink_ {
 }
 
 """
-Tracks active secure messaging sessions for external contacts. Each session maps a contact to a channel thread and is authenticated via a hashed opaque token.
+A contact's authenticated portal session. Sessions are per-contact: one active session grants access to all of that contact's secure threads. Authenticated via a hashed opaque token with a sliding TTL; revocable by staff.
 """
 type mjBizAppsSecureMessagingPortalSession_ {
   ContactID: String!

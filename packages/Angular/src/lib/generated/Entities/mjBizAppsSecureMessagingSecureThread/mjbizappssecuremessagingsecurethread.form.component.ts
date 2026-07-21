@@ -17,10 +17,10 @@ export class mjBizAppsSecureMessagingSecureThreadFormComponent extends BaseFormC
         await super.ngOnInit();
         this.initSections([
             { sectionKey: 'details', sectionName: 'Details', isExpanded: true },
-            { sectionKey: 'mJBizAppsSecureMessagingPortalMagicLinks', sectionName: 'Portal Magic Links', isExpanded: false },
+            { sectionKey: 'mJBizAppsSecureMessagingFileRequests', sectionName: 'File Requests', isExpanded: false },
             { sectionKey: 'mJBizAppsSecureMessagingSecureMessages', sectionName: 'Secure Messages', isExpanded: false },
             { sectionKey: 'mJBizAppsSecureMessagingMessageFiles', sectionName: 'Message Files', isExpanded: false },
-            { sectionKey: 'mJBizAppsSecureMessagingFileRequests', sectionName: 'File Requests', isExpanded: false }
+            { sectionKey: 'mJBizAppsSecureMessagingPortalMagicLinks', sectionName: 'Portal Magic Links', isExpanded: false }
         ]);
     }
 }

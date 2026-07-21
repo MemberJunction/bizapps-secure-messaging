@@ -98,25 +98,25 @@
          RELATED ENTITY PANELS
          ======================================== -->
 
-    <!-- Portal Magic Links Section -->
+    <!-- File Requests Section -->
     <mj-collapsible-panel
-        SectionKey="mJBizAppsSecureMessagingPortalMagicLinks"
-        SectionName="Portal Magic Links"
+        SectionKey="mJBizAppsSecureMessagingFileRequests"
+        SectionName="File Requests"
         Icon="fa fa-table"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"
-        [BadgeCount]="GetSectionRowCount('mJBizAppsSecureMessagingPortalMagicLinks')"
+        [BadgeCount]="GetSectionRowCount('mJBizAppsSecureMessagingFileRequests')"
         [DefaultExpanded]="false">
         @if (record.IsSaved) {
         <div>
             <mj-explorer-entity-data-grid
-                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_SecureMessaging: Portal Magic Links','DeepLinkThreadID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_SecureMessaging: Portal Magic Links')"
-                [AllowLoad]="IsSectionExpanded('mJBizAppsSecureMessagingPortalMagicLinks')"
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_SecureMessaging: File Requests','ThreadID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_SecureMessaging: File Requests')"
+                [AllowLoad]="IsSectionExpanded('mJBizAppsSecureMessagingFileRequests')"
                 [ShowToolbar]="false"
                 (Navigate)="OnFormNavigate($event)"
-                (AfterDataLoad)="SetSectionRowCount('mJBizAppsSecureMessagingPortalMagicLinks', $event.totalRowCount)"
+                (AfterDataLoad)="SetSectionRowCount('mJBizAppsSecureMessagingFileRequests', $event.totalRowCount)"
                 >
             </mj-explorer-entity-data-grid>
         </div>
@@ -173,25 +173,25 @@
         }
     </mj-collapsible-panel>
 
-    <!-- File Requests Section -->
+    <!-- Portal Magic Links Section -->
     <mj-collapsible-panel
-        SectionKey="mJBizAppsSecureMessagingFileRequests"
-        SectionName="File Requests"
+        SectionKey="mJBizAppsSecureMessagingPortalMagicLinks"
+        SectionName="Portal Magic Links"
         Icon="fa fa-table"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"
-        [BadgeCount]="GetSectionRowCount('mJBizAppsSecureMessagingFileRequests')"
+        [BadgeCount]="GetSectionRowCount('mJBizAppsSecureMessagingPortalMagicLinks')"
         [DefaultExpanded]="false">
         @if (record.IsSaved) {
         <div>
             <mj-explorer-entity-data-grid
-                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_SecureMessaging: File Requests','ThreadID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_SecureMessaging: File Requests')"
-                [AllowLoad]="IsSectionExpanded('mJBizAppsSecureMessagingFileRequests')"
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_SecureMessaging: Portal Magic Links','DeepLinkThreadID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_SecureMessaging: Portal Magic Links')"
+                [AllowLoad]="IsSectionExpanded('mJBizAppsSecureMessagingPortalMagicLinks')"
                 [ShowToolbar]="false"
                 (Navigate)="OnFormNavigate($event)"
-                (AfterDataLoad)="SetSectionRowCount('mJBizAppsSecureMessagingFileRequests', $event.totalRowCount)"
+                (AfterDataLoad)="SetSectionRowCount('mJBizAppsSecureMessagingPortalMagicLinks', $event.totalRowCount)"
                 >
             </mj-explorer-entity-data-grid>
         </div>

@@ -172,6 +172,11 @@ export const mjBizAppsSecureMessagingPortalMagicLinkSchema = z.object({
         * * Display Name: Used At
         * * SQL Data Type: datetimeoffset
         * * Description: Timestamp when the magic link was redeemed. NULL if not yet used.`),
+    DeepLinkThreadID: z.string().nullable().describe(`
+        * * Field Name: DeepLinkThreadID
+        * * Display Name: Deep Link Thread ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_SecureMessaging: Secure Threads (vwSecureThreads.ID)`),
     __mj_CreatedAt: z.date().describe(`
         * * Field Name: __mj_CreatedAt
         * * Display Name: Created At
@@ -182,11 +187,6 @@ export const mjBizAppsSecureMessagingPortalMagicLinkSchema = z.object({
         * * Display Name: Updated At
         * * SQL Data Type: datetimeoffset
         * * Default Value: getutcdate()`),
-    DeepLinkThreadID: z.string().nullable().describe(`
-        * * Field Name: DeepLinkThreadID
-        * * Display Name: Deep Link Thread ID
-        * * SQL Data Type: uniqueidentifier
-        * * Related Entity/Foreign Key: MJ_BizApps_SecureMessaging: Secure Threads (vwSecureThreads.ID)`),
 });
 
 export type mjBizAppsSecureMessagingPortalMagicLinkEntityType = z.infer<typeof mjBizAppsSecureMessagingPortalMagicLinkSchema>;
@@ -322,16 +322,6 @@ export const mjBizAppsSecureMessagingSecureMessageSchema = z.object({
         * * Display Name: Received At
         * * SQL Data Type: datetimeoffset
         * * Default Value: sysdatetimeoffset()`),
-    __mj_CreatedAt: z.date().describe(`
-        * * Field Name: __mj_CreatedAt
-        * * Display Name: Created At
-        * * SQL Data Type: datetimeoffset
-        * * Default Value: getutcdate()`),
-    __mj_UpdatedAt: z.date().describe(`
-        * * Field Name: __mj_UpdatedAt
-        * * Display Name: Updated At
-        * * SQL Data Type: datetimeoffset
-        * * Default Value: getutcdate()`),
     IsStarred: z.boolean().describe(`
         * * Field Name: IsStarred
         * * Display Name: Is Starred
@@ -349,6 +339,16 @@ export const mjBizAppsSecureMessagingSecureMessageSchema = z.object({
         * * Display Name: Source Channel
         * * SQL Data Type: nvarchar(50)
         * * Description: For imported messages, the insecure channel the message originated from (e.g. Email, SMS). NULL for messages that originated natively in the secure channel.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
 });
 
 export type mjBizAppsSecureMessagingSecureMessageEntityType = z.infer<typeof mjBizAppsSecureMessagingSecureMessageSchema>;
@@ -448,18 +448,6 @@ export class mjBizAppsSecureMessagingFileRequestEntity extends BaseEntity<mjBizA
         const compositeKey: CompositeKey = new CompositeKey();
         compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
         return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
-    }
-
-    /**
-    * MJ_BizApps_SecureMessaging: File Requests - AllowDeleteAPI is set to 0 in the database.  Delete is not allowed, so this method is generated to override the base class method and throw an error. To enable delete for this entity, set AllowDeleteAPI to 1 in the database.
-    * @public
-    * @method
-    * @override
-    * @memberof mjBizAppsSecureMessagingFileRequestEntity
-    * @throws {Error} - Delete is not allowed for MJ_BizApps_SecureMessaging: File Requests, to enable it set AllowDeleteAPI to 1 in the database.
-    */
-    public override async Delete(): Promise<boolean> {
-        throw new Error('Delete is not allowed for MJ_BizApps_SecureMessaging: File Requests, to enable it set AllowDeleteAPI to 1 in the database.');
     }
 
     /**
@@ -773,7 +761,7 @@ export class mjBizAppsSecureMessagingMessageFileEntity extends BaseEntity<mjBizA
  * * Schema: __mj_BizAppsSecureMessaging
  * * Base Table: PortalMagicLink
  * * Base View: vwPortalMagicLinks
- * * @description Single-use magic links for re-authenticating expired portal sessions. Short-lived (15 min default), redeems into a fresh session token.
+ * * @description Single-use magic links — the passwordless entry path. Short-lived (15 min default), redeems into a fresh session token, and may deep-link to a specific thread.
  * * Primary Key: ID
  * @extends {BaseEntity}
  * @class
@@ -796,18 +784,6 @@ export class mjBizAppsSecureMessagingPortalMagicLinkEntity extends BaseEntity<mj
         const compositeKey: CompositeKey = new CompositeKey();
         compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
         return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
-    }
-
-    /**
-    * MJ_BizApps_SecureMessaging: Portal Magic Links - AllowDeleteAPI is set to 0 in the database.  Delete is not allowed, so this method is generated to override the base class method and throw an error. To enable delete for this entity, set AllowDeleteAPI to 1 in the database.
-    * @public
-    * @method
-    * @override
-    * @memberof mjBizAppsSecureMessagingPortalMagicLinkEntity
-    * @throws {Error} - Delete is not allowed for MJ_BizApps_SecureMessaging: Portal Magic Links, to enable it set AllowDeleteAPI to 1 in the database.
-    */
-    public override async Delete(): Promise<boolean> {
-        throw new Error('Delete is not allowed for MJ_BizApps_SecureMessaging: Portal Magic Links, to enable it set AllowDeleteAPI to 1 in the database.');
     }
 
     /**
@@ -895,6 +871,19 @@ export class mjBizAppsSecureMessagingPortalMagicLinkEntity extends BaseEntity<mj
     }
 
     /**
+    * * Field Name: DeepLinkThreadID
+    * * Display Name: Deep Link Thread ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_SecureMessaging: Secure Threads (vwSecureThreads.ID)
+    */
+    get DeepLinkThreadID(): string | null {
+        return this.Get('DeepLinkThreadID');
+    }
+    set DeepLinkThreadID(value: string | null) {
+        this.Set('DeepLinkThreadID', value);
+    }
+
+    /**
     * * Field Name: __mj_CreatedAt
     * * Display Name: Created At
     * * SQL Data Type: datetimeoffset
@@ -913,19 +902,6 @@ export class mjBizAppsSecureMessagingPortalMagicLinkEntity extends BaseEntity<mj
     get __mj_UpdatedAt(): Date {
         return this.Get('__mj_UpdatedAt');
     }
-
-    /**
-    * * Field Name: DeepLinkThreadID
-    * * Display Name: Deep Link Thread ID
-    * * SQL Data Type: uniqueidentifier
-    * * Related Entity/Foreign Key: MJ_BizApps_SecureMessaging: Secure Threads (vwSecureThreads.ID)
-    */
-    get DeepLinkThreadID(): string | null {
-        return this.Get('DeepLinkThreadID');
-    }
-    set DeepLinkThreadID(value: string | null) {
-        this.Set('DeepLinkThreadID', value);
-    }
 }
 
 
@@ -934,7 +910,7 @@ export class mjBizAppsSecureMessagingPortalMagicLinkEntity extends BaseEntity<mj
  * * Schema: __mj_BizAppsSecureMessaging
  * * Base Table: PortalSession
  * * Base View: vwPortalSessions
- * * @description Tracks active secure messaging sessions for external contacts. Each session maps a contact to a channel thread and is authenticated via a hashed opaque token.
+ * * @description A contact's authenticated portal session. Sessions are per-contact: one active session grants access to all of that contact's secure threads. Authenticated via a hashed opaque token with a sliding TTL; revocable by staff.
  * * Primary Key: ID
  * @extends {BaseEntity}
  * @class
@@ -957,18 +933,6 @@ export class mjBizAppsSecureMessagingPortalSessionEntity extends BaseEntity<mjBi
         const compositeKey: CompositeKey = new CompositeKey();
         compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
         return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
-    }
-
-    /**
-    * MJ_BizApps_SecureMessaging: Portal Sessions - AllowDeleteAPI is set to 0 in the database.  Delete is not allowed, so this method is generated to override the base class method and throw an error. To enable delete for this entity, set AllowDeleteAPI to 1 in the database.
-    * @public
-    * @method
-    * @override
-    * @memberof mjBizAppsSecureMessagingPortalSessionEntity
-    * @throws {Error} - Delete is not allowed for MJ_BizApps_SecureMessaging: Portal Sessions, to enable it set AllowDeleteAPI to 1 in the database.
-    */
-    public override async Delete(): Promise<boolean> {
-        throw new Error('Delete is not allowed for MJ_BizApps_SecureMessaging: Portal Sessions, to enable it set AllowDeleteAPI to 1 in the database.');
     }
 
     /**
@@ -1105,18 +1069,6 @@ export class mjBizAppsSecureMessagingSecureMessageEntity extends BaseEntity<mjBi
         const compositeKey: CompositeKey = new CompositeKey();
         compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
         return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
-    }
-
-    /**
-    * MJ_BizApps_SecureMessaging: Secure Messages - AllowDeleteAPI is set to 0 in the database.  Delete is not allowed, so this method is generated to override the base class method and throw an error. To enable delete for this entity, set AllowDeleteAPI to 1 in the database.
-    * @public
-    * @method
-    * @override
-    * @memberof mjBizAppsSecureMessagingSecureMessageEntity
-    * @throws {Error} - Delete is not allowed for MJ_BizApps_SecureMessaging: Secure Messages, to enable it set AllowDeleteAPI to 1 in the database.
-    */
-    public override async Delete(): Promise<boolean> {
-        throw new Error('Delete is not allowed for MJ_BizApps_SecureMessaging: Secure Messages, to enable it set AllowDeleteAPI to 1 in the database.');
     }
 
     /**
@@ -1297,26 +1249,6 @@ export class mjBizAppsSecureMessagingSecureMessageEntity extends BaseEntity<mjBi
     }
 
     /**
-    * * Field Name: __mj_CreatedAt
-    * * Display Name: Created At
-    * * SQL Data Type: datetimeoffset
-    * * Default Value: getutcdate()
-    */
-    get __mj_CreatedAt(): Date {
-        return this.Get('__mj_CreatedAt');
-    }
-
-    /**
-    * * Field Name: __mj_UpdatedAt
-    * * Display Name: Updated At
-    * * SQL Data Type: datetimeoffset
-    * * Default Value: getutcdate()
-    */
-    get __mj_UpdatedAt(): Date {
-        return this.Get('__mj_UpdatedAt');
-    }
-
-    /**
     * * Field Name: IsStarred
     * * Display Name: Is Starred
     * * SQL Data Type: bit
@@ -1355,6 +1287,26 @@ export class mjBizAppsSecureMessagingSecureMessageEntity extends BaseEntity<mjBi
     }
     set SourceChannel(value: string | null) {
         this.Set('SourceChannel', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
     }
 }
 

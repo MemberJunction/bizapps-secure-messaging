@@ -14,7 +14,7 @@
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_SecureMessaging: Portal Sessions"
     },
     "sync": {
-      "lastModified": "2026-07-08T18:12:50.396Z",
+      "lastModified": "2026-07-21T03:25:17.931Z",
       "checksum": "f30dad996b502a96e8cd9eb9749d56f8cc43ca4c7044c01fd6da86be3ab33fea"
     }
   },
@@ -33,7 +33,7 @@
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_SecureMessaging: Portal Magic Links"
     },
     "sync": {
-      "lastModified": "2026-07-08T18:12:50.376Z",
+      "lastModified": "2026-07-21T03:25:17.954Z",
       "checksum": "fa763b3d6e75b0e52824d248a90714bd04cbbc2d6da28ae9225ec9813542f5f7"
     }
   },
@@ -52,7 +52,7 @@
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_SecureMessaging: Secure Messages"
     },
     "sync": {
-      "lastModified": "2026-07-08T18:12:50.434Z",
+      "lastModified": "2026-07-21T03:25:17.997Z",
       "checksum": "812eeb72a1e5e42bd1a5ff4ba34ea7ea7783b7b5cb79063525a612b686b40c99"
     }
   },
@@ -86,7 +86,7 @@
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_SecureMessaging: File Requests"
     },
     "sync": {
-      "lastModified": "2026-07-08T18:12:50.415Z",
+      "lastModified": "2026-07-21T03:25:17.976Z",
       "checksum": "a220a3e59fc5221f5b7d9186aa1920423408b984c4087e6690f5101cb6ae898e"
     }
   }

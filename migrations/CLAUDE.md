@@ -1,5 +1,43 @@
 # MemberJunction Database Migrations Guide
 
+## 🚨 THIS APP'S CONVENTIONS (read first — overrides the generic guide below)
+
+This is an **Open App** repo, not MJ core: migrations live flat in `migrations/` (no `v5/`
+subdirectory), run against the app's own schema (`mj migrate --schema __mj_BizAppsSecureMessaging`,
+which keeps an isolated Flyway history there), and use `${flyway:defaultSchema}` for the app schema
+plus `${mjSchema}` for MJ core.
+
+### Baseline + captured-CodeGen pattern
+
+v1.0 ships a **single baseline migration** (`V…__v1.0.0__Baseline_Schema.sql`): hand-written DDL +
+extended properties, followed by an appended **captured CodeGen run** (the metadata inserts —
+entities, fields, permissions — with deterministic hardcoded UUIDs) so every consumer install
+replays identical metadata without needing a CodeGen pass to invent it.
+
+**Procedure to (re)capture after a schema change:**
+1. Apply the DDL to a fresh DB (`mj migrate --schema __mj_BizAppsSecureMessaging`).
+2. Run `mj codegen` — the placeholder-substituted capture lands in `migrations/codegen/CodeGen_Run_<ts>.sql`.
+3. Append that capture to the migration file, **then apply the fixup below**.
+4. Prove it on ANOTHER fresh DB: replay the full migration end-to-end, then run codegen —
+   it should report no new entities/fields (the capture already registered everything).
+
+### 🚨 Required fixup: `__mj_BizAppsCommon` must stay HARDCODED
+
+The capture's placeholder substitution greedily prefix-matches `__mj`, mangling the literal
+`__mj_BizAppsCommon` (in the `@ExcludedSchemaNames` parameters of CodeGen's maintenance SPs) into
+`${mjSchema}_BizAppsCommon`. That only resolves correctly when the consumer's core schema is
+literally `__mj` — but BizAppsCommon's schema name is **fixed** regardless of the core schema name.
+After appending a capture, always run:
+
+```bash
+sed -i '' 's/\${mjSchema}_BizAppsCommon/__mj_BizAppsCommon/g' migrations/V<baseline>.sql
+```
+
+(`${mjSchema}` elsewhere in those same parameter lists is correct — the core-schema exclusion
+genuinely should track the core schema name. Only the BizAppsCommon token must stay literal.)
+
+---
+
 ## Overview
 
 This directory contains SQL migration scripts for MemberJunction database schema changes. We use Skyway, a product we created that is flyway compatible for migration management.
