@@ -97,7 +97,7 @@ jobs:
           else
             # Check for new migration files since last tag
             if git rev-parse "v${CURRENT_VERSION}" >/dev/null 2>&1; then
-              NEW_MIGRATION_FILES=$(git --no-pager diff --name-only "v${CURRENT_VERSION}" "${{ github.sha }}" -- migrations/ || true)
+              NEW_MIGRATION_FILES=$(git --no-pager diff --name-only "v${CURRENT_VERSION}" "${{ github.sha }}" -- migrations/ migrations-pg/ || true)
             else
               NEW_MIGRATION_FILES=""
             fi
