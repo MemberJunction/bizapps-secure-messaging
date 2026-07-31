@@ -18,13 +18,13 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@memberjunction/ai": "^5.43.0",
-    "@memberjunction/core": "^5.43.0",
-    "@memberjunction/global": "^5.43.0",
-    "@memberjunction/server": "^5.43.0",
-    "@memberjunction/server-bootstrap": "^5.43.0",
-    "@memberjunction/sqlserver-dataprovider": "^5.43.0",
-    "@memberjunction/templates": "^5.43.0",
+    "@memberjunction/ai": "^5.45.0",
+    "@memberjunction/core": "^5.45.0",
+    "@memberjunction/global": "^5.45.0",
+    "@memberjunction/server": "^5.45.0",
+    "@memberjunction/server-bootstrap": "^5.45.0",
+    "@memberjunction/sqlserver-dataprovider": "^5.45.0",
+    "@memberjunction/templates": "^5.45.0",
     "class-validator": "^0.14.3",
     "@mj-biz-apps/secure-messaging-server": "1.0.0",
     "@mj-biz-apps/common-server": "^5.30.0"

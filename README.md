@@ -232,7 +232,7 @@ mj-secure-messaging/
 
 ## Requirements
 
-- MemberJunction >= 5.43.0
+- MemberJunction >= 5.45.0
 - SQL Server (for the `__mj_BizAppsSecureMessaging` schema)
 - Node.js >= 20
 
