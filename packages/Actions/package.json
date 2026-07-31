@@ -1,7 +1,7 @@
 {
   "name": "@mj-biz-apps/secure-messaging-actions",
   "type": "module",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "MJ Secure Messaging Action Subclasses",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -21,7 +21,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@mj-biz-apps/secure-messaging-core": "1.0.0"
+    "@mj-biz-apps/secure-messaging-core": "1.1.0"
   },
   "peerDependencies": {
     "@memberjunction/core": "^5.45.0",

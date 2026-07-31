@@ -26,7 +26,7 @@
     "@memberjunction/sqlserver-dataprovider": "^5.45.0",
     "@memberjunction/templates": "^5.45.0",
     "class-validator": "^0.14.3",
-    "@mj-biz-apps/secure-messaging-server": "1.0.0",
+    "@mj-biz-apps/secure-messaging-server": "1.1.0",
     "@mj-biz-apps/common-server": "^5.30.0"
   },
   "repository": {

@@ -38,7 +38,7 @@
     "@memberjunction/ng-explorer-settings": "^5.45.0",
     "@memberjunction/ng-link-directives": "^5.45.0",
     "@memberjunction/ng-shared": "^5.45.0",
-    "@mj-biz-apps/secure-messaging-ng": "1.0.0",
+    "@mj-biz-apps/secure-messaging-ng": "1.1.0",
     "ag-grid-angular": "^35.0.1",
     "ag-grid-community": "^35.0.1",
     "hammerjs": "^2.0.8",
