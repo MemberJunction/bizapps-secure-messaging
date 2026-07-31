@@ -12,7 +12,7 @@ The app installs **into an existing MemberJunction database** — it owns only i
 `__mj_BizAppsSecureMessaging` schema and expects the rest to be there:
 
 1. A SQL Server database with the **`__mj` core schema** bootstrapped (standard MJ install),
-   running **MJ >= 5.43**.
+   running **MJ >= 5.45**.
 2. The **`__mj_BizAppsCommon`** schema (from the `bizapps-common` app) — Secure Messaging
    soft-references `Person` there (`SecureThread.ContactID`, `PortalSession.ContactID`). Without
    it, contact lookups and the `mjBizAppsCommonPerson` GraphQL query 404.
