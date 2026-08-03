@@ -27,6 +27,30 @@ function getSecureThreadsEntityId(): string {
     return entity.ID;
 }
 
+/**
+ * SECURITY: verify a signature request actually belongs to the caller's thread before acting on it.
+ *
+ * The per-request operations (refresh-status / void / signed-document) previously trusted the
+ * :requestId path segment after only proving the caller owned the :threadId. Because the engine
+ * calls key on requestId alone, any contact owning any thread could refresh/void/download another
+ * tenant's signature request by guessing/knowing its ID (an IDOR — worst case, downloading a
+ * completed signed legal document). This mirrors the EntityID/RecordID scoping getSignatureRequests
+ * already uses. Returns true only when the request is linked to this exact thread.
+ */
+async function signatureRequestBelongsToThread(requestId: string, threadId: string, systemUser: UserInfo): Promise<boolean> {
+    const entityId = getSecureThreadsEntityId();
+    const rv = new RunView();
+    const result = await rv.RunView({
+        EntityName: 'MJ: Signature Requests',
+        ExtraFilter:
+            `ID = '${requestId.replace(/'/g, "''")}' ` +
+            `AND EntityID = '${entityId.replace(/'/g, "''")}' ` +
+            `AND RecordID = '${threadId.replace(/'/g, "''")}'`,
+        MaxRows: 1,
+    }, systemUser);
+    return result.Success && result.Results.length > 0;
+}
+
 /** The name fields we read off a person to build a signer display name. */
 interface ContactNameFields {
     DisplayName?: string | null;
@@ -226,8 +250,12 @@ export async function createSignatureRequest(req: Request, res: Response): Promi
 export async function refreshSignatureStatus(req: Request, res: Response): Promise<void> {
     const access = await assertThreadAccess(req as PortalRequest, res);
     if (!access) return;
-    const { systemUser } = access;
+    const { systemUser, threadId } = access;
     const requestId = String(req.params.requestId);
+    if (!(await signatureRequestBelongsToThread(requestId, threadId, systemUser))) {
+        res.status(404).json({ error: 'Signature request not found in this thread' });
+        return;
+    }
 
     try {
         await SignatureEngine.Instance.Config(false, systemUser);
@@ -254,9 +282,13 @@ export async function refreshSignatureStatus(req: Request, res: Response): Promi
 export async function voidSignatureRequest(req: Request, res: Response): Promise<void> {
     const access = await assertThreadAccess(req as PortalRequest, res);
     if (!access) return;
-    const { systemUser } = access;
+    const { systemUser, threadId } = access;
     const requestId = String(req.params.requestId);
     const reason = typeof req.body?.reason === 'string' ? req.body.reason : 'Cancelled by sender';
+    if (!(await signatureRequestBelongsToThread(requestId, threadId, systemUser))) {
+        res.status(404).json({ error: 'Signature request not found in this thread' });
+        return;
+    }
 
     try {
         await SignatureEngine.Instance.Config(false, systemUser);
@@ -281,8 +313,12 @@ export async function voidSignatureRequest(req: Request, res: Response): Promise
 export async function downloadSignedDocument(req: Request, res: Response): Promise<void> {
     const access = await assertThreadAccess(req as PortalRequest, res);
     if (!access) return;
-    const { systemUser } = access;
+    const { systemUser, threadId } = access;
     const requestId = String(req.params.requestId);
+    if (!(await signatureRequestBelongsToThread(requestId, threadId, systemUser))) {
+        res.status(404).json({ error: 'Signature request not found in this thread' });
+        return;
+    }
 
     try {
         await SignatureEngine.Instance.Config(false, systemUser);
