@@ -42,5 +42,4 @@ onlyBuiltDependencies:
   - tesseract.js
 
 packages:
-  - 'apps/*'
   - 'packages/*'
