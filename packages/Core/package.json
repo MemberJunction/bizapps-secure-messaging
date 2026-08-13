@@ -25,10 +25,10 @@
     "@mj-biz-apps/secure-messaging-entities": "1.1.0"
   },
   "peerDependencies": {
-    "@memberjunction/core": "6.1.0-edge.1",
-    "@memberjunction/core-entities": "6.1.0-edge.1",
-    "@memberjunction/global": "6.1.0-edge.1",
-    "@memberjunction/storage": "6.1.0-edge.1"
+    "@memberjunction/core": "^6.1.0-edge.1",
+    "@memberjunction/core-entities": "^6.1.0-edge.1",
+    "@memberjunction/global": "^6.1.0-edge.1",
+    "@memberjunction/storage": "^6.1.0-edge.1"
   },
   "repository": {
     "type": "git",

@@ -46,7 +46,7 @@
     }
   },
   "devDependencies": {
-    "@memberjunction/cli": "6.1.0-edge.1",
+    "@memberjunction/cli": "^6.1.0-edge.1",
     "@changesets/cli": "^2.29.8",
     "simple-git": "^3.31.1",
     "tsc-alias": "^1.8.16",
