@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { Request, Response } from 'express';
 import { getSystemUser } from '@memberjunction/server';
-import { UserCache } from '@memberjunction/sqlserver-dataprovider';
+import { UserCache } from '@memberjunction/generic-database-provider';
 import { UserInfo } from '@memberjunction/core';
 import {
     PortalAuthService,

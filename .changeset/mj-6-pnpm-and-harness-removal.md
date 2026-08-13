@@ -1,5 +1,5 @@
 ---
-'@mj-biz-apps/secure-messaging-entities': minor
+'@mj-biz-apps/secure-messaging-entities': patch
 ---
 
 Upgrade to MemberJunction 6.1.0-edge.1, migrate the repo to pnpm, and remove the
