@@ -35,7 +35,7 @@
     "@memberjunction/ng-link-directives": "^6.1.0-edge.2",
     "@memberjunction/ng-shared": "^6.1.0-edge.2",
     "@memberjunction/ng-auth-services": "^6.1.0-edge.2",
-    "@mj-biz-apps/common-entities": "5.33.1"
+    "@mj-biz-apps/common-entities": "^5.33.1"
   },
   "devDependencies": {
     "@angular/common": "^21.0.0",
@@ -55,7 +55,7 @@
     "@memberjunction/ng-link-directives": "^6.1.0-edge.2",
     "@memberjunction/ng-shared": "^6.1.0-edge.2",
     "@memberjunction/ng-auth-services": "^6.1.0-edge.2",
-    "@mj-biz-apps/common-entities": "5.33.1",
+    "@mj-biz-apps/common-entities": "^5.33.1",
     "typescript": "^5.9.3"
   },
   "license": "MIT",
