@@ -487,7 +487,7 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
         const rv = new RunView();
         const result = await rv.RunView({
             EntityName: PortalAuthService.contactEntityName,
-            ExtraFilter: `ID = '${contactId}'`,
+            ExtraFilter: `ID = '${contactId.replace(/'/g, "''")}'`,
         }, systemUser);
 
         if (result.Success && result.Results.length > 0) {

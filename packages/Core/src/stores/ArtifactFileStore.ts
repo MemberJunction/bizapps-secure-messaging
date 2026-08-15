@@ -229,7 +229,7 @@ export class ArtifactFileStore {
         const rv = new RunView();
         const linkResult = await rv.RunView({
             EntityName: 'MJ_BizApps_SecureMessaging: Message Files',
-            ExtraFilter: `ID = '${messageFileId}' AND ThreadID = '${threadId.replace(/'/g, "''")}'`,
+            ExtraFilter: `ID = '${messageFileId.replace(/'/g, "''")}' AND ThreadID = '${threadId.replace(/'/g, "''")}'`,
         }, systemUser);
 
         if (!linkResult.Success || linkResult.Results.length === 0) {

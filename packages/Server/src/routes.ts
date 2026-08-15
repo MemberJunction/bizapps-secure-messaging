@@ -1,7 +1,7 @@
 import { Router, json, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import { portalAuthMiddleware } from './handlers/middleware.js';
-import { validateToken, requestMagicLink, redeemMagicLink } from './handlers/auth.js';
+import { validateToken, redeemMagicLink } from './handlers/auth.js';
 import { listThreads } from './handlers/threads.js';
 import { getThreadMessages, createThreadMessage } from './handlers/messages.js';
 import { getThreadAttachments, uploadAttachment, downloadAttachment } from './handlers/attachments.js';
@@ -60,7 +60,13 @@ export function createSecureMessagingRouter(): Router {
 
     // --- Auth routes (public — no session token required) ---
     router.post('/auth/validate', validateToken);
-    router.post('/auth/magic-link', requestMagicLink);
+    // SECURITY: the anonymous `POST /auth/magic-link` self-service issuance route was removed.
+    // It minted a redeemable magic-link token from a caller-supplied (non-secret, enumerable)
+    // sessionId and returned the raw token in the HTTP response, with no proof of session
+    // ownership and no out-of-band delivery — allowing account takeover of any contact.
+    // Magic links are now issued ONLY via the authenticated staff `IssuePortalMagicLinkAction`
+    // (raw token delivered out-of-band to the contact's registered email). Redeem stays public
+    // (it requires possession of the emailed single-use token).
     router.post('/auth/magic-link/redeem', redeemMagicLink);
 
     // --- Promote (server-to-server: Izzy / Outlook add-in backend) ---

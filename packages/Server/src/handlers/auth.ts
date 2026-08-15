@@ -41,41 +41,15 @@ export async function validateToken(req: Request, res: Response): Promise<void> 
     }
 }
 
-/**
- * POST /auth/magic-link
- *
- * Requests a magic link for a portal session.
- * The caller provides the session ID (known from a previous visit).
- *
- * Body: { sessionId: string }
- */
-export async function requestMagicLink(req: Request, res: Response): Promise<void> {
-    const { sessionId } = req.body;
-
-    if (!sessionId || typeof sessionId !== 'string') {
-        res.status(400).json({ error: 'sessionId is required' });
-        return;
-    }
-
-    try {
-        const systemUser = await getSystemUser();
-        const result = await PortalAuthService.Instance.generateMagicLink(sessionId, systemUser);
-
-        if (!result.success) {
-            res.status(400).json({ error: result.errorMessage || 'Failed to generate magic link' });
-            return;
-        }
-
-        res.json({
-            success: true,
-            magicLinkToken: result.rawToken,
-        });
-    } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        console.error(`Secure Messaging magic link error: ${msg}`);
-        res.status(500).json({ error: 'Failed to generate magic link' });
-    }
-}
+// SECURITY: the anonymous `requestMagicLink` handler (POST /auth/magic-link) was removed.
+// It minted a redeemable magic-link token from a caller-supplied, non-secret and enumerable
+// sessionId and returned the raw token directly in the HTTP response — no proof of session
+// ownership and no out-of-band delivery — which allowed full account takeover of any contact
+// (mint a link for a victim's session, redeem it, obtain a valid session token for their threads,
+// messages and files). Magic-link issuance now goes exclusively through the authenticated staff
+// path (`IssuePortalMagicLinkAction`), which delivers the token out-of-band to the contact's
+// registered email. The public redeem endpoint below is unchanged (it requires possession of the
+// single-use token that was emailed to the contact).
 
 /**
  * POST /auth/magic-link/redeem
