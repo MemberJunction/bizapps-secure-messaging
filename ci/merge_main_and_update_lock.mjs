@@ -9,37 +9,40 @@ console.log('Fetching and merging main branch...');
 await git.fetch('origin', 'main');
 await git.merge(['-X', 'theirs', 'origin/main']);
 
-// Step 2: Update package-lock.json with new versions
-console.log('\nUpdating package-lock.json with new package versions...');
+// Step 2: Update pnpm-lock.yaml with new versions
+const LOCKFILE = 'pnpm-lock.yaml';
+console.log(`\nUpdating ${LOCKFILE} with new package versions...`);
 try {
-  execSync('npm install --package-lock-only', { stdio: 'inherit' });
+  // --lockfile-only resolves and rewrites the lockfile without touching node_modules,
+  // which is the pnpm equivalent of npm's --package-lock-only.
+  execSync('pnpm install --lockfile-only', { stdio: 'inherit' });
 
   const status = await git.status();
-  const lockFileModified = status.modified.includes('package-lock.json') ||
-                          status.not_added.includes('package-lock.json');
+  const lockFileModified = status.modified.includes(LOCKFILE) ||
+                          status.not_added.includes(LOCKFILE);
 
   if (lockFileModified) {
-    console.log('package-lock.json has been updated with new versions');
+    console.log(`${LOCKFILE} has been updated with new versions`);
 
     const entitiesPkg = JSON.parse(fs.readFileSync('packages/Entities/package.json', 'utf8'));
     const version = entitiesPkg.version;
 
-    await git.add('package-lock.json');
+    await git.add(LOCKFILE);
     await git.commit(
-      `chore: Update package-lock.json with v${version} dependencies\n\n` +
+      `chore: Update ${LOCKFILE} with v${version} dependencies\n\n` +
       `Updates @mj-biz-apps/* package versions in lock file after publishing v${version}`
     );
-    console.log('Committed package-lock.json updates');
+    console.log(`Committed ${LOCKFILE} updates`);
   } else {
-    console.log('No changes to package-lock.json needed');
+    console.log(`No changes to ${LOCKFILE} needed`);
   }
 } catch (error) {
-  console.error('Error updating package-lock.json:', error);
-  console.log('Continuing despite package-lock.json update error...');
+  console.error(`Error updating ${LOCKFILE}:`, error);
+  console.log(`Continuing despite ${LOCKFILE} update error...`);
 }
 
 // Step 3: Push to next
 console.log('\nPushing to origin/next...');
 await git.push('origin', 'HEAD:next');
 
-console.log('Successfully merged main and updated package-lock.json in next branch');
+console.log(`Successfully merged main and updated ${LOCKFILE} in next branch`);
