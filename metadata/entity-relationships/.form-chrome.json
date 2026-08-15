@@ -1,0 +1,48 @@
+[
+  {
+    "_comments": [
+      "Secure Thread form: messages are the document body.",
+      "PersonID on messages is a soft reference — there is no hard ER to punch on People."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "inclusion": "Primary"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_SecureMessaging: Secure Threads&RelatedEntity=MJ_BizApps_SecureMessaging: Secure Messages&RelatedEntityJoinField=ThreadID"
+    }
+  },
+  {
+    "_comments": [
+      "Secure Thread form: message files sit in More."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "inclusion": "More"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_SecureMessaging: Secure Threads&RelatedEntity=MJ_BizApps_SecureMessaging: Message Files&RelatedEntityJoinField=ThreadID"
+    }
+  },
+  {
+    "_comments": [
+      "Secure Thread form: file requests sit in More."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "inclusion": "More"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_SecureMessaging: Secure Threads&RelatedEntity=MJ_BizApps_SecureMessaging: File Requests&RelatedEntityJoinField=ThreadID"
+    }
+  }
+]
