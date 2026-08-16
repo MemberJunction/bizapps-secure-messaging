@@ -9,6 +9,19 @@
     "experimentalDecorators": true,
     "strict": true,
     "skipLibCheck": true,
+    "paths": {
+      "@memberjunction/core-entities": ["../MJ/packages/MJCoreEntities/dist/index.d.ts"],
+      "@memberjunction/ng-base-forms": ["../MJ/packages/Angular/Generic/base-forms/dist/public-api.d.ts"],
+      "@memberjunction/ng-base-forms/*": ["../MJ/packages/Angular/Generic/base-forms/dist/*"],
+      "@memberjunction/ng-entity-viewer": ["../MJ/packages/Angular/Generic/entity-viewer/dist/public-api.d.ts"],
+      "@memberjunction/ng-entity-viewer/*": ["../MJ/packages/Angular/Generic/entity-viewer/dist/*"],
+      "@memberjunction/ng-link-directives": ["../MJ/packages/Angular/Explorer/link-directives/dist/public-api.d.ts"],
+      "@memberjunction/ng-link-directives/*": ["../MJ/packages/Angular/Explorer/link-directives/dist/*"],
+      "@memberjunction/ng-shared": ["../MJ/packages/Angular/Explorer/shared/dist/public-api.d.ts"],
+      "@memberjunction/ng-shared/*": ["../MJ/packages/Angular/Explorer/shared/dist/*"],
+      "@memberjunction/ng-ui-components": ["../MJ/packages/Angular/Generic/ui-components/dist/public-api.d.ts"],
+      "@memberjunction/ng-ui-components/*": ["../MJ/packages/Angular/Generic/ui-components/dist/*"]
+    },
     "types": [],
     "lib": ["es2022", "dom"]
   },
