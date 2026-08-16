@@ -1,0 +1,21 @@
+[
+  {
+    "_comments": [
+      "Secure Thread form uses left-nav. Messages are the document body; files and requests sit in More."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "Form": {
+            "Layout": "left-nav",
+            "RelatedRolePolicy": "smart",
+            "PrimaryRelatedBudget": 6
+          }
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_SecureMessaging: Secure Threads"
+    }
+  }
+]

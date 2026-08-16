@@ -44,5 +44,20 @@
     "primaryKey": {
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_SecureMessaging: Secure Threads&RelatedEntity=MJ_BizApps_SecureMessaging: File Requests&RelatedEntityJoinField=ThreadID"
     }
+  },
+  {
+    "_comments": [
+      "Secure Thread form: portal magic links are auth tokens, not a thread-form surface."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "inclusion": "None"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_SecureMessaging: Secure Threads&RelatedEntity=MJ_BizApps_SecureMessaging: Portal Magic Links&RelatedEntityJoinField=DeepLinkThreadID"
+    }
   }
 ]
