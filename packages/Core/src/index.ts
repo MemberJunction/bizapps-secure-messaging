@@ -13,3 +13,6 @@ export type { StoreFileInput, StoreFileContext, StoredFile } from './stores/Arti
 // Config (message backend selection, etc.)
 export { getSecureMessagingConfig, setSecureMessagingConfig, loadSecureMessagingConfig } from './config.js';
 export type { SecureMessagingConfig, MessageBackend } from './config.js';
+
+// Input-validation helpers (UUID gating for untrusted identifiers)
+export { isUuid } from './utils/validation.js';

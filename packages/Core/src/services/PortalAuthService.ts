@@ -487,7 +487,9 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
         const rv = new RunView();
         const result = await rv.RunView({
             EntityName: PortalAuthService.contactEntityName,
-            ExtraFilter: `ID = '${contactId}'`,
+            // Escape contactId: it is server-sourced today, but interpolating it unescaped is a
+            // latent injection point — defense-in-depth against any future untrusted caller.
+            ExtraFilter: `ID = '${contactId.replace(/'/g, "''")}'`,
         }, systemUser);
 
         if (result.Success && result.Results.length > 0) {
@@ -495,5 +497,29 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
             return contact[PortalAuthService.contactEmailField] || '';
         }
         return '';
+    }
+
+    /**
+     * Resolves the verified contact email for an Active portal session, or null when the session
+     * does not exist / isn't Active. Used by the out-of-band magic-link delivery path so a fresh
+     * link is emailed to the contact's own address rather than returned to an unauthenticated caller.
+     */
+    public async getSessionContactEmail(sessionId: string, systemUser: UserInfo): Promise<string | null> {
+        if (!sessionId) {
+            return null;
+        }
+        const rv = new RunView();
+        const res = await rv.RunView<{ ID: string; ContactID: string }>({
+            EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
+            ExtraFilter: `ID = '${sessionId.replace(/'/g, "''")}' AND Status = 'Active'`,
+            Fields: ['ID', 'ContactID'],
+            MaxRows: 1,
+            ResultType: 'simple',
+        }, systemUser);
+        if (!res.Success || res.Results.length === 0) {
+            return null;
+        }
+        const email = await this.getContactEmail(res.Results[0].ContactID, systemUser);
+        return email || null;
     }
 }

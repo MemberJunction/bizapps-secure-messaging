@@ -67,7 +67,9 @@ export class SecureMessagingApiService implements ISecureMessagingDataSource {
     });
   }
 
-  async requestMagicLink(sessionId: string): Promise<{ success: boolean; magicLinkToken: string }> {
+  // The server delivers the magic link out-of-band (to the contact's verified email) and returns a
+  // neutral acknowledgement with NO token — the raw token is never exposed over this endpoint.
+  async requestMagicLink(sessionId: string): Promise<{ success: boolean }> {
     return this.request('/auth/magic-link', {
       method: 'POST',
       body: JSON.stringify({ sessionId }),

@@ -1,5 +1,6 @@
 import { Component, OnInit, OnChanges, SimpleChanges, Input, Output, EventEmitter, Optional, ChangeDetectorRef } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import DOMPurify from 'dompurify';
 import { Metadata, RunView } from '@memberjunction/core';
 import { MJUserEntity } from '@memberjunction/core-entities';
 import { MJAuthBase } from '@memberjunction/ng-auth-services';
@@ -2226,7 +2227,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
         senderEmail: me?.Email || '',
         subject: '',
         preview: body,
-        bodyHtml: this.sanitizer.bypassSecurityTrustHtml(body),
+        bodyHtml: this.sanitizeMessageHtml(body),
         receivedAt: new Date(),
         isRead: true,
         isStarred: false,
@@ -2608,6 +2609,17 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
     return m.personId || m.senderEmail || 'unknown';
   }
 
+  /**
+   * Sanitize untrusted (contact-authored) message content BEFORE it is bound via [innerHTML].
+   * Message bodies are stored raw and rendered in the staff inbox, so binding them without
+   * sanitizing was a stored-XSS vector — a contact could script the staff session. DOMPurify strips
+   * scripts/event handlers/dangerous URLs; the cleaned HTML is then marked trusted for [innerHTML].
+   */
+  private sanitizeMessageHtml(raw: string): SafeHtml {
+    const clean = DOMPurify.sanitize(raw ?? '', { USE_PROFILES: { html: true } });
+    return this.sanitizer.bypassSecurityTrustHtml(clean);
+  }
+
   private mapToMessageItem(r: Record<string, unknown>): SecureMessageItem {
     const content = (r['Content'] as string) ?? '';
     const personId = (r['PersonID'] as string) || undefined;
@@ -2620,7 +2632,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
       personId,
       subject: (r['Subject'] as string) ?? '(no subject)',
       preview: content.replace(/<[^>]*>/g, '').substring(0, 120),
-      bodyHtml: this.sanitizer.bypassSecurityTrustHtml(content),
+      bodyHtml: this.sanitizeMessageHtml(content),
       receivedAt: new Date(r['ReceivedAt'] as string),
       isRead: status === 'Read' || status === 'Replied' || direction === 'Outbound',
       isStarred: !!(r['IsStarred']),

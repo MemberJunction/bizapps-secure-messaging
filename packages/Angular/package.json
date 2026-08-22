@@ -20,6 +20,7 @@
     "@mj-biz-apps/common-entities": "5.34.0",
     "@mj-biz-apps/secure-messaging-core": "1.1.0",
     "@mj-biz-apps/secure-messaging-entities": "1.1.0",
+    "dompurify": "^3.2.4",
     "pdfjs-dist": "^4.10.38"
   },
   "peerDependencies": {

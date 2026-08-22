@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { getSystemUser } from '@memberjunction/server';
 import { PortalAuthService } from '@mj-biz-apps/secure-messaging-core';
+import { deliverMagicLinkEmail } from '../services/magicLinkDelivery.js';
 
 /**
  * POST /auth/validate
@@ -44,8 +45,15 @@ export async function validateToken(req: Request, res: Response): Promise<void> 
 /**
  * POST /auth/magic-link
  *
- * Requests a magic link for a portal session.
- * The caller provides the session ID (known from a previous visit).
+ * Requests a magic link for a portal session (re-auth for a contact who lost their session token).
+ * The caller provides the session ID.
+ *
+ * SECURITY: This endpoint is UNAUTHENTICATED (it sits before portalAuthMiddleware). It therefore
+ * MUST NOT return the raw magic-link token in its response — doing so let anyone who guessed a
+ * session ID mint and read a redeemable token, i.e. take over the contact's account. Instead the
+ * fresh link is delivered OUT-OF-BAND to the contact's verified email (its whole purpose), and the
+ * response is a neutral acknowledgement carrying no token. The acknowledgement is identical whether
+ * or not the session exists, so it also can't be used to enumerate valid session IDs.
  *
  * Body: { sessionId: string }
  */
@@ -59,21 +67,23 @@ export async function requestMagicLink(req: Request, res: Response): Promise<voi
 
     try {
         const systemUser = await getSystemUser();
-        const result = await PortalAuthService.Instance.generateMagicLink(sessionId, systemUser);
+        // Best-effort out-of-band delivery to the contact's verified email; never returns the token.
+        await deliverMagicLinkEmail(
+            sessionId,
+            {
+                subject: 'Your secure messaging sign-in link',
+                introText: 'Use the link below to sign in to your secure messages.',
+                introHtml: '<p>Use the link below to sign in to your secure messages.</p>',
+            },
+            systemUser,
+        );
 
-        if (!result.success) {
-            res.status(400).json({ error: result.errorMessage || 'Failed to generate magic link' });
-            return;
-        }
-
-        res.json({
-            success: true,
-            magicLinkToken: result.rawToken,
-        });
+        // Neutral acknowledgement — no token, and identical regardless of whether the session exists.
+        res.json({ success: true });
     } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         console.error(`Secure Messaging magic link error: ${msg}`);
-        res.status(500).json({ error: 'Failed to generate magic link' });
+        res.status(500).json({ error: 'Failed to process magic link request' });
     }
 }
 

@@ -2,8 +2,8 @@ import { Request, Response } from 'express';
 import { Metadata, RunView, UserInfo } from '@memberjunction/core';
 import { getSystemUser } from '@memberjunction/server';
 import { SignatureEngine } from '@memberjunction/esignature/server';
-import { PortalRequest, assertThreadAccess } from './middleware.js';
-import { getFileStore } from '@mj-biz-apps/secure-messaging-core';
+import { PortalRequest, assertThreadAccess, ThreadAccess } from './middleware.js';
+import { getFileStore, isUuid } from '@mj-biz-apps/secure-messaging-core';
 
 /**
  * E-signature handlers, backed by the core MJ eSignature subsystem
@@ -25,6 +25,48 @@ function getSecureThreadsEntityId(): string {
         throw new Error("'MJ_BizApps_SecureMessaging: Secure Threads' entity is not registered");
     }
     return entity.ID;
+}
+
+/**
+ * Verifies the signature request `requestId` is linked to the caller's thread, using the SAME
+ * polymorphic scope the list handler enforces (EntityID = the Secure Threads entity, RecordID =
+ * the thread ID). Returns true when it belongs; otherwise writes a uniform 404 and returns false.
+ *
+ * Without this, the status/void/download handlers acted on any `requestId` instance-wide after only
+ * checking thread access — an IDOR letting an authenticated contact refresh, void, or download the
+ * signed document of ANY signature request in the system (including other tenants' threads).
+ */
+async function assertSignatureRequestInThread(
+    access: ThreadAccess,
+    requestId: string,
+    res: Response,
+): Promise<boolean> {
+    // requestId is UUID-validated before interpolation, so it can neither inject SQL nor probe.
+    if (!isUuid(requestId)) {
+        res.status(404).json({ error: 'Signature request not found in this thread' });
+        return false;
+    }
+    try {
+        const entityId = getSecureThreadsEntityId();
+        const rv = new RunView();
+        const result = await rv.RunView({
+            EntityName: 'MJ: Signature Requests',
+            ExtraFilter: `ID = '${requestId}' AND EntityID = '${entityId}' AND RecordID = '${access.threadId.replace(/'/g, "''")}'`,
+            Fields: ['ID'],
+            MaxRows: 1,
+            ResultType: 'simple',
+        }, access.systemUser);
+        if (!result.Success || result.Results.length === 0) {
+            res.status(404).json({ error: 'Signature request not found in this thread' });
+            return false;
+        }
+        return true;
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        console.error(`Signature request scope check error: ${msg}`);
+        res.status(500).json({ error: 'Authorization failed' });
+        return false;
+    }
 }
 
 /** The name fields we read off a person to build a signer display name. */
@@ -164,6 +206,14 @@ export async function createSignatureRequest(req: Request, res: Response): Promi
     }
 
     try {
+        // Authorize the artifact against THIS thread before reading its bytes. Without this, any
+        // artifact ID in the system could be turned into a signature document (IDOR + it drives the
+        // unescaped filter in loadArtifactDocument). 404 (not 403) so we don't confirm existence.
+        if (!isUuid(artifactId) || !(await getFileStore().artifactBelongsToThread(artifactId, threadId, systemUser))) {
+            res.status(404).json({ error: 'Document not found in this thread' });
+            return;
+        }
+
         // Resolve the document bytes from the artifact's latest version.
         let document: { bytes: Buffer; filename: string; contentType: string };
         try {
@@ -228,6 +278,7 @@ export async function refreshSignatureStatus(req: Request, res: Response): Promi
     if (!access) return;
     const { systemUser } = access;
     const requestId = String(req.params.requestId);
+    if (!(await assertSignatureRequestInThread(access, requestId, res))) return;
 
     try {
         await SignatureEngine.Instance.Config(false, systemUser);
@@ -256,6 +307,7 @@ export async function voidSignatureRequest(req: Request, res: Response): Promise
     if (!access) return;
     const { systemUser } = access;
     const requestId = String(req.params.requestId);
+    if (!(await assertSignatureRequestInThread(access, requestId, res))) return;
     const reason = typeof req.body?.reason === 'string' ? req.body.reason : 'Cancelled by sender';
 
     try {
@@ -283,6 +335,7 @@ export async function downloadSignedDocument(req: Request, res: Response): Promi
     if (!access) return;
     const { systemUser } = access;
     const requestId = String(req.params.requestId);
+    if (!(await assertSignatureRequestInThread(access, requestId, res))) return;
 
     try {
         await SignatureEngine.Instance.Config(false, systemUser);

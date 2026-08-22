@@ -5,6 +5,7 @@ import type {
     MJArtifactVersionEntity,
     MJFileEntity,
 } from '@memberjunction/core-entities';
+import { isUuid } from '../utils/validation.js';
 
 /** Maximum upload size, mirroring the cap MJ's attachment pipeline uses. */
 export const MAX_FILE_BYTES = 25 * 1024 * 1024;
@@ -182,6 +183,11 @@ export class ArtifactFileStore {
         artifactId: string,
         systemUser: UserInfo
     ): Promise<{ bytes: Buffer; filename: string; contentType: string }> {
+        // artifactId is caller-supplied (request body). Reject anything that isn't a UUID so it can
+        // never be interpolated into the filter as SQL, and so it can't probe arbitrary artifacts.
+        if (!isUuid(artifactId)) {
+            throw new Error('Invalid artifact reference');
+        }
         const rv = new RunView();
         const versionResult = await rv.RunView({
             EntityName: 'MJ: Artifact Versions',
@@ -222,10 +228,36 @@ export class ArtifactFileStore {
     }
 
     /**
+     * True iff `artifactId` is attached (via a Message File link) to `threadId`. Used to confirm a
+     * caller-supplied artifact actually belongs to the caller's thread before its bytes are read —
+     * closes an IDOR where any artifact ID could otherwise be pulled through a thread-scoped action.
+     */
+    async artifactBelongsToThread(artifactId: string, threadId: string, systemUser: UserInfo): Promise<boolean> {
+        if (!isUuid(artifactId) || !threadId) {
+            return false;
+        }
+        const rv = new RunView();
+        const result = await rv.RunView({
+            EntityName: 'MJ_BizApps_SecureMessaging: Message Files',
+            ExtraFilter: `ArtifactID = '${artifactId}' AND ThreadID = '${threadId.replace(/'/g, "''")}'`,
+            Fields: ['ID'],
+            MaxRows: 1,
+            ResultType: 'simple',
+        }, systemUser);
+        return result.Success && result.Results.length > 0;
+    }
+
+    /**
      * Returns a pre-authenticated download URL for a stored file (by MessageFile ID),
      * resolving the underlying MJ: Files record and its storage provider.
      */
     async getDownloadUrl(messageFileId: string, threadId: string, systemUser: UserInfo): Promise<string> {
+        // messageFileId is caller-supplied (route param). Reject anything that isn't a UUID: it is
+        // interpolated into the filter, so a UUID guard both prevents SQL injection and stops the
+        // ThreadID scope from being broken out of.
+        if (!isUuid(messageFileId)) {
+            throw new Error('File not found in this thread');
+        }
         const rv = new RunView();
         const linkResult = await rv.RunView({
             EntityName: 'MJ_BizApps_SecureMessaging: Message Files',
