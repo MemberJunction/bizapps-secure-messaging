@@ -30,11 +30,10 @@ module.exports = {
     },
   ],
 
-  // Scope CodeGen to the schema this app OWNS (__mj_BizAppsSecureMessaging). Exclude core
-  // (__mj) and __mj_BizAppsCommon — we only reference those via FK / entity-name lookups;
-  // they are owned by MJ core and bizapps-common and consumed as npm packages.
-  // (codegen-lib defaults do NOT exclude __mj_BizAppsCommon, so it must be listed explicitly.)
-  excludeSchemas: ['sys', 'staging', 'dbo', '__mj', '__mj_BizAppsCommon'],
+  // Allow-list: CodeGen this app's schema only (MJ >= 5.50 includeSchemas).
+  // Unnamed schemas — core, siblings, never-seen client schemas — are excluded.
+  includeSchemas: ['__mj_BizAppsSecureMessaging'],
+  excludeSchemas: [],
 
   // SQL output with Flyway placeholders. The app's own schema maps to ${flyway:defaultSchema}
   // (resolved at migrate time); core MJ uses the named ${mjSchema} placeholder.
