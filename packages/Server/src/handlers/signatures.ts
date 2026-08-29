@@ -27,6 +27,42 @@ function getSecureThreadsEntityId(): string {
     return entity.ID;
 }
 
+/**
+ * Verify that a signature request identified by `requestId` actually belongs to `threadId`
+ * before letting a thread-scoped caller act on it. `assertThreadAccess` only proves the caller
+ * owns the thread in the URL — without this check the item operations (refresh/void/download)
+ * would happily accept ANY signature-request id (an enumerable GUID from another thread),
+ * leaking or voiding other contacts' e-signature documents. Mirrors the EntityID/RecordID
+ * scoping already used by getSignatureRequests. Sends a 404/500 and returns false on failure.
+ */
+async function assertRequestBelongsToThread(
+    requestId: string,
+    threadId: string,
+    systemUser: UserInfo,
+    res: Response,
+): Promise<boolean> {
+    const entityId = getSecureThreadsEntityId();
+    const rv = new RunView();
+    const result = await rv.RunView({
+        EntityName: 'MJ: Signature Requests',
+        ExtraFilter:
+            `ID = '${requestId.replace(/'/g, "''")}' ` +
+            `AND EntityID = '${entityId}' ` +
+            `AND RecordID = '${threadId.replace(/'/g, "''")}'`,
+        MaxRows: 1,
+    }, systemUser);
+
+    if (!result.Success) {
+        res.status(500).json({ error: 'Failed to verify signature request' });
+        return false;
+    }
+    if (!result.Results || result.Results.length === 0) {
+        res.status(404).json({ error: 'Signature request not found' });
+        return false;
+    }
+    return true;
+}
+
 /** The name fields we read off a person to build a signer display name. */
 interface ContactNameFields {
     DisplayName?: string | null;
@@ -226,8 +262,9 @@ export async function createSignatureRequest(req: Request, res: Response): Promi
 export async function refreshSignatureStatus(req: Request, res: Response): Promise<void> {
     const access = await assertThreadAccess(req as PortalRequest, res);
     if (!access) return;
-    const { systemUser } = access;
+    const { systemUser, threadId } = access;
     const requestId = String(req.params.requestId);
+    if (!await assertRequestBelongsToThread(requestId, threadId, systemUser, res)) return;
 
     try {
         await SignatureEngine.Instance.Config(false, systemUser);
@@ -254,8 +291,9 @@ export async function refreshSignatureStatus(req: Request, res: Response): Promi
 export async function voidSignatureRequest(req: Request, res: Response): Promise<void> {
     const access = await assertThreadAccess(req as PortalRequest, res);
     if (!access) return;
-    const { systemUser } = access;
+    const { systemUser, threadId } = access;
     const requestId = String(req.params.requestId);
+    if (!await assertRequestBelongsToThread(requestId, threadId, systemUser, res)) return;
     const reason = typeof req.body?.reason === 'string' ? req.body.reason : 'Cancelled by sender';
 
     try {
@@ -281,8 +319,9 @@ export async function voidSignatureRequest(req: Request, res: Response): Promise
 export async function downloadSignedDocument(req: Request, res: Response): Promise<void> {
     const access = await assertThreadAccess(req as PortalRequest, res);
     if (!access) return;
-    const { systemUser } = access;
+    const { systemUser, threadId } = access;
     const requestId = String(req.params.requestId);
+    if (!await assertRequestBelongsToThread(requestId, threadId, systemUser, res)) return;
 
     try {
         await SignatureEngine.Instance.Config(false, systemUser);
