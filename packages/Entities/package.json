@@ -1,7 +1,7 @@
 {
   "name": "@mj-biz-apps/secure-messaging-entities",
   "type": "module",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "MJ Secure Messaging Entity Subclasses",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -24,8 +24,8 @@
     "zod": "^3.25.28"
   },
   "peerDependencies": {
-    "@memberjunction/core": "^5.45.0",
-    "@memberjunction/global": "^5.45.0"
+    "@memberjunction/core": "^6.1.0-edge.4",
+    "@memberjunction/global": "^6.1.0-edge.4"
   },
   "repository": {
     "type": "git",
