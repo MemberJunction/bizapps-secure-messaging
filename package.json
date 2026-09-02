@@ -25,7 +25,8 @@
     "version": "changeset version",
     "commitpush": "node ci/commit_push.mjs",
     "mergemain": "node ci/merge_main.mjs",
-    "mergemain:update-lock": "node ci/merge_main_and_update_lock.mjs"
+    "mergemain:update-lock": "node ci/merge_main_and_update_lock.mjs",
+    "test:integration": "node test-harnesses/integration.mjs"
   },
   "repository": {
     "type": "git",
@@ -72,6 +73,10 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.8",
+    "@memberjunction/testing-integration": "^6.1.0-edge.4",
+    "@mj-biz-apps/secure-messaging-integration-tests": "1.1.0",
+    "dotenv": "^17.2.4",
+    "mssql": "^11.0.1",
     "simple-git": "^3.31.1",
     "tsc-alias": "^1.8.16",
     "turbo": "^2.9.3",

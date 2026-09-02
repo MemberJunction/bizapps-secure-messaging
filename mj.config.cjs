@@ -2,6 +2,10 @@
 module.exports = {
   entityPackageName: '@mj-biz-apps/secure-messaging-entities',
 
+  testing: {
+    checkModules: ['@mj-biz-apps/secure-messaging-integration-tests'],
+  },
+
   output: [
     { type: 'SQL', directory: './SQL Scripts/generated', appendOutputCode: true },
     { type: 'EntitySubclasses', directory: './packages/Entities/src/generated' },
