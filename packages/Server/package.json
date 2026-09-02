@@ -1,7 +1,7 @@
 {
   "name": "@mj-biz-apps/secure-messaging-server",
   "type": "module",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "MJ Secure Messaging server bootstrap - REST API routes, Secure Web communication provider, and class registrations.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -25,27 +25,27 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@mj-biz-apps/secure-messaging-entities": "1.1.0",
-    "@mj-biz-apps/secure-messaging-actions": "1.1.0",
-    "@mj-biz-apps/secure-messaging-core": "1.1.0",
+    "@mj-biz-apps/secure-messaging-entities": "1.2.0",
+    "@mj-biz-apps/secure-messaging-actions": "1.2.0",
+    "@mj-biz-apps/secure-messaging-core": "1.2.0",
     "express": "^5.1.0",
     "multer": "^2.0.0"
   },
   "peerDependencies": {
-    "@memberjunction/core": "^5.45.0",
-    "@memberjunction/core-entities": "^5.45.0",
-    "@memberjunction/global": "^5.45.0",
-    "@memberjunction/communication-types": "^5.45.0",
-    "@memberjunction/communication-engine": "^5.45.0",
-    "@memberjunction/server": "^5.45.0",
-    "@memberjunction/sqlserver-dataprovider": "^5.45.0",
-    "@memberjunction/storage": "^5.45.0",
-    "@memberjunction/actions": "^5.45.0",
-    "@memberjunction/actions-base": "^5.45.0",
-    "@memberjunction/esignature": "^5.45.0",
-    "@memberjunction/esignature-docusign": "^5.45.0",
-    "@memberjunction/esignature-pandadoc": "^5.45.0",
-    "@memberjunction/esignature-dropboxsign": "^5.45.0"
+    "@memberjunction/core": "^6.1.0-edge.4",
+    "@memberjunction/core-entities": "^6.1.0-edge.4",
+    "@memberjunction/global": "^6.1.0-edge.4",
+    "@memberjunction/communication-types": "^6.1.0-edge.4",
+    "@memberjunction/communication-engine": "^6.1.0-edge.4",
+    "@memberjunction/server": "^6.1.0-edge.4",
+    "@memberjunction/sqlserver-dataprovider": "^6.1.0-edge.4",
+    "@memberjunction/storage": "^6.1.0-edge.4",
+    "@memberjunction/actions": "^6.1.0-edge.4",
+    "@memberjunction/actions-base": "^6.1.0-edge.4",
+    "@memberjunction/esignature": "^6.1.0-edge.4",
+    "@memberjunction/esignature-docusign": "^6.1.0-edge.4",
+    "@memberjunction/esignature-pandadoc": "^6.1.0-edge.4",
+    "@memberjunction/esignature-dropboxsign": "^6.1.0-edge.4"
   },
   "repository": {
     "type": "git",
