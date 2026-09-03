@@ -53,7 +53,7 @@ The six packages do **not** yet exist on npm (all return 404), and `validate-npm
 the publish job until every package has a version published. Do this once, manually (with an
 `@mj-biz-apps` publish token or `npm login`), from the repo at the v1.0.0 commit:
 
-1. `npm ci && npm run build:packages`
+1. `pnpm install --frozen-lockfile && pnpm run build:packages`
 2. Publish each package at `1.0.0`, in dependency order:
    - `@mj-biz-apps/secure-messaging-entities`
    - `@mj-biz-apps/secure-messaging-core`

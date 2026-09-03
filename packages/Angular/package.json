@@ -12,7 +12,7 @@
     "/dist"
   ],
   "scripts": {
-    "prebuild": "mj codegen manifest --exclude-packages @memberjunction --output ./src/lib/generated/class-registrations-manifest.ts || echo 'Warning: mj codegen manifest not available, using existing manifest'",
+    "prebuild": "mj codegen manifest --exclude-packages @memberjunction --scan-dist --output ./src/lib/generated/class-registrations-manifest.ts || echo 'Warning: mj codegen manifest not available, using existing manifest'",
     "build": "ngc",
     "dev": "ngc --watch"
   },
@@ -33,7 +33,10 @@
     "@memberjunction/ng-base-application": "^6.1.0-edge.4",
     "@memberjunction/ng-shared": "^6.1.0-edge.4",
     "@memberjunction/ng-auth-services": "^6.1.0-edge.4",
-    "@mj-biz-apps/common-entities": "^5.30.0"
+    "@mj-biz-apps/common-entities": "^5.30.0",
+    "@memberjunction/ng-base-forms": "^6.1.0-edge.4",
+    "@memberjunction/ng-entity-viewer": "^6.1.0-edge.4",
+    "@memberjunction/ng-link-directives": "^6.1.0-edge.4"
   },
   "devDependencies": {
     "@angular/common": "^21.0.0",
@@ -51,7 +54,10 @@
     "@memberjunction/ng-shared": "^6.1.0-edge.4",
     "@memberjunction/ng-auth-services": "^6.1.0-edge.4",
     "@mj-biz-apps/common-entities": "^5.30.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "@memberjunction/ng-base-forms": "^6.1.0-edge.4",
+    "@memberjunction/ng-entity-viewer": "^6.1.0-edge.4",
+    "@memberjunction/ng-link-directives": "^6.1.0-edge.4"
   },
   "license": "MIT",
   "repository": {

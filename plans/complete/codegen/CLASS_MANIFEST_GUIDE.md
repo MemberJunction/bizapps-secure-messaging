@@ -45,7 +45,7 @@ When you're inside the monorepo, all packages are symlinked via npm workspaces, 
 **How it works:**
 - Bootstrap packages (`@memberjunction/server-bootstrap`, `@memberjunction/ng-bootstrap`) have `prebuild` scripts that generate pre-built manifests covering all MJ classes
 - MJAPI and MJExplorer have `prestart`/`prebuild` scripts that generate supplemental manifests with `--exclude-packages @memberjunction` (since MJ classes are covered by the bootstrap manifests)
-- The root `npm run mj:manifest` regenerates all 4 manifests in the correct order
+- The root `pnpm run mj:manifest` regenerates all 4 manifests in the correct order
 
 **You generally don't need to think about this** -- the build pipeline handles everything automatically.
 
@@ -157,11 +157,11 @@ mj codegen manifest --verbose --output ./src/generated/class-registrations-manif
 
 | Script | Description |
 |--------|-------------|
-| `npm run mj:manifest` | Regenerate all 4 manifests in order |
-| `npm run mj:manifest:server-bootstrap` | Regenerate server-bootstrap pre-built manifest |
-| `npm run mj:manifest:ng-bootstrap` | Regenerate ng-bootstrap pre-built manifest |
-| `npm run mj:manifest:api` | Regenerate MJAPI supplemental manifest |
-| `npm run mj:manifest:explorer` | Regenerate MJExplorer supplemental manifest |
+| `pnpm run mj:manifest` | Regenerate all 4 manifests in order |
+| `pnpm run mj:manifest:server-bootstrap` | Regenerate server-bootstrap pre-built manifest |
+| `pnpm run mj:manifest:ng-bootstrap` | Regenerate ng-bootstrap pre-built manifest |
+| `pnpm run mj:manifest:api` | Regenerate MJAPI supplemental manifest |
+| `pnpm run mj:manifest:explorer` | Regenerate MJExplorer supplemental manifest |
 
 ## How Pre-Built Manifests Ship
 
@@ -213,7 +213,7 @@ import '@memberjunction/ng-bootstrap';
 
 ### Manifest is stale / missing new classes
 
-**In the monorepo:** Run `npm run mj:manifest` to regenerate all manifests. Or run the specific script for the package that changed.
+**In the monorepo:** Run `pnpm run mj:manifest` to regenerate all manifests. Or run the specific script for the package that changed.
 
 **Outside the monorepo:** Update your `@memberjunction/*` packages to the latest version. The pre-built manifest is regenerated with each MJ release.
 

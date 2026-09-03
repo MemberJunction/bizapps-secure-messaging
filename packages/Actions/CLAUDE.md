@@ -747,7 +747,7 @@ export class Create_Conversation_Record_Action extends Create_Record_Action { }
    - [ActionEntity.server.ts:PreparePromptData()](./../../MJCoreEntitiesServer/src/custom/ActionEntity.server.ts#L272-L324) - Prepares data for AI
    - [action-generation.template.md](./../../metadata/prompts/templates/system/action-generation.template.md) - AI prompt template
 
-2. **Code Wrapping (Build Time)**: When you run `npm run build`:
+2. **Code Wrapping (Build Time)**: When you run `pnpm run build`:
    - CodeGen reads approved generated code from database
    - Wraps it in BaseAction class template (always BaseAction, never parent class)
    - Outputs to `action_subclasses.ts`
