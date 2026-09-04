@@ -3,7 +3,7 @@
 # Secure Messaging API Endpoint Test Script
 # =============================================================================
 # Prerequisites:
-#   1. MJAPI server running (cd apps/MJAPI && npm start)
+#   1. An MJAPI host running with this app installed (the in-repo dev harness was removed with the pnpm migration)
 #   2. Database: Izzy_SecureMsg_Test
 #   3. Docker container: mj-sqlserver
 #

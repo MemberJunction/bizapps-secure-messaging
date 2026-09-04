@@ -119,8 +119,8 @@ Build the widget bundle:
 
 ```bash
 cd packages/Element
-npm install
-npm run build:bundle
+pnpm install
+pnpm run build:bundle
 ```
 
 ### Widget Theming

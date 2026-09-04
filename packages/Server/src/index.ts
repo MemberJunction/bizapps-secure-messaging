@@ -2,7 +2,7 @@
  * MJ Secure Messaging — Server bootstrap.
  *
  * Import this package and call LoadSecureMessagingServer() from the host API
- * (apps/MJAPI) so every @RegisterClass decorator fires (entities, actions, the
+ * (an MJAPI host) so every @RegisterClass decorator fires (entities, actions, the
  * Secure Web communication provider, eSignature drivers) and the GraphQL
  * resolvers are discoverable via RESOLVER_PATHS.
  */

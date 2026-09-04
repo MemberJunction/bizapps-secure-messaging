@@ -739,7 +739,7 @@ overflow," not "render a list/grid that scrolls vertically."
   array — all three are standalone components.
 
 **6. Build + verify.**
-- `cd packages/Angular/Explorer/{your-package} && npm run build` to verify the
+- `cd packages/Angular/Explorer/{your-package} && pnpm run build` to verify the
   templates compile.
 - Refresh the browser and inspect: chrome card should have title + subtitle +
   badges next to title, actions on the right, toolbar (if used) on a second

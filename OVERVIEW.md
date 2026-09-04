@@ -334,7 +334,7 @@ User types → POST /threads/:threadId/messages → refresh list
 
 ```bash
 cd packages/ng-secure-messaging
-npm run build:bundle    # → dist/mj-secure-messaging.js
+pnpm run build:bundle   # → dist/mj-secure-messaging.js
 ```
 
 The `build_element.sh` script:
@@ -453,7 +453,7 @@ This:
 ### Post-Install Setup
 
 1. **Create a "Secure Web" channel** for your organization in MJ
-2. **Build the widget**: `cd packages/ng-secure-messaging && npm run build:bundle`
+2. **Build the widget**: `cd packages/ng-secure-messaging && pnpm run build:bundle`
 3. **Host `mj-secure-messaging.js`** on your CDN or website
 4. **Embed the widget** on your secure messaging page
 5. **Configure your AI agent** to create PortalSessions when sensitive conversations are detected

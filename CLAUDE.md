@@ -125,7 +125,7 @@ MemberJunction supports both standalone and NgModule-declared components. Choose
 
 ### 6. ALWAYS RUN AND UPDATE UNIT TESTS
 - **When modifying ANY package's source code, you MUST run that package's unit tests** before considering the work complete
-- Run tests with: `cd packages/PackageName && npm run test`
+- Run tests with: `cd packages/PackageName && pnpm run test`
 - **If tests fail due to your changes, UPDATE the tests** to match the new behavior
 - **If tests fail for other reasons, FIX them** — never leave broken tests behind
 - **Report test results to the user**: pass count, failure count, skip count, and any issues found
@@ -177,7 +177,7 @@ MemberJunction supports both standalone and NgModule-declared components. Choose
 
 ### 8. NO DYNAMIC `import()` UNLESS NARROWLY JUSTIFIED
 - **Default to static `import ... from '...'` at the top of the file.** Never use `await import('pkg')` or `import('pkg')` inside a function body as a shortcut.
-- **Why**: Dynamic imports hide the dependency from npm, bundlers, and readers. This caused a real shipping bug: MJCLI's `mj app *` commands dynamic-imported `@memberjunction/open-app-engine`, which was never declared in MJCLI's `package.json` — `npm install -g @memberjunction/cli` worked but every `mj app` invocation crashed with `ERR_MODULE_NOT_FOUND` in production. Static imports would have failed the TypeScript build immediately.
+- **Why**: Dynamic imports hide the dependency from npm, bundlers, and readers. This caused a real shipping bug: MJCLI's `mj app *` commands dynamic-imported `@memberjunction/open-app-engine`, which was never declared in MJCLI's `package.json` — `pnpm install -g @memberjunction/cli` worked but every `mj app` invocation crashed with `ERR_MODULE_NOT_FOUND` in production. Static imports would have failed the TypeScript build immediately.
 - **Additional problems with dynamic imports**:
   - Break tree-shaking and bundle analysis
   - Defeat IDE "Find References" / rename refactors
@@ -372,10 +372,10 @@ MemberJunction uses **Vitest** as the standard unit testing framework across all
 
 ### Running Tests
 - Run all tests: `npm test` (from repo root, uses Turborepo)
-- Run tests for a specific package: `cd packages/PackageName && npm run test`
-- Watch mode for a package: `cd packages/PackageName && npm run test:watch`
+- Run tests for a specific package: `cd packages/PackageName && pnpm run test`
+- Watch mode for a package: `cd packages/PackageName && pnpm run test:watch`
 - Run tests for changed packages: `npx turbo run test --filter=...[HEAD~1]`
-- Run with coverage: `npm run test:coverage`
+- Run with coverage: `pnpm run test:coverage`
 
 ### Writing Tests
 - Test files live in `src/__tests__/` with `.test.ts` extension
@@ -429,16 +429,16 @@ See **[docker/CLAUDE.md](docker/CLAUDE.md)** for full details on Docker configur
 - Use `/docker-workbench` slash command to start, stop, rebuild, or exec into the workbench
 
 ## Build Commands
-- Build all packages: `npm run build` - from repo root
-- Build specific packages: `cd packagedirectory && npm run build`
-- **IMPORTANT**: When building individual packages for testing/compilation, always use `npm run build` in the specific package directory (NOT turbo from root)
-- Watch mode: `npm run watch`
-- Start API server: `npm run start:api`
-- Start Explorer UI: `npm run start:explorer`
+- Build all packages: `pnpm run build` - from repo root
+- Build specific packages: `cd packagedirectory && pnpm run build`
+- **IMPORTANT**: When building individual packages for testing/compilation, always use `pnpm run build` in the specific package directory (NOT turbo from root)
+- Watch mode: `pnpm run watch`
+- Start API server: `pnpm run start:api`
+- Start Explorer UI: `pnpm run start:explorer`
 
 ### Build Pipeline
 - MJExplorer uses the Angular `application` builder powered by ESBuild and Vite
-- Dev server (`npm run start:explorer`) uses Vite with HMR for fast iteration
+- Dev server (`pnpm run start:explorer`) uses Vite with HMR for fast iteration
 - ESBuild provides significantly faster builds compared to the legacy Webpack pipeline
 - Vite prebundling excludes `@memberjunction/*` packages (they're symlinked workspace packages)
 - Source maps are configured for full debugging support including symlinked packages
@@ -455,9 +455,9 @@ MemberJunction uses `@RegisterClass` decorators with a dynamic class factory (`M
 - This solves the npm distribution gap: published packages only have `dist/` (no `src/`), so the manifest generator can't scan them externally.
 
 **Key scripts:**
-- `npm run mj:manifest` -- regenerates all 4 manifests (server-bootstrap, ng-bootstrap, MJAPI, MJExplorer)
-- `npm run mj:manifest:server-bootstrap` / `mj:manifest:ng-bootstrap` -- regenerate bootstrap pre-built manifests
-- `npm run mj:manifest:api` / `mj:manifest:explorer` -- regenerate app supplemental manifests
+- `pnpm run mj:manifest` -- regenerates all 4 manifests (server-bootstrap, ng-bootstrap, MJAPI, MJExplorer)
+- `pnpm run mj:manifest:server-bootstrap` / `mj:manifest:ng-bootstrap` -- regenerate bootstrap pre-built manifests
+- `pnpm run mj:manifest:api` / `mj:manifest:explorer` -- regenerate app supplemental manifests
 
 **See:** [packages/CodeGenLib/CLASS_MANIFEST_GUIDE.md](plans/complete/codegen/CLASS_MANIFEST_GUIDE.md) for comprehensive documentation on the manifest system, including how external consumers and MJ distribution users should configure their projects.
 
@@ -533,10 +533,10 @@ CREATE TABLE ${flyway:defaultSchema}.DashboardPermission (
 - Access historical versions through the Record Changes entities
 
 ## Development Workflow
-- **CRITICAL**: After making code changes, always compile the affected package by running `npm run build` in that package's directory to check for TypeScript errors
+- **CRITICAL**: After making code changes, always compile the affected package by running `pnpm run build` in that package's directory to check for TypeScript errors
 - Fix all compilation errors before proceeding with additional changes
 - This ensures code quality and prevents runtime issues
-- **Package-Specific Builds**: When building individual packages for testing/compilation, always use `npm run build` in the specific package directory (NOT turbo from root)
+- **Package-Specific Builds**: When building individual packages for testing/compilation, always use `pnpm run build` in the specific package directory (NOT turbo from root)
 - **Tasks** whenever you need to spin up tasks - if they do not require interaction with the user and if they are not interdependent in an way, ALWAYS spin up multiple parallel tasks to work together for faster responses. **NEVER** process tasks sequentially if they are candidates for parallelization
 
 ## Actions Design Philosophy
@@ -614,7 +614,7 @@ See [packages/Actions/CLAUDE.md](packages/Actions/CLAUDE.md) for detailed implem
 
 ## Debugging Build Failures
 
-When packages fail to build during `npm install`, use this systematic debugging process:
+When packages fail to build during `pnpm install`, use this systematic debugging process:
 
 ### 1. Verify Dependencies Exist
 ```bash
@@ -1265,16 +1265,16 @@ Run this mental checklist:
 - This is an NPM workspace monorepo
 - **IMPORTANT**: To add dependencies to a specific package:
   - Define dependencies in the individual package's package.json
-  - Run `npm install` at the repository root (NOT within the package directory)
-  - Never run `npm install` inside individual package directories
+  - Run `pnpm install` at the repository root (NOT within the package directory)
+  - Never run `pnpm install` inside individual package directories
   - The workspace manager will handle installing all dependencies across packages
 - To update dependencies:
   - Edit the package.json file for the relevant package
-  - Run `npm install` at the repo root
+  - Run `pnpm install` at the repo root
 - When creating new packages:
   - Create the package structure with its own package.json
   - Add dependencies to the package.json
-  - Run `npm install` at the repo root to update the workspace
+  - Run `pnpm install` at the repo root to update the workspace
 
 ## SQL Server Connection Pooling
 
@@ -1320,7 +1320,7 @@ export MJAPI_PUBLIC_URL=https://abc123.ngrok.io
 export MJAPI_PUBLIC_URL=https://abc123.ngrok.io/graphql
 
 # Start MJAPI
-npm run start:api
+pnpm run start:api
 ```
 
 #### 2. Configuration File
@@ -1928,11 +1928,11 @@ Claude Code should start and stop MJAPI and MJExplorer as background processes i
 ```bash
 # Start MJAPI (port 4001, configured via GRAPHQL_PORT in .env)
 # Run as a background task from: packages/MJAPI/
-npm run start
+pnpm run start
 
 # Start MJExplorer (port 4201, configured in package.json start script)
 # Run as a background task from: packages/MJExplorer/
-npm run start
+pnpm run start
 ```
 
 **Key points:**
