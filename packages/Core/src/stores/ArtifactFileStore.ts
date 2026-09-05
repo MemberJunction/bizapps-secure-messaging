@@ -12,6 +12,20 @@ export const MAX_FILE_BYTES = 25 * 1024 * 1024;
 /** A generic Artifact Type name to fall back to when no MIME-specific type matches. */
 const FALLBACK_ARTIFACT_TYPE_NAME = 'Document';
 
+/** Canonical UUID shape (8-4-4-4-12 hex). */
+const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+/**
+ * Asserts that a caller-supplied ID is a well-formed UUID before it is interpolated into a SQL
+ * filter. These IDs arrive from request params/body, so this is the injection guard.
+ */
+function assertUuid(value: string, label: string): string {
+    if (!UUID_REGEX.test(value)) {
+        throw new Error(`${label} is not a valid ID`);
+    }
+    return value;
+}
+
 export interface StoreFileInput {
     filename: string;
     contentType: string;
@@ -185,7 +199,7 @@ export class ArtifactFileStore {
         const rv = new RunView();
         const versionResult = await rv.RunView({
             EntityName: 'MJ: Artifact Versions',
-            ExtraFilter: `ArtifactID = '${artifactId}'`,
+            ExtraFilter: `ArtifactID = '${assertUuid(artifactId, 'artifactId')}'`,
             OrderBy: 'VersionNumber DESC',
             MaxRows: 1,
         }, systemUser);
@@ -229,7 +243,7 @@ export class ArtifactFileStore {
         const rv = new RunView();
         const linkResult = await rv.RunView({
             EntityName: 'MJ_BizApps_SecureMessaging: Message Files',
-            ExtraFilter: `ID = '${messageFileId}' AND ThreadID = '${threadId.replace(/'/g, "''")}'`,
+            ExtraFilter: `ID = '${assertUuid(messageFileId, 'messageFileId')}' AND ThreadID = '${threadId.replace(/'/g, "''")}'`,
         }, systemUser);
 
         if (!linkResult.Success || linkResult.Results.length === 0) {

@@ -1,7 +1,7 @@
 import { Router, json, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import { portalAuthMiddleware } from './handlers/middleware.js';
-import { validateToken, requestMagicLink, redeemMagicLink } from './handlers/auth.js';
+import { validateToken, redeemMagicLink } from './handlers/auth.js';
 import { listThreads } from './handlers/threads.js';
 import { getThreadMessages, createThreadMessage } from './handlers/messages.js';
 import { getThreadAttachments, uploadAttachment, downloadAttachment } from './handlers/attachments.js';
@@ -60,7 +60,10 @@ export function createSecureMessagingRouter(): Router {
 
     // --- Auth routes (public — no session token required) ---
     router.post('/auth/validate', validateToken);
-    router.post('/auth/magic-link', requestMagicLink);
+    // NOTE: there is intentionally NO public "request magic link" route. Such an endpoint would
+    // mint a raw magic-link token from a caller-supplied session ID pre-auth — and session IDs
+    // are guessable GUIDs, so that is unauthenticated account takeover. Magic links are only
+    // issued server-side (thread provisioning / promote) and delivered out-of-band.
     router.post('/auth/magic-link/redeem', redeemMagicLink);
 
     // --- Promote (server-to-server: Izzy / Outlook add-in backend) ---
