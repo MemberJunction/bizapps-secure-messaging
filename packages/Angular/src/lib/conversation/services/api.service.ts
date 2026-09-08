@@ -67,13 +67,6 @@ export class SecureMessagingApiService implements ISecureMessagingDataSource {
     });
   }
 
-  async requestMagicLink(sessionId: string): Promise<{ success: boolean; magicLinkToken: string }> {
-    return this.request('/auth/magic-link', {
-      method: 'POST',
-      body: JSON.stringify({ sessionId }),
-    });
-  }
-
   async redeemMagicLink(token: string): Promise<AuthResponse> {
     return this.request<AuthResponse>('/auth/magic-link/redeem', {
       method: 'POST',
