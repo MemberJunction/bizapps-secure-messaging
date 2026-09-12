@@ -447,10 +447,20 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
         const magicLink = result.Results[0];
         const deepLinkThreadId = magicLink.DeepLinkThreadID ?? undefined;
 
-        // Mark the magic link as used.
+        // Mark the magic link as used. Single-use is enforced here: the Save must succeed (a
+        // failed Save would leave the link Pending while we hand out a session), and a post-save
+        // re-read must show OUR redemption. Two concurrent redeems both pass the Pending query
+        // above (TOCTOU), but last-writer-wins on UsedAt means exactly one caller sees its own
+        // instant back on the re-read — the other is refused.
+        const usedAt = new Date();
         magicLink.Status = 'Used';
-        magicLink.UsedAt = new Date();
-        await magicLink.Save();
+        magicLink.UsedAt = usedAt;
+        if (!(await magicLink.Save())) {
+            return null;
+        }
+        if (!(await this.verifyMagicLinkRedemption(magicLink.ID, usedAt, systemUser))) {
+            return null;
+        }
 
         // Re-issue a fresh session token for the parent (per-contact) session.
         const md = new Metadata();
@@ -475,7 +485,11 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
         const absoluteCap = this.sessionAbsoluteCap(session);
         session.ExpiresAt = newExpiry > absoluteCap ? absoluteCap : newExpiry;
         session.LastAccessedAt = new Date();
-        await session.Save();
+        // If the token hash didn't persist, the token we'd return could never validate —
+        // fail the redemption rather than hand out a dead token.
+        if (!(await session.Save())) {
+            return null;
+        }
 
         const contactEmail = await this.getContactEmail(session.ContactID, systemUser);
 
@@ -488,6 +502,31 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
             },
             newSessionToken: newRawToken,
         };
+    }
+
+    /**
+     * Post-save winner check for {@link redeemMagicLink}: re-reads the link from the database
+     * (bypassing any cache) and confirms it is 'Used' with EXACTLY the UsedAt instant this
+     * redeemer wrote. When two redemptions race, both saves succeed but only the last writer's
+     * UsedAt survives — so exactly one caller passes this check and gets a session.
+     */
+    private async verifyMagicLinkRedemption(
+        magicLinkId: string,
+        usedAt: Date,
+        systemUser: UserInfo
+    ): Promise<boolean> {
+        const rv = new RunView();
+        const check = await rv.RunView<mjBizAppsSecureMessagingPortalMagicLinkEntity>({
+            EntityName: 'MJ_BizApps_SecureMessaging: Portal Magic Links',
+            ExtraFilter: `ID = '${magicLinkId.replace(/'/g, "''")}' AND Status = 'Used'`,
+            ResultType: 'entity_object',
+            MaxRows: 1,
+        }, systemUser);
+        if (!check.Success || check.Results.length === 0) {
+            return false;
+        }
+        const persistedUsedAt = check.Results[0].UsedAt;
+        return persistedUsedAt != null && persistedUsedAt.getTime() === usedAt.getTime();
     }
 
     /**

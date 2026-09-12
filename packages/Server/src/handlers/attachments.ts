@@ -1,6 +1,41 @@
 import { Request, Response } from 'express';
+import { RunView, UserInfo } from '@memberjunction/core';
 import { PortalRequest, assertThreadAccess, assertThreadWritable } from './middleware.js';
 import { getFileStore } from '@mj-biz-apps/secure-messaging-core';
+
+/**
+ * Object-level authorization for the optional message-link body fields on upload: when the
+ * caller names a message to attach the file to, that message must belong to THIS thread —
+ * otherwise any authenticated contact could hang files off another thread's messages by
+ * guessing IDs (mirrors the containment check fulfillFileRequest performs on its request
+ * record). Writes a 404 and returns false when the message is not part of the thread.
+ * Both message entities carry the SecureThread id in ThreadID: the owned store's Secure
+ * Messages FK to it directly, and the channel adapter's Channel Messages are written with
+ * ThreadID = the SecureThread id (see ChannelMessageStore). If the optional Channel Messages
+ * entity is not installed, the lookup fails and the link is refused — which is correct, since
+ * externalMessageId is only meaningful when the channel backend exists.
+ */
+async function assertMessageInThread(
+    entityName: string,
+    messageId: string,
+    threadId: string,
+    systemUser: UserInfo,
+    res: Response
+): Promise<boolean> {
+    const rv = new RunView();
+    const result = await rv.RunView<{ ID: string }>({
+        EntityName: entityName,
+        ExtraFilter: `ID = '${messageId.replace(/'/g, "''")}' AND ThreadID = '${threadId.replace(/'/g, "''")}'`,
+        Fields: ['ID'],
+        MaxRows: 1,
+        ResultType: 'simple',
+    }, systemUser);
+    if (!result.Success || result.Results.length === 0) {
+        res.status(404).json({ error: 'Message not found in this thread' });
+        return false;
+    }
+    return true;
+}
 
 /**
  * GET /threads/:threadId/attachments
@@ -52,7 +87,19 @@ export async function uploadAttachment(req: Request, res: Response): Promise<voi
         return;
     }
 
+    const secureMessageId = typeof req.body?.secureMessageId === 'string' ? req.body.secureMessageId : undefined;
+    const externalMessageId = typeof req.body?.externalMessageId === 'string' ? req.body.externalMessageId : undefined;
+
     try {
+        if (secureMessageId && !(await assertMessageInThread(
+            'MJ_BizApps_SecureMessaging: Secure Messages', secureMessageId, threadId, systemUser, res))) {
+            return;
+        }
+        if (externalMessageId && !(await assertMessageInThread(
+            'Channel Messages', externalMessageId, threadId, systemUser, res))) {
+            return;
+        }
+
         const stored = await getFileStore().store(
             {
                 filename: file.originalname,
@@ -61,8 +108,8 @@ export async function uploadAttachment(req: Request, res: Response): Promise<voi
             },
             {
                 threadId,
-                secureMessageId: typeof req.body?.secureMessageId === 'string' ? req.body.secureMessageId : undefined,
-                externalMessageId: typeof req.body?.externalMessageId === 'string' ? req.body.externalMessageId : undefined,
+                secureMessageId,
+                externalMessageId,
             },
             systemUser
         );

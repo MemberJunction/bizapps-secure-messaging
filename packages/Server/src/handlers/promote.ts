@@ -39,7 +39,9 @@ function verifyPromoteSignature(req: Request, secret: string): boolean {
     }
 
     const requestTime = parseInt(timestamp, 10);
-    if (isNaN(requestTime) || Math.floor(Date.now() / 1000) - requestTime > MAX_REQUEST_AGE_SECONDS) {
+    // Math.abs: a FUTURE timestamp must be rejected too, or a captured request could be
+    // pre-dated far ahead and replayed at leisure once its window "arrives".
+    if (isNaN(requestTime) || Math.abs(Math.floor(Date.now() / 1000) - requestTime) > MAX_REQUEST_AGE_SECONDS) {
         return false;
     }
 

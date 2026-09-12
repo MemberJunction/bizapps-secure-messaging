@@ -196,12 +196,16 @@ session tokens (`Authorization: Bearer sm_*`), not MJ user accounts.
 - `GET  /threads/:threadId/messages` · `POST /threads/:threadId/messages`
 - `GET  /threads/:threadId/attachments` · `POST /threads/:threadId/attachments` ·
   `GET /threads/:threadId/attachments/:id/download`
-- `GET  /threads/:threadId/file-requests` · `POST .../file-requests` ·
+- `GET  /threads/:threadId/file-requests` ·
   `POST .../file-requests/:id/fulfill` (multipart; pass `complete=false` for all but the last of a
   multi-file fulfillment)
-- `GET  /threads/:threadId/signature-requests` · `POST .../signature-requests` ·
-  `POST .../signature-requests/:id/refresh-status` · `POST .../signature-requests/:id/void` ·
+- `GET  /threads/:threadId/signature-requests` ·
+  `POST .../signature-requests/:id/refresh-status` ·
   `GET  .../signature-requests/:id/signed-document`
+
+Staff-side verbs (create a file request, create/send a signature envelope, void an envelope) are
+deliberately **not** mounted on this contact-facing router — their handlers are exported for
+staff-authenticated hosts only.
 
 Every thread-scoped route verifies the authenticated contact owns the thread.
 

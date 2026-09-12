@@ -26,6 +26,18 @@ function assertUuid(value: string, label: string): string {
     return value;
 }
 
+/**
+ * Normalizes a caller-supplied filename before it reaches the storage path or any persisted
+ * record: strips path separators (`/`, `\`), ASCII control characters, and Unicode
+ * bidirectional-override characters (U+202A–U+202E, U+2066–U+2069, which can visually spoof
+ * an extension), replacing each with `_`. Uploaded filenames are attacker-controlled input.
+ */
+export function sanitizeFilename(filename: string): string {
+    // eslint-disable-next-line no-control-regex
+    const cleaned = filename.replace(/[/\\\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069]/g, '_').trim();
+    return cleaned || 'file';
+}
+
 export interface StoreFileInput {
     filename: string;
     contentType: string;
@@ -98,6 +110,10 @@ export class ArtifactFileStore {
             throw new Error(`File exceeds the maximum size of ${MAX_FILE_BYTES} bytes`);
         }
 
+        // The uploaded filename flows into the storage provider path and persisted records —
+        // normalize it before ANY use (path traversal / control chars / bidi spoofing).
+        const filename = sanitizeFilename(input.filename);
+
         const engine = FileStorageEngine.Instance;
         await engine.Config(false, systemUser);
         if (!engine.HasStorageAccounts) {
@@ -107,7 +123,7 @@ export class ArtifactFileStore {
         // 1. bytes → MJ: Files (provider holds the actual bytes)
         const upload = await engine.UploadFile({
             content: input.bytes,
-            fileName: input.filename,
+            fileName: filename,
             mimeType: input.contentType,
             contextUser: systemUser,
         });
@@ -118,7 +134,7 @@ export class ArtifactFileStore {
         const typeId = await this.resolveArtifactTypeId(input.contentType, systemUser);
         const artifact = await md.GetEntityObject<MJArtifactEntity>('MJ: Artifacts', systemUser);
         artifact.NewRecord();
-        artifact.Name = input.filename;
+        artifact.Name = filename;
         artifact.TypeID = typeId;
         artifact.UserID = systemUser.ID;
         if (!(await artifact.Save())) {
@@ -133,7 +149,7 @@ export class ArtifactFileStore {
         version.ContentMode = 'File';
         version.FileID = upload.FileID;
         version.MimeType = input.contentType;
-        version.FileName = input.filename;
+        version.FileName = filename;
         version.ContentSizeBytes = input.bytes.length;
         version.UserID = systemUser.ID;
         if (!(await version.Save())) {
@@ -148,7 +164,7 @@ export class ArtifactFileStore {
         link.Set('ThreadID', ctx.threadId);
         link.Set('ArtifactID', artifact.ID);
         link.Set('FileID', upload.FileID);
-        link.Set('Filename', input.filename);
+        link.Set('Filename', filename);
         link.Set('ContentType', input.contentType);
         link.Set('Size', input.bytes.length);
         if (!(await link.Save())) {
@@ -159,7 +175,7 @@ export class ArtifactFileStore {
             messageFileId: link.Get('ID') as string,
             artifactId: artifact.ID,
             fileId: upload.FileID,
-            filename: input.filename,
+            filename,
             contentType: input.contentType,
             size: input.bytes.length,
         };
