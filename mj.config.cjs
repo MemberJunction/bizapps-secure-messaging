@@ -2,6 +2,10 @@
 module.exports = {
   entityPackageName: '@mj-biz-apps/secure-messaging-entities',
 
+  testing: {
+    checkModules: ['@mj-biz-apps/secure-messaging-integration-tests'],
+  },
+
   output: [
     { type: 'SQL', directory: './SQL Scripts/generated', appendOutputCode: true },
     { type: 'EntitySubclasses', directory: './packages/Entities/src/generated' },
@@ -10,6 +14,13 @@ module.exports = {
     {
       type: 'Angular',
       directory: './packages/Angular/src/lib/generated',
+      // `maxComponentsPerModule` no longer decides how components are split. Since MJ
+      // 6.1.0-edge.6 the generator buckets each form by FNV-1a hash of its class name
+      // modulo `submoduleCount` (default 32), so our 6 forms land in 5 sparse submodules
+      // regardless of this value. It survives only as a soft-limit WARNING threshold —
+      // logged when a bucket exceeds it, which 6 forms across 32 buckets never will.
+      // Kept rather than deleted so a future schema growing past 20 forms in one bucket
+      // still gets the warning; raise `submoduleCount` if that ever fires.
       options: [{ name: 'maxComponentsPerModule', value: 20 }],
     },
     { type: 'DBSchemaJSON', directory: './Schema Files' },
@@ -30,11 +41,10 @@ module.exports = {
     },
   ],
 
-  // Scope CodeGen to the schema this app OWNS (__mj_BizAppsSecureMessaging). Exclude core
-  // (__mj) and __mj_BizAppsCommon — we only reference those via FK / entity-name lookups;
-  // they are owned by MJ core and bizapps-common and consumed as npm packages.
-  // (codegen-lib defaults do NOT exclude __mj_BizAppsCommon, so it must be listed explicitly.)
-  excludeSchemas: ['sys', 'staging', 'dbo', '__mj', '__mj_BizAppsCommon'],
+  // Allow-list: CodeGen this app's schema only (MJ >= 5.50 includeSchemas).
+  // Unnamed schemas — core, siblings, never-seen client schemas — are excluded.
+  includeSchemas: ['__mj_BizAppsSecureMessaging'],
+  excludeSchemas: [],
 
   // SQL output with Flyway placeholders. The app's own schema maps to ${flyway:defaultSchema}
   // (resolved at migrate time); core MJ uses the named ${mjSchema} placeholder.

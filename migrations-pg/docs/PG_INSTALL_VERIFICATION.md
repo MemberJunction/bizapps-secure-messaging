@@ -202,8 +202,8 @@ view filters), the `_Clear` companion convention on three different tables, all
 six CHECK constraints, intra-schema FK enforcement, all six row-touch triggers,
 bigint round-tripping past 2^31, and the delete contract. Self-cleaning.
 
-Serving the app through MJAPI is a further check (`cd apps/MJAPI && GRAPHQL_PORT=<free>
-npm start`, then confirm the startup banner reports the PG host/db and an entity
+Serving the app through an MJAPI host that has this app installed is a further check (the
+in-repo `apps/MJAPI` harness was removed with the pnpm migration; start the host, then confirm the startup banner reports the PG host/db and an entity
 count, and that an unauthenticated GraphQL POST returns 401). **That step was not
 run in this verification pass** — it needs a fully installed host project, not a
 bare clone.
@@ -243,7 +243,7 @@ rm -rf temp_sql_scripts
 
 - **`mj codegen` exits non-zero on a bare clone.** CodeGen itself completes
   (`MJ CodeGen complete — N entities`); what fails is the configured *after*
-  commands (`npm run build` in `packages/Entities` and `packages/Actions`), which
+  commands (`pnpm run build` in `packages/Entities` and `packages/Actions`), which
   need `node_modules`. Verify the database, not the exit code.
 - **First codegen reconciles a few CORE metadata rows** (`__mj` schema) — e.g.
   adding `MJ: Entities.CanonicalSchemaName` / `MJ: Schema Info.CanonicalSchemaName`

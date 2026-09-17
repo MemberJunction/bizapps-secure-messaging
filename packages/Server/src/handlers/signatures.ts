@@ -27,6 +27,35 @@ function getSecureThreadsEntityId(): string {
     return entity.ID;
 }
 
+/**
+ * Object-level authorization for the :requestId routes: verifies the MJ: Signature Requests
+ * record exists AND is linked (via its polymorphic EntityID/RecordID) to the thread whose
+ * access was already asserted. Without this, any authenticated contact could operate on an
+ * arbitrary envelope by supplying its ID. Sends a 404 and returns false when the request is
+ * not part of this thread.
+ */
+async function assertRequestBelongsToThread(
+    requestId: string,
+    threadId: string,
+    systemUser: UserInfo,
+    res: Response,
+): Promise<boolean> {
+    const entityId = getSecureThreadsEntityId();
+    const rv = new RunView();
+    const result = await rv.RunView<{ ID: string }>({
+        EntityName: 'MJ: Signature Requests',
+        ExtraFilter: `ID = '${requestId.replace(/'/g, "''")}' AND EntityID = '${entityId}' AND RecordID = '${threadId.replace(/'/g, "''")}'`,
+        Fields: ['ID'],
+        MaxRows: 1,
+        ResultType: 'simple',
+    }, systemUser);
+    if (!result.Success || result.Results.length === 0) {
+        res.status(404).json({ error: 'Signature request not found in this thread' });
+        return false;
+    }
+    return true;
+}
+
 /** The name fields we read off a person to build a signer display name. */
 interface ContactNameFields {
     DisplayName?: string | null;
@@ -164,6 +193,22 @@ export async function createSignatureRequest(req: Request, res: Response): Promi
     }
 
     try {
+        // Object-level authorization: the artifact must be a file attached to THIS thread
+        // (via a MessageFile link). Otherwise any authenticated contact could have an
+        // arbitrary artifact in the instance sent out for signature by guessing its ID.
+        const rv = new RunView();
+        const linkCheck = await rv.RunView<{ ID: string }>({
+            EntityName: 'MJ_BizApps_SecureMessaging: Message Files',
+            ExtraFilter: `ArtifactID = '${artifactId.replace(/'/g, "''")}' AND ThreadID = '${threadId.replace(/'/g, "''")}'`,
+            Fields: ['ID'],
+            MaxRows: 1,
+            ResultType: 'simple',
+        }, systemUser);
+        if (!linkCheck.Success || linkCheck.Results.length === 0) {
+            res.status(404).json({ error: 'Document not found in this thread' });
+            return;
+        }
+
         // Resolve the document bytes from the artifact's latest version.
         let document: { bytes: Buffer; filename: string; contentType: string };
         try {
@@ -226,10 +271,11 @@ export async function createSignatureRequest(req: Request, res: Response): Promi
 export async function refreshSignatureStatus(req: Request, res: Response): Promise<void> {
     const access = await assertThreadAccess(req as PortalRequest, res);
     if (!access) return;
-    const { systemUser } = access;
+    const { systemUser, threadId } = access;
     const requestId = String(req.params.requestId);
 
     try {
+        if (!(await assertRequestBelongsToThread(requestId, threadId, systemUser, res))) return;
         await SignatureEngine.Instance.Config(false, systemUser);
         const result = await SignatureEngine.Instance.RefreshStatus(requestId, systemUser);
         if (!result.Success) {
@@ -254,11 +300,12 @@ export async function refreshSignatureStatus(req: Request, res: Response): Promi
 export async function voidSignatureRequest(req: Request, res: Response): Promise<void> {
     const access = await assertThreadAccess(req as PortalRequest, res);
     if (!access) return;
-    const { systemUser } = access;
+    const { systemUser, threadId } = access;
     const requestId = String(req.params.requestId);
     const reason = typeof req.body?.reason === 'string' ? req.body.reason : 'Cancelled by sender';
 
     try {
+        if (!(await assertRequestBelongsToThread(requestId, threadId, systemUser, res))) return;
         await SignatureEngine.Instance.Config(false, systemUser);
         const result = await SignatureEngine.Instance.Void(requestId, reason, systemUser);
         if (!result.Success) {
@@ -281,10 +328,11 @@ export async function voidSignatureRequest(req: Request, res: Response): Promise
 export async function downloadSignedDocument(req: Request, res: Response): Promise<void> {
     const access = await assertThreadAccess(req as PortalRequest, res);
     if (!access) return;
-    const { systemUser } = access;
+    const { systemUser, threadId } = access;
     const requestId = String(req.params.requestId);
 
     try {
+        if (!(await assertRequestBelongsToThread(requestId, threadId, systemUser, res))) return;
         await SignatureEngine.Instance.Config(false, systemUser);
         const result = await SignatureEngine.Instance.DownloadSigned(requestId, systemUser);
         if (!result.Success || !result.document) {
@@ -292,7 +340,10 @@ export async function downloadSignedDocument(req: Request, res: Response): Promi
             return;
         }
         res.setHeader('Content-Type', result.document.contentType || 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="${result.document.filename}"`);
+        // Sanitize the filename before embedding it in the header — an unsanitized provider
+        // filename could smuggle CRLF/quote characters into the response headers.
+        const safeFilename = (result.document.filename || 'signed-document.pdf').replace(/[^A-Za-z0-9._-]/g, '_');
+        res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
         res.send(result.document.bytes);
     } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);

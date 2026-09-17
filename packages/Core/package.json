@@ -1,7 +1,7 @@
 {
   "name": "@mj-biz-apps/secure-messaging-core",
   "type": "module",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "MJ Secure Messaging Core Services - portal auth/session, message stores (owned + channel), file/artifact store, config",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -22,13 +22,13 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@mj-biz-apps/secure-messaging-entities": "1.1.0"
+    "@mj-biz-apps/secure-messaging-entities": "1.2.0"
   },
   "peerDependencies": {
-    "@memberjunction/core": "^5.45.0",
-    "@memberjunction/core-entities": "^5.45.0",
-    "@memberjunction/global": "^5.45.0",
-    "@memberjunction/storage": "^5.45.0"
+    "@memberjunction/core": "^6.1.2",
+    "@memberjunction/core-entities": "^6.1.2",
+    "@memberjunction/global": "^6.1.2",
+    "@memberjunction/storage": "^6.1.2"
   },
   "repository": {
     "type": "git",

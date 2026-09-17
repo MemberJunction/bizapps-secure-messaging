@@ -3,7 +3,7 @@
 # Secure Messaging API Endpoint Test Script
 # =============================================================================
 # Prerequisites:
-#   1. MJAPI server running (cd apps/MJAPI && npm start)
+#   1. An MJAPI host running with this app installed (the in-repo dev harness was removed with the pnpm migration)
 #   2. Database: Izzy_SecureMsg_Test
 #   3. Docker container: mj-sqlserver
 #
@@ -269,71 +269,25 @@ run_tests() {
         ((FAIL_COUNT++))
     fi
 
-    # --- Test 11: POST /auth/magic-link (request magic link) ---
-    header "POST /auth/magic-link"
+    # --- Test 11: POST /auth/magic-link is REMOVED (unauthenticated token minting) ---
+    # The public "request magic link" route was removed: it minted a raw magic-link token from a
+    # caller-supplied (guessable) session ID pre-auth. It must now 404. Redemption
+    # (/auth/magic-link/redeem) remains, but its tokens are only issued server-side, so it is not
+    # exercised here.
+    header "POST /auth/magic-link (must be removed)"
 
-    # Get the session ID from validate
-    SESSION_ID=$(curl -s -X POST "$BASE_URL/auth/validate" \
+    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/auth/magic-link" \
         -H "Content-Type: application/json" \
-        -d "{\"token\": \"$TEST_TOKEN\"}" | python3 -c "import sys,json; print(json.load(sys.stdin).get('sessionId',''))" 2>/dev/null || echo "")
+        -d "{\"sessionId\": \"00000000-0000-0000-0000-000000000000\"}")
 
-    if [ -n "$SESSION_ID" ]; then
-        info "Session ID: $SESSION_ID"
+    HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+    info "HTTP $HTTP_CODE"
 
-        RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/auth/magic-link" \
-            -H "Content-Type: application/json" \
-            -d "{\"sessionId\": \"$SESSION_ID\"}")
-
-        HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-        BODY=$(echo "$RESPONSE" | sed '$d')
-
-        info "HTTP $HTTP_CODE"
-        info "Body: $BODY"
-
-        if [ "$HTTP_CODE" = "200" ]; then
-            pass "Magic link generated"
-            ((PASS_COUNT++))
-
-            # Extract magic link token for redemption test
-            ML_TOKEN=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('magicLinkToken',''))" 2>/dev/null || echo "")
-
-            if [ -n "$ML_TOKEN" ]; then
-                # --- Test 12: POST /auth/magic-link/redeem ---
-                header "POST /auth/magic-link/redeem"
-                RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/auth/magic-link/redeem" \
-                    -H "Content-Type: application/json" \
-                    -d "{\"token\": \"$ML_TOKEN\"}")
-
-                HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-                BODY=$(echo "$RESPONSE" | sed '$d')
-
-                info "HTTP $HTTP_CODE"
-                info "Body: $BODY"
-
-                if [ "$HTTP_CODE" = "200" ]; then
-                    pass "Magic link redeemed — new session token received"
-                    ((PASS_COUNT++))
-
-                    # The old test token is now invalidated (token hash was replaced)
-                    # Extract the new token for info
-                    NEW_TOKEN=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('token',''))" 2>/dev/null || echo "")
-                    if [ -n "$NEW_TOKEN" ]; then
-                        info "New session token: ${NEW_TOKEN:0:20}..."
-                    fi
-                else
-                    fail "Expected 200, got $HTTP_CODE"
-                    ((FAIL_COUNT++))
-                fi
-            else
-                fail "No magic link token in response"
-                ((FAIL_COUNT++))
-            fi
-        else
-            fail "Expected 200, got $HTTP_CODE"
-            ((FAIL_COUNT++))
-        fi
+    if [ "$HTTP_CODE" = "404" ]; then
+        pass "Magic link request route is not exposed (404)"
+        ((PASS_COUNT++))
     else
-        fail "Could not get session ID for magic link test"
+        fail "Expected 404 (route removed), got $HTTP_CODE"
         ((FAIL_COUNT++))
     fi
 
@@ -345,9 +299,7 @@ run_tests() {
 
     if [ "$FAIL_COUNT" -gt 0 ]; then
         echo ""
-        echo -e "  ${YELLOW}NOTE:${NC} After the magic link test, the original test token is"
-        echo -e "  invalidated (the session's token hash was replaced). Re-run"
-        echo -e "  with --seed to reset the test data."
+        echo -e "  ${YELLOW}NOTE:${NC} Re-run with --seed to reset the test data."
         exit 1
     fi
 }

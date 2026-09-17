@@ -178,9 +178,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_SecureMessaging: Message Files','SecureMessageID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_SecureMessaging: Message Files')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_SecureMessaging: Message Files','SecureMessageID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsSecureMessagingMessageFiles')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsSecureMessagingMessageFiles', $event.totalRowCount)"
                 >

@@ -1,5 +1,4 @@
 import { Component, OnInit, OnChanges, SimpleChanges, Input, Output, EventEmitter, Optional, ChangeDetectorRef } from '@angular/core';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Metadata, RunView } from '@memberjunction/core';
 import { MJUserEntity } from '@memberjunction/core-entities';
 import { MJAuthBase } from '@memberjunction/ng-auth-services';
@@ -37,7 +36,8 @@ interface SecureMessageItem {
   personId?: string;
   subject: string;
   preview: string;
-  bodyHtml: SafeHtml;
+  /** Contact-authored message content, rendered as PLAIN TEXT (never as HTML — stored-XSS risk). */
+  bodyText: string;
   receivedAt: Date;
   isRead: boolean;
   isStarred: boolean;
@@ -290,7 +290,7 @@ interface WorkspaceNavItem {
               <span class="thread-msg__sender">{{ m.direction === 'Outbound' ? (m.senderName || 'You') : m.senderName }}</span>
               <span class="thread-msg__time">{{ formatDetailDate(m.receivedAt) }}</span>
             </div>
-            <div class="thread-msg__bubble" [innerHTML]="m.bodyHtml"></div>
+            <div class="thread-msg__bubble">{{ m.bodyText }}</div>
           </div>
         }
 
@@ -1267,6 +1267,7 @@ interface WorkspaceNavItem {
   font-size: 14px;
   line-height: 1.5;
   color: var(--mj-text-primary);
+  white-space: pre-wrap; /* content is interpolated as plain text — preserve line breaks */
 }
 .thread-msg--out .thread-msg__bubble {
   background: color-mix(in srgb, var(--mj-brand-primary) 12%, var(--mj-bg-surface));
@@ -1715,7 +1716,6 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
   isLoading = true;
 
   constructor(
-    private sanitizer: DomSanitizer,
     private cdr: ChangeDetectorRef,
     @Optional() private authService: MJAuthBase | null = null,
   ) {}
@@ -2226,7 +2226,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
         senderEmail: me?.Email || '',
         subject: '',
         preview: body,
-        bodyHtml: this.sanitizer.bypassSecurityTrustHtml(body),
+        bodyText: body,
         receivedAt: new Date(),
         isRead: true,
         isStarred: false,
@@ -2620,7 +2620,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
       personId,
       subject: (r['Subject'] as string) ?? '(no subject)',
       preview: content.replace(/<[^>]*>/g, '').substring(0, 120),
-      bodyHtml: this.sanitizer.bypassSecurityTrustHtml(content),
+      bodyText: content,
       receivedAt: new Date(r['ReceivedAt'] as string),
       isRead: status === 'Read' || status === 'Replied' || direction === 'Outbound',
       isStarred: !!(r['IsStarred']),

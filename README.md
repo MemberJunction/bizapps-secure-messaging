@@ -40,6 +40,10 @@ Staff compose (or an insecure email/SMS thread is promoted)
 - **Closed threads render read-only** for the contact; archive/trash for staff
 - Sensitive content stays in your database, with MJ Record Changes providing the audit trail
 
+## Form chrome
+
+The Secure Thread form uses MJ's **left-nav** layout. Messages are first-class. Message files and file requests sit in More. Portal magic links (`DeepLinkThreadID`) are None — they are auth tokens, not a thread-form surface.
+
 ## Staff Experience (MJ Explorer)
 
 After installation, **Secure Messages** appears in the MJ Explorer app switcher.
@@ -115,8 +119,8 @@ Build the widget bundle:
 
 ```bash
 cd packages/Element
-npm install
-npm run build:bundle
+pnpm install
+pnpm run build:bundle
 ```
 
 ### Widget Theming

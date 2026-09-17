@@ -9,6 +9,11 @@
     "experimentalDecorators": true,
     "strict": true,
     "skipLibCheck": true,
+    // No "paths" mappings: this app compiles against the @memberjunction/*
+    // versions declared in package.json. Mapping them at a sibling MJ checkout
+    // (e.g. ../MJ/packages/.../dist) resolves only on machines that happen to
+    // have one, so the same commit built against a different MJ than CI did.
+    // To test against unpublished MJ source, link it for that session instead.
     "types": [],
     "lib": ["es2022", "dom"]
   },

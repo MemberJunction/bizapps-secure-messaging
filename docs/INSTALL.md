@@ -38,13 +38,13 @@ settings (all optional-but-recommended):
 
 Run in this order (the app's npm scripts wrap the MJ CLI):
 
-1. `npm run mj:migrate` — applies the app's migrations into its own schema (the app keeps an
+1. `pnpm run mj:migrate` — applies the app's migrations into its own schema (the app keeps an
    isolated Flyway history in `__mj_BizAppsSecureMessaging`; pass
    `--schema __mj_BizAppsSecureMessaging` if invoking the CLI directly).
-2. `npm run mj:codegen` — registers the entities (`SecureThread`, `SecureMessage`,
+2. `pnpm run mj:codegen` — registers the entities (`SecureThread`, `SecureMessage`,
    `PortalSession`, …) with their views/SPs and regenerates the typed code. Verify it created
    entities under `__mj_BizAppsSecureMessaging` and did **not** touch `__mj` / `__mj_BizAppsCommon`.
-3. `npm run build` — all packages build in dependency order.
+3. `pnpm run build` — all packages build in dependency order.
 4. `npx mj sync push --dir=metadata` — pushes the application, actions, and entity-metadata
    overrides. The **Secure Messages** Explorer app has `DefaultForNewUser=0`; assign it to users
    via User Applications (then restart MJAPI so its user cache picks the assignment up).

@@ -1,6 +1,10 @@
 -- =============================================================================
 -- Secure Messaging Test Seed Data
 -- =============================================================================
+-- THROWAWAY. Predates the integration-test method. Does not go through BaseEntity.
+-- Sample data for Explorer is committed by packages/IntegrationTests (SM-WORLD)
+-- via GetEntityObject + Save — same path as Orders ORD-WORLD. Do not run this.
+--
 -- Run against: Izzy_SecureMsg_Test
 --
 -- This script creates the minimal reference data needed to test the

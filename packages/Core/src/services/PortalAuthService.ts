@@ -13,6 +13,12 @@ const SESSION_TOKEN_PREFIX = 'sm_';
 const MAGIC_LINK_PREFIX = 'sm_ml_';
 /** Default session TTL in days */
 const DEFAULT_SESSION_TTL_DAYS = 7;
+/**
+ * Absolute maximum session age in days, measured from the session's creation. The sliding TTL
+ * extends `ExpiresAt` on every request, so without this cap a session never expires as long as
+ * it keeps being used; extensions are capped at creation + this many days.
+ */
+const MAX_SESSION_AGE_DAYS = 30;
 /** Default magic link TTL in minutes */
 const DEFAULT_MAGIC_LINK_TTL_MINUTES = 15;
 /** Fallback subject when a thread is created without one. */
@@ -150,6 +156,13 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
         return super.getInstance<PortalAuthService>('PortalAuthService');
     }
 
+    /** The absolute expiry instant for a session: its creation + {@link MAX_SESSION_AGE_DAYS}. */
+    private sessionAbsoluteCap(session: mjBizAppsSecureMessagingPortalSessionEntity): Date {
+        const cap = new Date(session.__mj_CreatedAt);
+        cap.setDate(cap.getDate() + MAX_SESSION_AGE_DAYS);
+        return cap;
+    }
+
     /**
      * Ensures the contact has exactly one Active portal session and returns it. Sessions are
      * per-contact in v2 (one session spans all of the contact's threads), so an existing Active
@@ -170,7 +183,16 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
             ResultType: 'entity_object',
         }, systemUser);
         if (existing.Success && existing.Results.length > 0) {
-            return { sessionId: existing.Results[0].ID };
+            const current = existing.Results[0];
+            // A session past its absolute age cap (creation + MAX_SESSION_AGE_DAYS) is not
+            // reusable — retire it and fall through to mint a fresh one, so new magic links
+            // never attach to a session that validateSessionToken would reject.
+            if (new Date() > this.sessionAbsoluteCap(current)) {
+                current.Status = 'Expired';
+                await current.Save();
+            } else {
+                return { sessionId: current.ID };
+            }
         }
 
         const rawToken = generateToken(SESSION_TOKEN_PREFIX);
@@ -245,11 +267,20 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
             return null;
         }
 
-        // Extend the session TTL on the loaded entity.
         const session = result.Results[0];
+
+        // Enforce the absolute session age cap: the sliding TTL below never extends a session
+        // past creation + MAX_SESSION_AGE_DAYS, and a request arriving past that point is
+        // treated as an expired session (the contact re-authenticates via a magic link).
+        const absoluteCap = this.sessionAbsoluteCap(session);
+        if (new Date() > absoluteCap) {
+            return null;
+        }
+
+        // Extend the session TTL on the loaded entity, capped at the absolute max age.
         const newExpiry = new Date();
         newExpiry.setDate(newExpiry.getDate() + DEFAULT_SESSION_TTL_DAYS);
-        session.ExpiresAt = newExpiry;
+        session.ExpiresAt = newExpiry > absoluteCap ? absoluteCap : newExpiry;
         session.LastAccessedAt = new Date();
         await session.Save();
 
@@ -426,12 +457,23 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
         const session = await md.GetEntityObject<mjBizAppsSecureMessagingPortalSessionEntity>(
             'MJ_BizApps_SecureMessaging: Portal Sessions', systemUser);
         await session.InnerLoad(CompositeKey.FromID(magicLink.PortalSessionID));
+
+        // Never resurrect a session past its absolute age cap — the token we'd issue would be
+        // rejected by validateSessionToken anyway. The contact requests a fresh link, which
+        // attaches to a new session (ensureSessionForContact retires aged-out sessions).
+        if (new Date() > this.sessionAbsoluteCap(session)) {
+            session.Status = 'Expired';
+            await session.Save();
+            return null;
+        }
+
         const newRawToken = generateToken(SESSION_TOKEN_PREFIX);
         session.TokenHash = hashToken(newRawToken);
         session.Status = 'Active';
         const newExpiry = new Date();
         newExpiry.setDate(newExpiry.getDate() + DEFAULT_SESSION_TTL_DAYS);
-        session.ExpiresAt = newExpiry;
+        const absoluteCap = this.sessionAbsoluteCap(session);
+        session.ExpiresAt = newExpiry > absoluteCap ? absoluteCap : newExpiry;
         session.LastAccessedAt = new Date();
         await session.Save();
 
@@ -487,7 +529,7 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
         const rv = new RunView();
         const result = await rv.RunView({
             EntityName: PortalAuthService.contactEntityName,
-            ExtraFilter: `ID = '${contactId}'`,
+            ExtraFilter: `ID = '${contactId.replace(/'/g, "''")}'`,
         }, systemUser);
 
         if (result.Success && result.Results.length > 0) {
