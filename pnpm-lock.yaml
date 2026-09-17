@@ -104,9 +104,18 @@ importers:
       '@memberjunction/testing-integration':
         specifier: ^6.1.2
         version: 6.1.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))(@smithy/signature-v4@5.7.3)(axios@1.20.0)(chokidar@3.6.0)(encoding@0.1.13)(typescript@5.9.3)(ws@8.21.3)(zod@3.25.76)
+      '@mj-biz-apps/common-entities':
+        specifier: ^5.30.0
+        version: 5.34.0(@memberjunction/core@6.1.2)(@memberjunction/global@6.1.2)
+      '@mj-biz-apps/secure-messaging-entities':
+        specifier: workspace:*
+        version: link:packages/Entities
       '@mj-biz-apps/secure-messaging-integration-tests':
-        specifier: 1.1.0
+        specifier: workspace:*
         version: link:packages/IntegrationTests
+      '@mj-biz-apps/secure-messaging-server':
+        specifier: workspace:*
+        version: link:packages/Server
       dotenv:
         specifier: ^17.2.4
         version: 17.4.2

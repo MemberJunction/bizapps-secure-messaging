@@ -31,51 +31,45 @@ there is **no `NPM_TOKEN` secret** to manage.
 
 One-time setup on npmjs.com (per package, by an `@mj-biz-apps` org owner): under each package's
 **Settings → Trusted Publisher**, add this repo (`MemberJunction/bizapps-secure-messaging`) and the
-`publish.yml` workflow. Trusted publishing can only be configured *after* the package exists, so it
-happens together with the placeholder publish below.
+`publish.yml` workflow. Trusted publishing can only be configured *after* the package exists, so a
+brand-new package needs a manual first publish before automation can take it over.
 
-## 🔴 KILL SWITCH — the first release is manual at 1.0.0
+## Release state
 
-`publish.yml`'s `build-and-publish` job currently carries a kill-switch `if:` guard, so a push to
-`main` will **not** auto-publish. This is deliberate: the packages are already at `1.0.0`, and the
-Changesets flow only ever *bumps* (a pending changeset would push the first automated release to
-`1.1.0`). So the first release is published manually at `1.0.0`, then the automation takes over.
+Bootstrapping is done. All six packages exist on npm with Trusted Publisher configured,
+`v1.0.0` and `v1.1.0` are tagged, and the kill-switch `if:` has been removed from
+`build-and-publish` — a push to `main` with pending changesets publishes automatically.
 
-The pending changeset has been removed for the same reason (nothing to mis-bump after 1.0.0 ships).
+Releasing is now just: land changesets on `next`, merge `next` → `main`, watch `publish.yml`.
 
-**To re-enable automated publishing after the manual 1.0.0 release:** delete the `if:` line on the
-`build-and-publish` job in `publish.yml`. From then on, land a changeset on `next`, merge to `main`,
-and `publish.yml` cuts `1.1.0` (or as the changeset dictates).
+### Choosing the bump
 
-## First publish — the manual 1.0.0 bootstrap
+`publish.yml` computes the version it *expects* and aborts if `changeset version` disagrees,
+so the changeset and the repo convention have to line up:
 
-The six packages do **not** yet exist on npm (all return 404), and `validate-npm-packages.sh` fails
-the publish job until every package has a version published. Do this once, manually (with an
-`@mj-biz-apps` publish token or `npm login`), from the repo at the v1.0.0 commit:
+| Release contains | Bump | Notes |
+|---|---|---|
+| A new `.sql` migration | **minor** (at minimum) | `changes.yml` already enforces this on PRs to `next` |
+| No migration, but a breaking change | **major** | Removed/renamed endpoint, MJ major-floor move, narrowed API |
+| Neither | patch | |
 
-1. `pnpm install --frozen-lockfile && pnpm run build:packages`
-2. Publish each package at `1.0.0`, in dependency order:
-   - `@mj-biz-apps/secure-messaging-entities`
-   - `@mj-biz-apps/secure-messaging-core`
-   - `@mj-biz-apps/secure-messaging-actions`
-   - `@mj-biz-apps/secure-messaging-server`
-   - `@mj-biz-apps/secure-messaging-ng`
-   - `@mj-biz-apps/secure-messaging-element`
-     (e.g. `cd packages/Entities && npm publish --access public`, etc.)
-3. For each package, configure its **Trusted Publisher** on npm →
-   `MemberJunction/bizapps-secure-messaging` / `publish.yml`, so the automated OIDC publish works.
-4. Tag the release: `git tag v1.0.0 && git push origin refs/tags/v1.0.0`.
-5. Remove the kill-switch `if:` in `publish.yml` to hand off to automation.
-
-## Checklist
-
-- [ ] Publish `1.0.0` for all six packages (manually)
-- [ ] Configure npm Trusted Publisher for each → `MemberJunction/bizapps-secure-messaging` / `publish.yml`
-- [ ] Tag `v1.0.0`
-- [ ] Remove the kill-switch `if:` in `publish.yml`
-- [ ] Verify: land a changeset on `next`, merge `next` → `main`, confirm `publish.yml` publishes `1.1.0` + tags
+The workflow detects a major by grepping the changesets for `"@mj-biz-apps/…": major`; for
+minor-vs-patch it looks for files under `migrations/` or `migrations-pg/` changed since the
+`v<current>` tag. **That detection is only as good as the tags** — if a version was
+hand-bumped in `package.json` without ever being published and tagged, `git rev-parse` misses
+and the check silently degrades to "no migrations". Don't hand-bump versions; let Changesets
+do it.
 
 ## Notes
+
+- **Private workspace packages are exempt from the npm existence gate.** `packages/IntegrationTests`
+  is `"private": true` and is never published; `changeset publish` skips private packages
+  outright, so `validate-npm-packages.sh` skips them too rather than demanding an npm
+  placeholder that will never exist. The root `package.json` depends on it with `workspace:*`
+  rather than an exact version: Changesets' fixed-version group bumps every `@mj-biz-apps/*`
+  package together, including this one, but does not rewrite the root manifest — so an exact
+  pin goes stale on every release, and with no registry copy to fall back on the post-publish
+  `pnpm install --lockfile-only` fails with a 404.
 
 - Unlike bizapps-common/tasks (whose schema migration is a `B`-prefixed Flyway baseline), this
   repo's baseline is `V`-prefixed (`V202607201423__v1.0.0__Baseline_Schema.sql`), so
