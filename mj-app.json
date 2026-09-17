@@ -11,7 +11,7 @@
     "url": "https://memberjunction.com"
   },
   "repository": "https://github.com/MemberJunction/bizapps-secure-messaging",
-  "mjVersionRange": ">=6.1.0-edge.4 <7.0.0",
+  "mjVersionRange": ">=6.1.2 <7.0.0",
   "license": "MIT",
   "dependencies": {
     "mj-bizapps-common": {

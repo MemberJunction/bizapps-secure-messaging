@@ -25,12 +25,8 @@ import { mjBizAppsSecureMessagingSecureThreadFormComponent } from "./Entities/mj
 
 @NgModule({
 declarations: [
-    mjBizAppsSecureMessagingFileRequestFormComponent,
-    mjBizAppsSecureMessagingMessageFileFormComponent,
-    mjBizAppsSecureMessagingPortalMagicLinkFormComponent,
-    mjBizAppsSecureMessagingPortalSessionFormComponent,
-    mjBizAppsSecureMessagingSecureMessageFormComponent,
-    mjBizAppsSecureMessagingSecureThreadFormComponent],
+    mjBizAppsSecureMessagingMessageFileFormComponent
+],
 imports: [
     CommonModule,
     FormsModule,
@@ -47,9 +43,86 @@ export class GeneratedForms_SubModule_0 { }
 
 @NgModule({
 declarations: [
+    mjBizAppsSecureMessagingFileRequestFormComponent
 ],
 imports: [
-    GeneratedForms_SubModule_0
+    CommonModule,
+    FormsModule,
+    BaseFormsModule,
+    EntityViewerModule,
+    LinkDirectivesModule
+],
+exports: [
+]
+})
+export class GeneratedForms_SubModule_10 { }
+    
+
+
+@NgModule({
+declarations: [
+    mjBizAppsSecureMessagingPortalMagicLinkFormComponent,
+    mjBizAppsSecureMessagingSecureThreadFormComponent
+],
+imports: [
+    CommonModule,
+    FormsModule,
+    BaseFormsModule,
+    EntityViewerModule,
+    LinkDirectivesModule
+],
+exports: [
+]
+})
+export class GeneratedForms_SubModule_16 { }
+    
+
+
+@NgModule({
+declarations: [
+    mjBizAppsSecureMessagingPortalSessionFormComponent
+],
+imports: [
+    CommonModule,
+    FormsModule,
+    BaseFormsModule,
+    EntityViewerModule,
+    LinkDirectivesModule
+],
+exports: [
+]
+})
+export class GeneratedForms_SubModule_17 { }
+    
+
+
+@NgModule({
+declarations: [
+    mjBizAppsSecureMessagingSecureMessageFormComponent
+],
+imports: [
+    CommonModule,
+    FormsModule,
+    BaseFormsModule,
+    EntityViewerModule,
+    LinkDirectivesModule
+],
+exports: [
+]
+})
+export class GeneratedForms_SubModule_23 { }
+    
+
+
+@NgModule({
+declarations: [
+],
+imports: [
+    GeneratedForms_SubModule_0,
+    GeneratedForms_SubModule_10,
+    GeneratedForms_SubModule_16,
+    GeneratedForms_SubModule_17,
+    GeneratedForms_SubModule_23
 ]
 })
 export class GeneratedFormsModule { }

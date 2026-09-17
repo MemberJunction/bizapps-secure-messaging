@@ -14,6 +14,13 @@ module.exports = {
     {
       type: 'Angular',
       directory: './packages/Angular/src/lib/generated',
+      // `maxComponentsPerModule` no longer decides how components are split. Since MJ
+      // 6.1.0-edge.6 the generator buckets each form by FNV-1a hash of its class name
+      // modulo `submoduleCount` (default 32), so our 6 forms land in 5 sparse submodules
+      // regardless of this value. It survives only as a soft-limit WARNING threshold —
+      // logged when a bucket exceeds it, which 6 forms across 32 buckets never will.
+      // Kept rather than deleted so a future schema growing past 20 forms in one bucket
+      // still gets the warning; raise `submoduleCount` if that ever fires.
       options: [{ name: 'maxComponentsPerModule', value: 20 }],
     },
     { type: 'DBSchemaJSON', directory: './Schema Files' },

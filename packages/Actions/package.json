@@ -24,11 +24,11 @@
     "@mj-biz-apps/secure-messaging-core": "1.2.0"
   },
   "peerDependencies": {
-    "@memberjunction/core": "^6.1.0-edge.4",
-    "@memberjunction/core-entities": "^6.1.0-edge.4",
-    "@memberjunction/global": "^6.1.0-edge.4",
-    "@memberjunction/actions-base": "^6.1.0-edge.4",
-    "@memberjunction/actions": "^6.1.0-edge.4"
+    "@memberjunction/core": "^6.1.2",
+    "@memberjunction/core-entities": "^6.1.2",
+    "@memberjunction/global": "^6.1.2",
+    "@memberjunction/actions-base": "^6.1.2",
+    "@memberjunction/actions": "^6.1.2"
   },
   "repository": {
     "type": "git",
