@@ -96,9 +96,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_SecureMessaging: Portal Magic Links','PortalSessionID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_SecureMessaging: Portal Magic Links')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_SecureMessaging: Portal Magic Links','PortalSessionID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsSecureMessagingPortalMagicLinks')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsSecureMessagingPortalMagicLinks', $event.totalRowCount)"
                 >
@@ -121,9 +121,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_SecureMessaging: File Requests','PortalSessionID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_SecureMessaging: File Requests')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_SecureMessaging: File Requests','PortalSessionID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsSecureMessagingFileRequests')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsSecureMessagingFileRequests', $event.totalRowCount)"
                 >
@@ -146,9 +146,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_SecureMessaging: Secure Messages','PortalSessionID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_SecureMessaging: Secure Messages')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_SecureMessaging: Secure Messages','PortalSessionID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsSecureMessagingSecureMessages')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsSecureMessagingSecureMessages', $event.totalRowCount)"
                 >

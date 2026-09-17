@@ -112,9 +112,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_SecureMessaging: File Requests','ThreadID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_SecureMessaging: File Requests')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_SecureMessaging: File Requests','ThreadID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsSecureMessagingFileRequests')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsSecureMessagingFileRequests', $event.totalRowCount)"
                 >
@@ -137,9 +137,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_SecureMessaging: Secure Messages','ThreadID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_SecureMessaging: Secure Messages')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_SecureMessaging: Secure Messages','ThreadID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsSecureMessagingSecureMessages')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsSecureMessagingSecureMessages', $event.totalRowCount)"
                 >
@@ -162,9 +162,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_SecureMessaging: Message Files','ThreadID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_SecureMessaging: Message Files')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_SecureMessaging: Message Files','ThreadID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsSecureMessagingMessageFiles')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsSecureMessagingMessageFiles', $event.totalRowCount)"
                 >
@@ -187,9 +187,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_SecureMessaging: Portal Magic Links','DeepLinkThreadID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_SecureMessaging: Portal Magic Links')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_SecureMessaging: Portal Magic Links','DeepLinkThreadID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsSecureMessagingPortalMagicLinks')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsSecureMessagingPortalMagicLinks', $event.totalRowCount)"
                 >
