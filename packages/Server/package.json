@@ -1,7 +1,7 @@
 {
   "name": "@mj-biz-apps/secure-messaging-server",
   "type": "module",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "description": "MJ Secure Messaging server bootstrap - REST API routes, Secure Web communication provider, and class registrations.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -25,9 +25,9 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@mj-biz-apps/secure-messaging-entities": "1.2.0",
-    "@mj-biz-apps/secure-messaging-actions": "1.2.0",
-    "@mj-biz-apps/secure-messaging-core": "1.2.0",
+    "@mj-biz-apps/secure-messaging-entities": "2.0.0",
+    "@mj-biz-apps/secure-messaging-actions": "2.0.0",
+    "@mj-biz-apps/secure-messaging-core": "2.0.0",
     "express": "^5.1.0",
     "multer": "^2.0.0",
     "class-validator": "^0.14.3"
