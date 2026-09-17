@@ -8,7 +8,9 @@
       "AllowCreateAPI": true,
       "AllowUpdateAPI": true,
       "AllowDeleteAPI": false,
-      "TrackRecordChanges": true
+      "TrackRecordChanges": true,
+      "AllowUserSearchAPI": false,
+      "AutoUpdateAllowUserSearchAPI": false
     },
     "primaryKey": {
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_SecureMessaging: Portal Sessions"
@@ -27,7 +29,9 @@
       "AllowCreateAPI": true,
       "AllowUpdateAPI": true,
       "AllowDeleteAPI": false,
-      "TrackRecordChanges": true
+      "TrackRecordChanges": true,
+      "AllowUserSearchAPI": false,
+      "AutoUpdateAllowUserSearchAPI": false
     },
     "primaryKey": {
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_SecureMessaging: Portal Magic Links"
@@ -46,7 +50,9 @@
       "AllowCreateAPI": true,
       "AllowUpdateAPI": true,
       "AllowDeleteAPI": false,
-      "TrackRecordChanges": true
+      "TrackRecordChanges": true,
+      "AllowUserSearchAPI": false,
+      "AutoUpdateAllowUserSearchAPI": false
     },
     "primaryKey": {
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_SecureMessaging: Secure Messages"
@@ -65,7 +71,9 @@
       "AllowCreateAPI": true,
       "AllowUpdateAPI": true,
       "AllowDeleteAPI": true,
-      "TrackRecordChanges": true
+      "TrackRecordChanges": true,
+      "AllowUserSearchAPI": false,
+      "AutoUpdateAllowUserSearchAPI": false
     },
     "primaryKey": {
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_SecureMessaging: Message Files"
@@ -80,7 +88,9 @@
       "AllowCreateAPI": true,
       "AllowUpdateAPI": true,
       "AllowDeleteAPI": false,
-      "TrackRecordChanges": true
+      "TrackRecordChanges": true,
+      "AllowUserSearchAPI": false,
+      "AutoUpdateAllowUserSearchAPI": false
     },
     "primaryKey": {
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_SecureMessaging: File Requests"
@@ -88,6 +98,23 @@
     "sync": {
       "lastModified": "2026-07-21T03:25:17.976Z",
       "checksum": "a220a3e59fc5221f5b7d9186aa1920423408b984c4087e6690f5101cb6ae898e"
+    }
+  },
+  {
+    "fields": {
+      "Name": "MJ_BizApps_SecureMessaging: Secure Threads",
+      "Description": "A first-class secure conversation (thread) between the organization and one external contact. Owns the subject, lifecycle status, and all messages/files/requests via FKs. The unit of the contact portal inbox; magic links deep-link into a thread.",
+      "BaseView": "vwSecureThreads",
+      "IncludeInAPI": true,
+      "AllowCreateAPI": true,
+      "AllowUpdateAPI": true,
+      "AllowDeleteAPI": true,
+      "TrackRecordChanges": true,
+      "AllowUserSearchAPI": false,
+      "AutoUpdateAllowUserSearchAPI": false
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_SecureMessaging: Secure Threads"
     }
   }
 ]
