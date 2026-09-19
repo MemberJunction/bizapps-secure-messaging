@@ -1,6 +1,78 @@
 import { Request, Response } from 'express';
+import { RunView, UserInfo } from '@memberjunction/core';
 import { PortalRequest, assertThreadAccess, assertThreadWritable } from './middleware.js';
-import { getFileStore } from '@mj-biz-apps/secure-messaging-core';
+import { getFileStore, getSecureMessagingConfig } from '@mj-biz-apps/secure-messaging-core';
+
+/** Canonical UUID shape (8-4-4-4-12 hex). */
+const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+/** The validated optional message-link fields an upload may carry. */
+interface MessageLink {
+    secureMessageId?: string;
+    externalMessageId?: string;
+}
+
+/**
+ * Object-level authorization for the OPTIONAL message-link fields on an upload. A
+ * caller-supplied message ID must be a well-formed UUID AND belong to the thread whose access
+ * was already asserted — without this, an authenticated contact could link an uploaded file to
+ * a message in ANOTHER contact's thread by supplying its ID (the FK only requires the message
+ * to exist, not to be theirs). Writes the error response and returns null on failure.
+ */
+async function resolveMessageLink(
+    body: Record<string, unknown> | undefined,
+    threadId: string,
+    systemUser: UserInfo,
+    res: Response
+): Promise<MessageLink | null> {
+    const secureMessageId = typeof body?.secureMessageId === 'string' ? body.secureMessageId : undefined;
+    const externalMessageId = typeof body?.externalMessageId === 'string' ? body.externalMessageId : undefined;
+    const link: MessageLink = {};
+
+    if (secureMessageId) {
+        if (!UUID_REGEX.test(secureMessageId)) {
+            res.status(400).json({ error: 'secureMessageId is not a valid ID' });
+            return null;
+        }
+        const rv = new RunView();
+        const check = await rv.RunView<{ ID: string }>({
+            EntityName: 'MJ_BizApps_SecureMessaging: Secure Messages',
+            ExtraFilter: `ID = '${secureMessageId}' AND ThreadID = '${threadId.replace(/'/g, "''")}'`,
+            Fields: ['ID'],
+            MaxRows: 1,
+            ResultType: 'simple',
+        }, systemUser);
+        if (!check.Success || check.Results.length === 0) {
+            res.status(404).json({ error: 'Message not found in this thread' });
+            return null;
+        }
+        link.secureMessageId = secureMessageId;
+    }
+
+    if (externalMessageId) {
+        // External (Channel) message links are only meaningful under the channel backend,
+        // where they can be verified against the thread; otherwise they cannot be validated.
+        if (!UUID_REGEX.test(externalMessageId) || getSecureMessagingConfig().messageBackend !== 'channel') {
+            res.status(400).json({ error: 'externalMessageId is not a valid ID for this configuration' });
+            return null;
+        }
+        const rv = new RunView();
+        const check = await rv.RunView<{ ID: string }>({
+            EntityName: 'Channel Messages',
+            ExtraFilter: `ID = '${externalMessageId}' AND ThreadID = '${threadId.replace(/'/g, "''")}'`,
+            Fields: ['ID'],
+            MaxRows: 1,
+            ResultType: 'simple',
+        }, systemUser);
+        if (!check.Success || check.Results.length === 0) {
+            res.status(404).json({ error: 'Message not found in this thread' });
+            return null;
+        }
+        link.externalMessageId = externalMessageId;
+    }
+
+    return link;
+}
 
 /**
  * GET /threads/:threadId/attachments
@@ -53,6 +125,9 @@ export async function uploadAttachment(req: Request, res: Response): Promise<voi
     }
 
     try {
+        const link = await resolveMessageLink(req.body, threadId, systemUser, res);
+        if (!link) return;
+
         const stored = await getFileStore().store(
             {
                 filename: file.originalname,
@@ -61,8 +136,8 @@ export async function uploadAttachment(req: Request, res: Response): Promise<voi
             },
             {
                 threadId,
-                secureMessageId: typeof req.body?.secureMessageId === 'string' ? req.body.secureMessageId : undefined,
-                externalMessageId: typeof req.body?.externalMessageId === 'string' ? req.body.externalMessageId : undefined,
+                secureMessageId: link.secureMessageId,
+                externalMessageId: link.externalMessageId,
             },
             systemUser
         );

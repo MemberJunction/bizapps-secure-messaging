@@ -19,7 +19,11 @@ export async function getThreadMessages(req: Request, res: Response): Promise<vo
 
     try {
         const messages = await getMessageStore().getThreadMessages(session, threadId, systemUser);
-        res.json({ messages });
+        // The store view can carry internal AI-pipeline fields. `generatedReply` is an
+        // UNAPPROVED draft the org never chose to send — it must never reach the external
+        // contact (the widget renders only content / approvedReply / sentContent).
+        const sanitized = messages.map(({ generatedReply: _generatedReply, ...rest }) => rest);
+        res.json({ messages: sanitized });
     } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         console.error(`Secure Messaging get messages error: ${msg}`);
