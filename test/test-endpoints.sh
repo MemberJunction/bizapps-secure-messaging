@@ -19,8 +19,9 @@ BASE_URL="http://localhost:4000/secure-messaging/api/v1"
 TEST_TOKEN="sm_testtoken_for_local_testing_only"
 THREAD_ID="test-thread-001"
 DB_NAME="Izzy_SecureMsg_Test"
-DB_USER="MJ_Connect"
-DB_PASS="Kylamaystian99@"
+# SECURITY: never commit credentials — supply them via environment variables.
+DB_USER="${SM_TEST_DB_USER:?Set SM_TEST_DB_USER}"
+DB_PASS="${SM_TEST_DB_PASS:?Set SM_TEST_DB_PASS}"
 
 # Colors
 GREEN='\033[0;32m'
