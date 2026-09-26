@@ -313,6 +313,13 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
             return { success: false, errorMessage: 'Session not found' };
         }
 
+        // SECURITY: 'Revoked' is the operator's kill switch for a compromised contact mailbox.
+        // Never mint a working link against a revoked session — redemption would flip it back
+        // to Active and silently undo the revocation.
+        if (sessionResult.Results[0].Status === 'Revoked') {
+            return { success: false, errorMessage: 'Session has been revoked' };
+        }
+
         const rawToken = generateToken(MAGIC_LINK_PREFIX);
         const expiresAt = new Date();
         expiresAt.setMinutes(expiresAt.getMinutes() + DEFAULT_MAGIC_LINK_TTL_MINUTES);
@@ -457,6 +464,13 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
         const session = await md.GetEntityObject<mjBizAppsSecureMessagingPortalSessionEntity>(
             'MJ_BizApps_SecureMessaging: Portal Sessions', systemUser);
         await session.InnerLoad(CompositeKey.FromID(magicLink.PortalSessionID));
+
+        // SECURITY: a revoked session is the operator's kill switch — an unexpired magic link
+        // from before the revocation must NOT resurrect it. Without this check the unconditional
+        // Status = 'Active' below silently undoes revocation for anyone holding the last email.
+        if (session.Status === 'Revoked') {
+            return null;
+        }
 
         // Never resurrect a session past its absolute age cap — the token we'd issue would be
         // rejected by validateSessionToken anyway. The contact requests a fresh link, which

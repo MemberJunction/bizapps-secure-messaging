@@ -141,6 +141,17 @@ export class ArtifactFileStore {
         }
 
         // 3. __mj_BizAppsSecureMessaging.MessageFile link
+        // SECURITY: the message IDs come from the contact's request body — verify each one
+        // actually belongs to the thread the caller is authorized on before linking, or a
+        // contact could attach their upload to another contact's message row.
+        if (ctx.secureMessageId) {
+            await this.assertMessageBelongsToThread(
+                'MJ_BizApps_SecureMessaging: Secure Messages', ctx.secureMessageId, ctx.threadId, 'secureMessageId', systemUser);
+        }
+        if (ctx.externalMessageId) {
+            await this.assertMessageBelongsToThread(
+                'Channel Messages', ctx.externalMessageId, ctx.threadId, 'externalMessageId', systemUser);
+        }
         const link = await md.GetEntityObject('MJ_BizApps_SecureMessaging: Message Files', systemUser);
         link.NewRecord();
         if (ctx.secureMessageId) link.Set('SecureMessageID', ctx.secureMessageId);
@@ -270,6 +281,29 @@ export class ArtifactFileStore {
         const driver = await engine.GetDriver(resolved.account.ID, systemUser);
         return driver.CreatePreAuthDownloadUrl(file.ProviderKey || file.Name);
     }
+    /**
+     * SECURITY — verifies a caller-supplied message ID actually belongs to the thread the
+     * caller holds access to, before it is written onto the MessageFile link. Without this a
+     * contact could attach an upload to another contact's message row. Fails closed.
+     */
+    private async assertMessageBelongsToThread(
+        entityName: string,
+        messageId: string,
+        threadId: string,
+        label: string,
+        systemUser: UserInfo
+    ): Promise<void> {
+        const rv = new RunView();
+        const result = await rv.RunView({
+            EntityName: entityName,
+            ExtraFilter: `ID = '${assertUuid(messageId, label)}' AND ThreadID = '${threadId.replace(/'/g, "''")}'`,
+            ResultType: 'simple',
+        }, systemUser);
+        if (!result.Success || !result.Results || result.Results.length === 0) {
+            throw new Error(`${label} does not reference a message in this thread`);
+        }
+    }
+
 }
 
 let _fileStore: ArtifactFileStore | null = null;
