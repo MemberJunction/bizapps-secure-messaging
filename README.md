@@ -190,10 +190,13 @@ mj app install https://github.com/MemberJunction/bizapps-secure-messaging
 ```
 
 This will:
-1. Create the `__mj_BizAppsSecureMessaging` database schema and run migrations
-2. Run CodeGen to register the entities (SecureThread, SecureMessage, PortalSession, …)
-3. Register the **Secure Messages** application, actions, and metadata in MJ Explorer
-4. Install the server and client bootstrap packages
+1. Create the `__mj_BizAppsSecureMessaging` database schema and run the migrations
+2. Register the entities (SecureThread, SecureMessage, PortalSession, …) — the CodeGen output ships *inside the baseline migration*
+3. Install the server and client bootstrap packages
+
+The **Secure Messages** application, actions, and other `metadata/` records reach a host only through a `Metadata_Sync` migration; none ships yet.
+
+`mj app install` never runs CodeGen; the migrations are the only thing that reaches your database.
 
 See [docs/INSTALL.md](docs/INSTALL.md) for the full provisioning walkthrough (fresh database,
 credentials for file storage and e-signature, and the notify hook).
