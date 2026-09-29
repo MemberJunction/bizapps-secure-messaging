@@ -3,9 +3,15 @@
 This runbook simulates what `mj app install` does to a PostgreSQL database and
 verifies that the app is **fully functional without ever running `mj codegen`**.
 It is the Secure Messaging analog of bizapps-common's, bizapps-tasks' and
-bizapps-issues' `migrations-pg/docs/PG_INSTALL_VERIFICATION.md` — same contract,
-and simpler: Secure Messaging declares **no app dependencies**, so there are no
-sibling apps to install first.
+bizapps-issues' `migrations-pg/docs/PG_INSTALL_VERIFICATION.md` — same contract.
+Secure Messaging declares one app dependency in `mj-app.json`, **bizapps-common**,
+which is installed first (step 2b).
+
+> **Verification status.** Steps 0–3 and the `Metadata_Sync` checks in step 4 were
+> re-run on 2026-09-29 against **MJ core 6.1.2** (CLI 6.1.2) and **bizapps-common
+> 5.47.0** on `postgres:17`. The object counts in step 4 and the codegen no-op
+> proof in step 5 were last verified at MJ core **v5.44** and have not been
+> re-run since.
 
 Why simulate instead of running the real command? `mj app install` downloads the
 app's migrations from the **latest GitHub release**. To test unreleased changes
@@ -78,20 +84,46 @@ with those credentials.
 
 ## 2. Platform install (the consumer's `mj migrate`)
 
+Use the floor of `mj-app.json`'s `mjVersionRange` for both the CLI and the tag.
+Create the three `cdp_*` roles first (see the caveat below):
+
 ```bash
-npx mj migrate --tag v5.44.0        # expect: 61 applied on a virgin DB
+psql -h localhost -p 5434 -U mj_admin -d SM_OneShot -c \
+  'CREATE ROLE "cdp_Developer"; CREATE ROLE "cdp_Integration"; CREATE ROLE "cdp_UI";'
+
+npx -y @memberjunction/cli@6.1.2 migrate --tag v6.1.2   # expect: 94 applied on a virgin DB
 ```
 
-Do **not** run plain `npx mj migrate` here — without `--tag` it uses this repo's
+Do **not** run plain `mj migrate` here — without `--tag` it uses this repo's
 local migrations directory (the app's own), not MJ core's.
 
 > **Core-version caveat (a real MJ-core PG regression, not an app issue).**
-> v5.44.0 installs clean on virgin PostgreSQL. **Any tag from v5.46 onward does
-> not**: `B202607091514__v5.46.x__Baseline.pg.sql` issues `GRANT ... TO
-> "cdp_Developer"` with no preceding `CREATE ROLE`, so the whole single-batch
-> baseline aborts with `role "cdp_Developer" does not exist` on a database that
-> doesn't already have those roles. Reproduced with the 5.49.0 CLI targeting
-> `--tag v5.49.0`. Pin `--tag v5.44.0` until that is fixed.
+> Every core PG baseline from v5.46 onward — still true at **v6.1.2** —
+> starts with `B202607091514__v5.46.x__Baseline.pg.sql`, which issues
+> `GRANT ... TO "cdp_Developer"` (and `"cdp_Integration"`, `"cdp_UI"`) with no
+> preceding `CREATE ROLE`. On a database without those roles the whole
+> single-batch baseline aborts with `role "cdp_Developer" does not exist`.
+> A real host provisions the roles; on a throwaway database, create them first
+> as above. With the roles present, `--tag v6.1.2` applies 94 migrations in a
+> few seconds.
+
+## 2b. Install the dependency: bizapps-common
+
+Run from any directory **outside** this repo (the installer records the app's
+packages in the host project in the current directory, so a scratch folder with
+a minimal `package.json` and `mj.config.cjs` is enough):
+
+```bash
+npx -y @memberjunction/cli@6.1.2 app install https://github.com/MemberJunction/bizapps-common \
+  --version 5.47.0 --non-interactive --dangerously-ignore-dbl-underscore-schema-rule
+```
+
+> **Known CLI hang on PostgreSQL (MJ CLI 6.1.2).** The install completes — the
+> `__mj."OpenApp"` row for `mj-bizapps-common` reads `Active` and
+> `__mj_bizappscommon.flyway_schema_history` holds all its migrations (10 rows
+> for 5.47.0) — but the process never exits; its last connection sits idle
+> after writing the install history. Confirm those two facts, then stop the
+> process and continue. The same command exits normally on SQL Server.
 
 ## 3. Simulate `mj app install` — the app's own migrations
 
@@ -107,25 +139,32 @@ psql -h localhost -p 5434 -U mj_admin -d SM_OneShot -c \
    WHERE LOWER(\"SchemaName\")=LOWER('__mj_bizappssecuremessaging');"
 
 # [Migration] HandleMigrations — the app's PG migrations from YOUR branch.
-# Run from the repo root with NO flags: the CLI reads mj-app.json for the schema
-# and prefers migrations-pg/ automatically on PostgreSQL.
-npx mj migrate                     # expect: 2 applied
+# Run from the repo root. Name the PHYSICAL (lowercase) schema so Flyway keeps
+# this app's history in its own schema, as the real installer does.
+npx -y @memberjunction/cli@6.1.2 migrate \
+  --schema __mj_bizappssecuremessaging --dir ./migrations-pg   # expect: 3 applied
 ```
 
 **Do not run codegen.** That is the point of the test.
 
-Two notes on that migrate invocation:
+Notes on that migrate invocation:
 
-- **Prefer the flagless form.** It records history in `__mj.flyway_schema_history`
-  alongside core, which is what the real installer does. Passing
-  `--schema __mj_BizAppsSecureMessaging --dir ./migrations-pg` also works, but
-  Flyway then creates a *second*, quoted `"__mj_BizAppsSecureMessaging"` schema
-  holding nothing but its own history table plus two indexes. Cosmetic, but
-  confusing — the sibling apps' runbooks document that variant.
-- Migration order matters: `V202607201423__..._Baseline_Schema.pg.sql` then
-  `V202607201424__..._CodeGen_Metadata_Backfill.pgonly.sql`. The `.pgonly.sql`
-  suffix means there is deliberately no T-SQL counterpart; the two `.pg.sql`
-  filenames pair 1:1 with `migrations/`.
+- **The flagless `mj migrate` no longer works here.** It records history in
+  `__mj.flyway_schema_history` alongside core, and since core 6.1.x that table
+  holds versions newer than this app's July baseline, so Flyway refuses with
+  `Detected resolved migration not applied to database: 202607201423,
+  202607201424 ... set outOfOrder to true`. The real installer keeps each app's
+  history in the app's own schema (bizapps-common's is
+  `__mj_bizappscommon.flyway_schema_history`); `--schema` does the same.
+- **Pass the lowercase schema name.** `--schema __mj_BizAppsSecureMessaging`
+  makes Flyway create a *second*, quoted `"__mj_BizAppsSecureMessaging"` schema
+  holding nothing but its own history table. The lowercase name is the physical
+  schema the baseline already uses.
+- Migration order matters: `V202607201423__..._Baseline_Schema.pg.sql`, then
+  `V202607201424__..._CodeGen_Metadata_Backfill.pgonly.sql`, then
+  `V202609291543__v2.0.x__Metadata_Sync.pg.sql`. The `.pgonly.sql` suffix means
+  there is deliberately no T-SQL counterpart; every `.pg.sql` filename pairs 1:1
+  with `migrations/`.
 
 Then finish the installer's bookkeeping:
 
@@ -134,8 +173,8 @@ Then finish the installer's bookkeeping:
 psql -h localhost -p 5434 -U mj_admin -d SM_OneShot -c \
   "INSERT INTO __mj.\"OpenApp\" (\"ID\",\"Name\",\"DisplayName\",\"Version\",\"Publisher\",
     \"RepositoryURL\",\"MJVersionRange\",\"ManifestJSON\",\"SchemaName\",\"InstalledByUserID\",\"Status\")
-   SELECT gen_random_uuid(),'mj-secure-messaging','MJ Secure Messaging','1.0.0','MemberJunction',
-    'https://github.com/MemberJunction/bizapps-secure-messaging','>=5.43.0','{}',
+   SELECT gen_random_uuid(),'mj-secure-messaging','MJ Secure Messaging','2.0.0','MemberJunction',
+    'https://github.com/MemberJunction/bizapps-secure-messaging','>=6.1.2 <7.0.0','{}',
     '__mj_BizAppsSecureMessaging',(SELECT \"ID\" FROM __mj.\"User\" LIMIT 1),'Active';"
 ```
 
@@ -188,6 +227,28 @@ SELECT count(*) FILTER (WHERE ef."Type" IN ('TEXT','UUID','BOOLEAN','timestamptz
  FROM __mj."EntityField" ef JOIN __mj."Entity" e ON e."ID" = ef."EntityID"
  WHERE LOWER(e."SchemaName") = '__mj_bizappssecuremessaging';           -- 0, 67
 ```
+
+The `Metadata_Sync` seed landed (verified at MJ core 6.1.2):
+
+```sql
+SELECT (SELECT count(*) FROM __mj."ActionCategory" WHERE "Name" = 'Secure Messaging') AS categories,   -- 1
+       (SELECT count(*) FROM __mj."Action" a JOIN __mj."ActionCategory" c ON c."ID" = a."CategoryID"
+         WHERE c."Name" = 'Secure Messaging') AS actions,                                               -- 4
+       (SELECT count(*) FROM __mj."ActionParam" p JOIN __mj."Action" a ON a."ID" = p."ActionID"
+         JOIN __mj."ActionCategory" c ON c."ID" = a."CategoryID"
+         WHERE c."Name" = 'Secure Messaging') AS params,                                                -- 19
+       (SELECT count(*) FROM __mj."Application" WHERE "Name" = 'Secure Messages') AS applications;     -- 1
+
+SELECT count(*) FILTER (WHERE NOT "AllowUserSearchAPI" AND NOT "AutoUpdateAllowUserSearchAPI") AS search_locked,  -- 6
+       count(*) FILTER (WHERE NOT "AllowDeleteAPI") AS delete_locked,                                                -- 4
+       count(*) FILTER (WHERE "Configuration" IS NOT NULL) AS configured                                             -- 1 (Secure Threads)
+ FROM __mj."Entity" WHERE LOWER("SchemaName") = '__mj_bizappssecuremessaging';
+```
+
+The seed is idempotent: re-applying the file (with `"${mjSchema}"` replaced by
+`"__mj"`) through `psql -v ON_ERROR_STOP=1` succeeds and changes no row counts.
+In the 2026-09-29 run, every seeded row also matched, column for column, the rows
+the T-SQL seed produces on SQL Server.
 
 Then the functional suite:
 
@@ -293,10 +354,28 @@ analog of what `appendOutputCode` does automatically for T-SQL. `pg-bake-codegen
 automates that capture: point it at a post-codegen reference database and it
 refills the markers (and refreshes the fenced EntityField block) in place.
 
-Seed data must be authored as plain idempotent `INSERT ... ON CONFLICT DO NOTHING`.
+Seed data must be authored as plain idempotent SQL, never as `spCreate*` calls.
 The converter cannot transform `EXEC spCreate*` data calls, and `pg-finalize.mjs`
 patch 8 deliberately comments out any seed block that calls the app's own
-`spCreate*` — the same seed data ships in `metadata/` and loads via `mj sync push`.
+`spCreate*`.
+
+That includes the release `Metadata_Sync` migration, which carries `metadata/` to
+hosts (`mj app install` never runs `mj sync push`). Its `.pg.sql` counterpart is
+written by hand, not converted — see the header of
+`V202609291543__v2.0.x__Metadata_Sync.pg.sql`:
+
+- **Creates** are direct `INSERT ... SELECT ... WHERE NOT EXISTS`, guarded on ID
+  **or** the table's natural key, exactly like the T-SQL seed's guards. A bare
+  `ON CONFLICT DO NOTHING` is not enough when a unique key includes a nullable
+  column (Action's `(Name, CategoryID, ParentID)` with `ParentID` NULL), because
+  PostgreSQL treats NULLs as distinct. Take the values from the rows the T-SQL
+  seed produced on a database built from migrations only, so column defaults
+  cannot drift between the platforms.
+- **Updates** set only the columns `metadata/` declares — never the T-SQL
+  seed's full-row `spUpdate*` values, which would write SQL Server's copy of
+  every column over the PG baseline's own.
+- **Prove it** with step 4's seed checks, and compare the seeded rows against the
+  SQL Server result.
 
 The no-op check in step 5 is the regression test for all of this: if codegen
 changes anything in app scope after a fresh install, a migration is missing

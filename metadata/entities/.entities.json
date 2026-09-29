@@ -2,13 +2,14 @@
   {
     "fields": {
       "Name": "MJ_BizApps_SecureMessaging: Portal Sessions",
-      "Description": "Tracks active secure messaging sessions for external contacts. Each session maps a contact to a channel thread and is authenticated via a hashed opaque token.",
       "BaseView": "vwPortalSessions",
       "IncludeInAPI": true,
       "AllowCreateAPI": true,
       "AllowUpdateAPI": true,
       "AllowDeleteAPI": false,
-      "TrackRecordChanges": true
+      "TrackRecordChanges": true,
+      "AllowUserSearchAPI": false,
+      "AutoUpdateAllowUserSearchAPI": false
     },
     "primaryKey": {
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_SecureMessaging: Portal Sessions"
@@ -21,13 +22,14 @@
   {
     "fields": {
       "Name": "MJ_BizApps_SecureMessaging: Portal Magic Links",
-      "Description": "Single-use magic links for re-authenticating expired portal sessions. Short-lived, redeems into a fresh session token.",
       "BaseView": "vwPortalMagicLinks",
       "IncludeInAPI": true,
       "AllowCreateAPI": true,
       "AllowUpdateAPI": true,
       "AllowDeleteAPI": false,
-      "TrackRecordChanges": true
+      "TrackRecordChanges": true,
+      "AllowUserSearchAPI": false,
+      "AutoUpdateAllowUserSearchAPI": false
     },
     "primaryKey": {
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_SecureMessaging: Portal Magic Links"
@@ -40,13 +42,14 @@
   {
     "fields": {
       "Name": "MJ_BizApps_SecureMessaging: Secure Messages",
-      "Description": "Self-contained secure message store. Each row is one inbound or outbound message in a thread. App-agnostic: does not require an external Channel Messages entity.",
       "BaseView": "vwSecureMessages",
       "IncludeInAPI": true,
       "AllowCreateAPI": true,
       "AllowUpdateAPI": true,
       "AllowDeleteAPI": false,
-      "TrackRecordChanges": true
+      "TrackRecordChanges": true,
+      "AllowUserSearchAPI": false,
+      "AutoUpdateAllowUserSearchAPI": false
     },
     "primaryKey": {
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_SecureMessaging: Secure Messages"
@@ -59,13 +62,14 @@
   {
     "fields": {
       "Name": "MJ_BizApps_SecureMessaging: Message Files",
-      "Description": "Links an uploaded file to a secure message. Bytes are stored in core MJ File Storage (MJ: Files) and wrapped as an MJ Artifact; this table holds references and display metadata only.",
       "BaseView": "vwMessageFiles",
       "IncludeInAPI": true,
       "AllowCreateAPI": true,
       "AllowUpdateAPI": true,
       "AllowDeleteAPI": true,
-      "TrackRecordChanges": true
+      "TrackRecordChanges": true,
+      "AllowUserSearchAPI": false,
+      "AutoUpdateAllowUserSearchAPI": false
     },
     "primaryKey": {
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_SecureMessaging: Message Files"
@@ -74,13 +78,14 @@
   {
     "fields": {
       "Name": "MJ_BizApps_SecureMessaging: File Requests",
-      "Description": "A request from staff for the external contact to securely upload one or more files. Fulfilled by uploading files and setting Status to Fulfilled.",
       "BaseView": "vwFileRequests",
       "IncludeInAPI": true,
       "AllowCreateAPI": true,
       "AllowUpdateAPI": true,
       "AllowDeleteAPI": false,
-      "TrackRecordChanges": true
+      "TrackRecordChanges": true,
+      "AllowUserSearchAPI": false,
+      "AutoUpdateAllowUserSearchAPI": false
     },
     "primaryKey": {
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_SecureMessaging: File Requests"
@@ -88,6 +93,22 @@
     "sync": {
       "lastModified": "2026-07-21T03:25:17.976Z",
       "checksum": "a220a3e59fc5221f5b7d9186aa1920423408b984c4087e6690f5101cb6ae898e"
+    }
+  },
+  {
+    "fields": {
+      "Name": "MJ_BizApps_SecureMessaging: Secure Threads",
+      "BaseView": "vwSecureThreads",
+      "IncludeInAPI": true,
+      "AllowCreateAPI": true,
+      "AllowUpdateAPI": true,
+      "AllowDeleteAPI": true,
+      "TrackRecordChanges": true,
+      "AllowUserSearchAPI": false,
+      "AutoUpdateAllowUserSearchAPI": false
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_SecureMessaging: Secure Threads"
     }
   }
 ]

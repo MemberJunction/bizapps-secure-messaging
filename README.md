@@ -1,10 +1,47 @@
-# MJ Secure Messaging
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://github.com/MemberJunction/MJ/raw/main/MJ_logo_dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="https://github.com/MemberJunction/MJ/raw/main/MJ_logo.webp">
+    <img alt="MemberJunction" src="https://github.com/MemberJunction/MJ/raw/main/MJ_logo.webp" width="220">
+  </picture>
+</p>
+
+<h1 align="center">MJ Secure Messaging</h1>
+
+<p align="center">
+  <strong>A secure client portal — messages, documents, and e-signatures with external contacts — for the <a href="https://github.com/MemberJunction/MJ">MemberJunction</a> platform</strong>
+</p>
+
+<p align="center">
+  <a href="#how-it-works">How it works</a> &middot;
+  <a href="#staff-experience-mj-explorer">Staff</a> &middot;
+  <a href="#contact-experience-the-widget">Widget</a> &middot;
+  <a href="#installation">Install</a> &middot;
+  <a href="#rest-api">REST API</a> &middot;
+  <a href="#authentication-model">Auth</a> &middot;
+  <a href="#architecture">Architecture</a> &middot;
+  <a href="docs/INSTALL.md">Install guide</a>
+</p>
+
+<p align="center">
+  <img alt="Version" src="https://img.shields.io/badge/Version-2.0.0-green?style=flat-square" />
+  <img alt="MJ Version" src="https://img.shields.io/badge/MemberJunction-6.1.2%2B-blue?style=flat-square" />
+  <img alt="Angular" src="https://img.shields.io/badge/Angular-21-DD0031?style=flat-square&logo=angular&logoColor=white" />
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript&logoColor=white" />
+  <img alt="Node" src="https://img.shields.io/badge/Node-20%2B-339933?style=flat-square&logo=nodedotjs&logoColor=white" />
+  <img alt="SQL Server" src="https://img.shields.io/badge/SQL%20Server-supported-CC2927?style=flat-square&logo=microsoftsqlserver&logoColor=white" />
+  <img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" />
+</p>
+
+---
 
 A free MemberJunction Open App: a **secure client portal** for exchanging messages, documents, and
 e-signatures with external contacts. Contacts enter through **passwordless magic links** that
 deep-link them into subject-lined **conversation threads** — no accounts, no passwords — while staff
 work the same threads from an **Executive Inbox** inside MJ Explorer. An embeddable
 `<mj-secure-messaging>` widget puts the contact side on any website you own.
+
+---
 
 ## The Problem
 
@@ -39,10 +76,6 @@ Staff compose (or an insecure email/SMS thread is promoted)
   visual signature-field placement — sent and tracked per thread
 - **Closed threads render read-only** for the contact; archive/trash for staff
 - Sensitive content stays in your database, with MJ Record Changes providing the audit trail
-
-## Form chrome
-
-The Secure Thread form uses MJ's **left-nav** layout. Messages are first-class. Message files and file requests sit in More. Portal magic links (`DeepLinkThreadID`) are None — they are auth tokens, not a thread-form surface.
 
 ## Staff Experience (MJ Explorer)
 
@@ -157,10 +190,12 @@ mj app install https://github.com/MemberJunction/bizapps-secure-messaging
 ```
 
 This will:
-1. Create the `__mj_BizAppsSecureMessaging` database schema and run migrations
-2. Run CodeGen to register the entities (SecureThread, SecureMessage, PortalSession, …)
-3. Register the **Secure Messages** application, actions, and metadata in MJ Explorer
+1. Create the `__mj_BizAppsSecureMessaging` database schema and run the migrations
+2. Register the entities (SecureThread, SecureMessage, PortalSession, …) — the CodeGen output ships *inside the baseline migration*
+3. Register the **Secure Messages** application, the Secure Messaging actions, and the entity settings (search and delete lockdown, form layout) — carried by the release's `Metadata_Sync` migration
 4. Install the server and client bootstrap packages
+
+`mj app install` never runs CodeGen or `mj sync push`; the migrations are the only thing that reaches your database. The `metadata/` folder is the development source for the `Metadata_Sync` migration, which is regenerated at release whenever `metadata/` changes.
 
 See [docs/INSTALL.md](docs/INSTALL.md) for the full provisioning walkthrough (fresh database,
 credentials for file storage and e-signature, and the notify hook).
@@ -219,6 +254,8 @@ Every thread-scoped route verifies the authenticated contact owns the thread.
 
 ## Architecture
 
+> The Secure Thread form uses MJ's **left-nav** layout: messages are first-class, message files and file requests sit under *More*, and portal magic links (`DeepLinkThreadID`) are deliberately not a form surface — they are auth tokens.
+
 ```
 mj-secure-messaging/
 ├── mj-app.json                 # Open App manifest
@@ -236,7 +273,7 @@ mj-secure-messaging/
 
 ## Requirements
 
-- MemberJunction >= 5.45.0
+- MemberJunction >= 6.1.2 (see `mjVersionRange` in `mj-app.json`)
 - SQL Server (for the `__mj_BizAppsSecureMessaging` schema)
 - Node.js >= 20
 
@@ -249,4 +286,4 @@ mj-secure-messaging/
 
 ## License
 
-MIT
+MIT — see `license` in [`mj-app.json`](mj-app.json).

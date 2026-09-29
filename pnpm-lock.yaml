@@ -153,7 +153,7 @@ importers:
         specifier: ^6.1.2
         version: 6.1.2
       '@mj-biz-apps/secure-messaging-core':
-        specifier: 1.2.0
+        specifier: 2.0.0
         version: link:../Core
     devDependencies:
       tsc-alias:
@@ -169,10 +169,10 @@ importers:
         specifier: 5.34.0
         version: 5.34.0(@memberjunction/core@6.1.2)(@memberjunction/global@6.1.2)
       '@mj-biz-apps/secure-messaging-core':
-        specifier: 1.2.0
+        specifier: 2.0.0
         version: link:../Core
       '@mj-biz-apps/secure-messaging-entities':
-        specifier: 1.2.0
+        specifier: 2.0.0
         version: link:../Entities
       pdfjs-dist:
         specifier: ^4.10.38
@@ -248,7 +248,7 @@ importers:
         specifier: ^6.1.2
         version: 6.1.2(encoding@0.1.13)(typescript@5.9.3)
       '@mj-biz-apps/secure-messaging-entities':
-        specifier: 1.2.0
+        specifier: 2.0.0
         version: link:../Entities
     devDependencies:
       '@types/node':
@@ -288,7 +288,7 @@ importers:
         specifier: ^21.2.23
         version: 21.2.23(@angular/common@21.2.23(@angular/core@21.2.23(@angular/compiler@21.2.23)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2))(@angular/compiler@21.2.23)(@angular/core@21.2.23(@angular/compiler@21.2.23)(rxjs@7.8.2)(zone.js@0.16.3))(@angular/platform-browser@21.2.23(@angular/animations@21.2.23(@angular/core@21.2.23(@angular/compiler@21.2.23)(rxjs@7.8.2)(zone.js@0.16.3)))(@angular/common@21.2.23(@angular/core@21.2.23(@angular/compiler@21.2.23)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2))(@angular/core@21.2.23(@angular/compiler@21.2.23)(rxjs@7.8.2)(zone.js@0.16.3)))
       '@mj-biz-apps/secure-messaging-ng':
-        specifier: 1.2.0
+        specifier: 2.0.0
         version: link:../Angular
       rxjs:
         specifier: ^7.8.2
@@ -347,10 +347,10 @@ importers:
         specifier: ^5.30.0
         version: 5.34.0(@memberjunction/core@6.1.2)(@memberjunction/global@6.1.2)
       '@mj-biz-apps/secure-messaging-entities':
-        specifier: 1.2.0
+        specifier: 2.0.0
         version: link:../Entities
       '@mj-biz-apps/secure-messaging-server':
-        specifier: 1.2.0
+        specifier: 2.0.0
         version: link:../Server
     devDependencies:
       '@types/node':
@@ -408,13 +408,13 @@ importers:
         specifier: ^6.1.2
         version: 6.1.2(encoding@0.1.13)(typescript@5.9.3)
       '@mj-biz-apps/secure-messaging-actions':
-        specifier: 1.2.0
+        specifier: 2.0.0
         version: link:../Actions
       '@mj-biz-apps/secure-messaging-core':
-        specifier: 1.2.0
+        specifier: 2.0.0
         version: link:../Core
       '@mj-biz-apps/secure-messaging-entities':
-        specifier: 1.2.0
+        specifier: 2.0.0
         version: link:../Entities
       class-validator:
         specifier: ^0.14.3
