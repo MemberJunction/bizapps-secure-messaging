@@ -1,7 +1,7 @@
 {
   "name": "@mj-biz-apps/secure-messaging-integration-tests",
   "type": "module",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "description": "Integration check bundles for MJ Secure Messaging. SM-WORLD commits through BaseEntity so Explorer has threads to open.",
   "main": "dist/index.js",
@@ -15,8 +15,8 @@
   "license": "MIT",
   "dependencies": {
     "@mj-biz-apps/common-entities": "^5.30.0",
-    "@mj-biz-apps/secure-messaging-entities": "2.0.0",
-    "@mj-biz-apps/secure-messaging-server": "2.0.0"
+    "@mj-biz-apps/secure-messaging-entities": "2.1.0",
+    "@mj-biz-apps/secure-messaging-server": "2.1.0"
   },
   "peerDependencies": {
     "@memberjunction/core": "^6.1.2",

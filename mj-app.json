@@ -4,7 +4,7 @@
   "name": "mj-secure-messaging",
   "displayName": "MJ Secure Messaging",
   "description": "A secure client portal for exchanging messages, documents, and e-signatures with external contacts. Passwordless magic-link entry deep-links contacts into subject-lined conversation threads; staff work the same threads from an inbox in MJ Explorer. Includes file requests with a full lifecycle, e-signature via the MJ eSignature engine, and an embeddable <mj-secure-messaging> Angular Element widget any site can host.",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "publisher": {
     "name": "MemberJunction",
     "email": "dev@memberjunction.com",

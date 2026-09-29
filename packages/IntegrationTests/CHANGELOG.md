@@ -1,5 +1,13 @@
 # @mj-biz-apps/secure-messaging-integration-tests
 
+## 2.1.0
+
+### Patch Changes
+
+- Updated dependencies [3347da4]
+  - @mj-biz-apps/secure-messaging-entities@2.1.0
+  - @mj-biz-apps/secure-messaging-server@2.1.0
+
 ## 2.0.0
 
 ### Patch Changes
