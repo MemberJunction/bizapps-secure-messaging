@@ -2,7 +2,6 @@
   {
     "fields": {
       "Name": "MJ_BizApps_SecureMessaging: Portal Sessions",
-      "Description": "Tracks active secure messaging sessions for external contacts. Each session maps a contact to a channel thread and is authenticated via a hashed opaque token.",
       "BaseView": "vwPortalSessions",
       "IncludeInAPI": true,
       "AllowCreateAPI": true,
@@ -23,7 +22,6 @@
   {
     "fields": {
       "Name": "MJ_BizApps_SecureMessaging: Portal Magic Links",
-      "Description": "Single-use magic links for re-authenticating expired portal sessions. Short-lived, redeems into a fresh session token.",
       "BaseView": "vwPortalMagicLinks",
       "IncludeInAPI": true,
       "AllowCreateAPI": true,
@@ -44,7 +42,6 @@
   {
     "fields": {
       "Name": "MJ_BizApps_SecureMessaging: Secure Messages",
-      "Description": "Self-contained secure message store. Each row is one inbound or outbound message in a thread. App-agnostic: does not require an external Channel Messages entity.",
       "BaseView": "vwSecureMessages",
       "IncludeInAPI": true,
       "AllowCreateAPI": true,
@@ -65,7 +62,6 @@
   {
     "fields": {
       "Name": "MJ_BizApps_SecureMessaging: Message Files",
-      "Description": "Links an uploaded file to a secure message. Bytes are stored in core MJ File Storage (MJ: Files) and wrapped as an MJ Artifact; this table holds references and display metadata only.",
       "BaseView": "vwMessageFiles",
       "IncludeInAPI": true,
       "AllowCreateAPI": true,
@@ -82,7 +78,6 @@
   {
     "fields": {
       "Name": "MJ_BizApps_SecureMessaging: File Requests",
-      "Description": "A request from staff for the external contact to securely upload one or more files. Fulfilled by uploading files and setting Status to Fulfilled.",
       "BaseView": "vwFileRequests",
       "IncludeInAPI": true,
       "AllowCreateAPI": true,
@@ -103,7 +98,6 @@
   {
     "fields": {
       "Name": "MJ_BizApps_SecureMessaging: Secure Threads",
-      "Description": "A first-class secure conversation (thread) between the organization and one external contact. Owns the subject, lifecycle status, and all messages/files/requests via FKs. The unit of the contact portal inbox; magic links deep-link into a thread.",
       "BaseView": "vwSecureThreads",
       "IncludeInAPI": true,
       "AllowCreateAPI": true,
