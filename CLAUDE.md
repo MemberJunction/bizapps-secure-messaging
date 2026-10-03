@@ -2007,3 +2007,13 @@ npx playwright-cli close
 
 ## Recent Changes
 - 601-mcp-oauth: Added TypeScript 5.x, Node.js 18+ + `@memberjunction/server` (auth providers), `express`, `jsonwebtoken`, `@modelcontextprotocol/sdk`
+
+## Metadata ships as release migrations
+
+`mj app install` and upgrades run migrations only. There is no metadata phase, by design. A record that exists only as JSON under `metadata/` reaches no host until a release ships it inside a migration.
+
+- **PRs carry metadata JSON only.** Never hand-write or generate a `*__Metadata_Sync.sql` in a feature PR.
+- **The build engineer** generates one differential `Metadata_Sync` migration per release, from a fresh database.
+- **Rows missing after a fresh install** usually mean a release shipped without its metadata migration. Hand that to the build engineer. Do not change the installer or add a post-install push.
+
+Full process: [Release Metadata Migrations Guide](https://github.com/MemberJunction/MJ/blob/next/guides/RELEASE_METADATA_MIGRATIONS_GUIDE.md).
