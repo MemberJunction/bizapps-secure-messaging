@@ -12,7 +12,7 @@
     "/dist"
   ],
   "scripts": {
-    "prebuild": "mj codegen manifest --exclude-packages @memberjunction --scan-dist --output ./src/generated/class-registrations-manifest.ts || echo 'Warning: mj codegen manifest not available, using existing manifest'",
+    "prebuild": "mj codegen manifest --exclude-packages @memberjunction --no-sync-deps --scan-dist --output ./src/generated/class-registrations-manifest.ts || echo 'Warning: mj codegen manifest not available, using existing manifest'",
     "build": "tsc && tsc-alias -f"
   },
   "author": "MemberJunction.com",
