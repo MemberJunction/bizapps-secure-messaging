@@ -39,12 +39,12 @@
     "@memberjunction/ng-link-directives": "^6.1.2"
   },
   "devDependencies": {
-    "@angular/common": "^21.2.23",
-    "@angular/compiler": "^21.2.23",
-    "@angular/compiler-cli": "^21.2.23",
-    "@angular/core": "^21.2.23",
-    "@angular/forms": "^21.2.23",
-    "@angular/platform-browser": "^21.2.23",
+    "@angular/common": "21.2.22",
+    "@angular/compiler": "21.2.22",
+    "@angular/compiler-cli": "21.2.22",
+    "@angular/core": "21.2.22",
+    "@angular/forms": "21.2.22",
+    "@angular/platform-browser": "21.2.22",
     "@memberjunction/core": "^6.1.2",
     "@memberjunction/core-entities": "^6.1.2",
     "@memberjunction/global": "^6.1.2",
