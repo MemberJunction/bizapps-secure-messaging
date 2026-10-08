@@ -17,6 +17,11 @@
   "author": "MemberJunction.com",
   "license": "MIT",
   "devDependencies": {
+    "@memberjunction/actions": "6.1.2",
+    "@memberjunction/actions-base": "6.1.2",
+    "@memberjunction/core": "6.1.2",
+    "@memberjunction/core-entities": "6.1.2",
+    "@memberjunction/global": "6.1.2",
     "tsc-alias": "^1.8.16",
     "typescript": "^5.9.3"
   },
