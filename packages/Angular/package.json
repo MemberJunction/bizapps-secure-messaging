@@ -12,12 +12,11 @@
     "/dist"
   ],
   "scripts": {
-    "prebuild": "mj codegen manifest --exclude-packages @memberjunction --scan-dist --output ./src/lib/generated/class-registrations-manifest.ts || echo 'Warning: mj codegen manifest not available, using existing manifest'",
+    "prebuild": "mj codegen manifest --exclude-packages @memberjunction --no-sync-deps --scan-dist --output ./src/lib/generated/class-registrations-manifest.ts || echo 'Warning: mj codegen manifest not available, using existing manifest'",
     "build": "ngc",
     "dev": "ngc --watch"
   },
   "dependencies": {
-    "@mj-biz-apps/common-entities": "5.34.0",
     "@mj-biz-apps/secure-messaging-core": "2.1.0",
     "@mj-biz-apps/secure-messaging-entities": "2.1.0",
     "pdfjs-dist": "^4.10.38"
@@ -36,28 +35,29 @@
     "@mj-biz-apps/common-entities": "^5.30.0",
     "@memberjunction/ng-base-forms": "^6.1.2",
     "@memberjunction/ng-entity-viewer": "^6.1.2",
-    "@memberjunction/ng-link-directives": "^6.1.2"
+    "@memberjunction/ng-link-directives": "^6.1.2",
+    "@memberjunction/actions-base": "^6.1.2"
   },
   "devDependencies": {
-    "@angular/common": "^21.2.23",
-    "@angular/compiler": "^21.2.23",
-    "@angular/compiler-cli": "^21.2.23",
-    "@angular/core": "^21.2.23",
-    "@angular/forms": "^21.2.23",
-    "@angular/platform-browser": "^21.2.23",
-    "@memberjunction/core": "^6.1.2",
-    "@memberjunction/core-entities": "^6.1.2",
-    "@memberjunction/global": "^6.1.2",
-    "@memberjunction/graphql-dataprovider": "^6.1.2",
-    "@memberjunction/actions-base": "^6.1.2",
-    "@memberjunction/ng-base-application": "^6.1.2",
-    "@memberjunction/ng-shared": "^6.1.2",
-    "@memberjunction/ng-auth-services": "^6.1.2",
-    "@mj-biz-apps/common-entities": "^5.30.0",
+    "@angular/common": "21.2.22",
+    "@angular/compiler": "21.2.22",
+    "@angular/compiler-cli": "21.2.22",
+    "@angular/core": "21.2.22",
+    "@angular/forms": "21.2.22",
+    "@angular/platform-browser": "21.2.22",
+    "@memberjunction/core": "6.1.2",
+    "@memberjunction/core-entities": "6.1.2",
+    "@memberjunction/global": "6.1.2",
+    "@memberjunction/graphql-dataprovider": "6.1.2",
+    "@memberjunction/actions-base": "6.1.2",
+    "@memberjunction/ng-base-application": "6.1.2",
+    "@memberjunction/ng-shared": "6.1.2",
+    "@memberjunction/ng-auth-services": "6.1.2",
+    "@mj-biz-apps/common-entities": "5.34.0",
     "typescript": "^5.9.3",
-    "@memberjunction/ng-base-forms": "^6.1.2",
-    "@memberjunction/ng-entity-viewer": "^6.1.2",
-    "@memberjunction/ng-link-directives": "^6.1.2"
+    "@memberjunction/ng-base-forms": "6.1.2",
+    "@memberjunction/ng-entity-viewer": "6.1.2",
+    "@memberjunction/ng-link-directives": "6.1.2"
   },
   "license": "MIT",
   "repository": {

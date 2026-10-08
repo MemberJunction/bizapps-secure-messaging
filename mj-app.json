@@ -59,10 +59,6 @@
       {
         "name": "@mj-biz-apps/secure-messaging-actions",
         "role": "library"
-      },
-      {
-        "name": "@mj-biz-apps/secure-messaging-element",
-        "role": "components"
       }
     ]
   },
