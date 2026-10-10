@@ -219,8 +219,12 @@ session tokens (`Authorization: Bearer sm_*`), not MJ user accounts.
 
 **Auth (public):**
 - `POST /auth/validate` — validate a session token
-- `POST /auth/magic-link` — request a magic link for a session
 - `POST /auth/magic-link/redeem` — redeem a magic link (single-use) into a fresh session token
+
+There is deliberately **no** public "request a magic link" route — such an endpoint would mint a
+raw magic-link token from a caller-supplied session ID pre-auth, which is unauthenticated account
+takeover. Magic links are only issued server-side (thread provisioning / promote / the
+`Issue Portal Magic Link` action) and delivered out-of-band.
 
 **Promote (server-to-server, HMAC-signed):**
 - `POST /promote` — promote an insecure (email/SMS) conversation into a secure thread: creates the
