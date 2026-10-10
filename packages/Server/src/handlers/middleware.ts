@@ -45,6 +45,18 @@ export async function portalAuthMiddleware(
     }
 }
 
+/** Canonical UUID shape (8-4-4-4-12 hex). */
+const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+/**
+ * Boundary validation for caller-supplied record IDs (route params / body fields). Every ID this
+ * API accepts is a UUID; rejecting anything else up front means no free-form caller string is ever
+ * interpolated into a RunView filter or entity load, independent of downstream escaping.
+ */
+export function isWellFormedUuid(value: string): boolean {
+    return UUID_REGEX.test(value);
+}
+
 /** The context assertThreadAccess hands back to handlers on success. */
 export interface ThreadAccess {
     systemUser: Awaited<ReturnType<typeof getSystemUser>>;
@@ -64,6 +76,12 @@ export async function assertThreadAccess(
     res: Response
 ): Promise<ThreadAccess | null> {
     const threadId = String(req.params.threadId);
+    // Thread IDs are UUID primary keys. Reject malformed values before they reach any query —
+    // same response as "not yours" so the check leaks nothing about why access was denied.
+    if (!isWellFormedUuid(threadId)) {
+        res.status(403).json({ error: 'Access denied to this thread' });
+        return null;
+    }
     try {
         const systemUser = await getSystemUser();
         const threadStatus = await PortalAuthService.Instance.contactThreadStatus(
