@@ -38,6 +38,14 @@
         "name": "@mj-biz-apps/secure-messaging-server",
         "role": "bootstrap",
         "startupExport": "LoadSecureMessagingServer"
+      },
+      {
+        "name": "@mj-biz-apps/secure-messaging-core",
+        "role": "library"
+      },
+      {
+        "name": "@mj-biz-apps/secure-messaging-actions",
+        "role": "library"
       }
     ],
     "client": [
@@ -50,14 +58,6 @@
     "shared": [
       {
         "name": "@mj-biz-apps/secure-messaging-entities",
-        "role": "library"
-      },
-      {
-        "name": "@mj-biz-apps/secure-messaging-core",
-        "role": "library"
-      },
-      {
-        "name": "@mj-biz-apps/secure-messaging-actions",
         "role": "library"
       },
       {
