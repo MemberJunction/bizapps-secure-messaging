@@ -5,8 +5,8 @@ import { validateToken, redeemMagicLink } from './handlers/auth.js';
 import { listThreads } from './handlers/threads.js';
 import { getThreadMessages, createThreadMessage } from './handlers/messages.js';
 import { getThreadAttachments, uploadAttachment, downloadAttachment } from './handlers/attachments.js';
-import { getFileRequests, createFileRequest, fulfillFileRequest } from './handlers/fileRequests.js';
-import { getSignatureRequests, createSignatureRequest, refreshSignatureStatus, voidSignatureRequest, downloadSignedDocument } from './handlers/signatures.js';
+import { getFileRequests, fulfillFileRequest } from './handlers/fileRequests.js';
+import { getSignatureRequests, refreshSignatureStatus, downloadSignedDocument } from './handlers/signatures.js';
 import { promoteThread, captureRawBody } from './handlers/promote.js';
 import { MAX_FILE_BYTES } from '@mj-biz-apps/secure-messaging-core';
 
@@ -29,6 +29,8 @@ function corsMiddleware(req: Request, res: Response, next: NextFunction): void {
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.setHeader('Access-Control-Max-Age', '86400');
+    // The Allow-Origin value reflects the request's Origin, so caches must key on it.
+    res.setHeader('Vary', 'Origin');
 
     if (req.method === 'OPTIONS') {
         res.status(204).end();
@@ -87,17 +89,23 @@ export function createSecureMessagingRouter(): Router {
     router.post('/threads/:threadId/attachments', upload.single('file'), uploadAttachment);
     router.get('/threads/:threadId/attachments/:attachmentId/download', downloadAttachment);
 
-    // File requests — staff creates, contact fulfills (fulfill is a multipart upload)
+    // File requests — staff creates (server-side, NOT via this portal API), contact fulfills
+    // (fulfill is a multipart upload).
     router.get('/threads/:threadId/file-requests', getFileRequests);
-    router.post('/threads/:threadId/file-requests', createFileRequest);
     router.post('/threads/:threadId/file-requests/:requestId/fulfill', upload.single('file'), fulfillFileRequest);
 
     // Signature requests — backed by the MJ eSignature engine (DocuSign / PandaDoc / Dropbox Sign).
-    // Create+send is one atomic step (the engine has no separate "send a draft" primitive).
+    //
+    // SECURITY: only the CONTACT-facing verbs are mounted here. The only principal on this
+    // router is an external contact (portal session token), so staff-side verbs must never be
+    // reachable from it: `createSignatureRequest` lets the caller send envelopes from the org's
+    // e-signature account, `voidSignatureRequest` cancels staff-sent envelopes, and
+    // `createFileRequest` fabricates staff-side document demands. The contact widget calls none
+    // of them (it only lists, fulfills, refreshes, and downloads). Those handlers remain
+    // exported from ./handlers for staff-side hosts to mount behind STAFF authentication — do
+    // not re-mount them on this portal router.
     router.get('/threads/:threadId/signature-requests', getSignatureRequests);
-    router.post('/threads/:threadId/signature-requests', createSignatureRequest);
     router.post('/threads/:threadId/signature-requests/:requestId/refresh-status', refreshSignatureStatus);
-    router.post('/threads/:threadId/signature-requests/:requestId/void', voidSignatureRequest);
     router.get('/threads/:threadId/signature-requests/:requestId/signed-document', downloadSignedDocument);
 
     return router;
