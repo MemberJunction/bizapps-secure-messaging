@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { getSystemUser } from '@memberjunction/server';
-import { PortalAuthService, PortalSessionContext } from '@mj-biz-apps/secure-messaging-core';
+import { PortalAuthService, PortalSessionContext, isUuid } from '@mj-biz-apps/secure-messaging-core';
 
 /**
  * Extended Express Request with portal session context.
@@ -64,6 +64,12 @@ export async function assertThreadAccess(
     res: Response
 ): Promise<ThreadAccess | null> {
     const threadId = String(req.params.threadId);
+    // Route params are caller-controlled and end up interpolated into ExtraFilters downstream
+    // (thread guards, list queries) — reject anything that is not a well-formed UUID up front.
+    if (!isUuid(threadId)) {
+        res.status(400).json({ error: 'Invalid thread ID' });
+        return null;
+    }
     try {
         const systemUser = await getSystemUser();
         const threadStatus = await PortalAuthService.Instance.contactThreadStatus(
