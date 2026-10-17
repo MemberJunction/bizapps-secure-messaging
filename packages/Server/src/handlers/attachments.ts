@@ -78,8 +78,13 @@ export async function uploadAttachment(req: Request, res: Response): Promise<voi
     } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         console.error(`Secure Messaging upload attachment error: ${msg}`);
-        // Configuration problems (no storage account) and size limits are client-actionable.
-        if (/storage account|maximum size|empty/i.test(msg)) {
+        // A secureMessageId that is malformed or not part of this thread is the caller's error.
+        if (/not found in this thread/i.test(msg)) {
+            res.status(404).json({ error: msg });
+            return;
+        }
+        // Configuration problems (no storage account), size limits, and bad IDs are client-actionable.
+        if (/storage account|maximum size|empty|not a valid ID/i.test(msg)) {
             res.status(400).json({ error: msg });
             return;
         }

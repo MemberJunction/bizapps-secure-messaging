@@ -19,11 +19,30 @@ const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}
  * Asserts that a caller-supplied ID is a well-formed UUID before it is interpolated into a SQL
  * filter. These IDs arrive from request params/body, so this is the injection guard.
  */
-function assertUuid(value: string, label: string): string {
+export function assertUuid(value: string, label: string): string {
     if (!UUID_REGEX.test(value)) {
         throw new Error(`${label} is not a valid ID`);
     }
     return value;
+}
+
+/** True when a caller-supplied ID is a well-formed UUID (non-throwing form of {@link assertUuid}). */
+export function isUuid(value: string): boolean {
+    return UUID_REGEX.test(value);
+}
+
+/**
+ * MIME types browsers execute as active content when served inline. Contact-uploaded HTML/SVG
+ * served from a pre-auth download URL could run script in the storage provider's origin, so these
+ * are stored as generic binary instead. (The storage drivers' CreatePreAuthDownloadUrl takes no
+ * response-disposition override, so the stored content type is the only lever at this layer.)
+ */
+const ACTIVE_CONTENT_MIME_TYPES = ['text/html', 'image/svg+xml'];
+
+/** Downgrades active-content MIME types to application/octet-stream for storage. */
+function sanitizeContentType(contentType: string): string {
+    const base = (contentType || '').split(';')[0].trim().toLowerCase();
+    return ACTIVE_CONTENT_MIME_TYPES.includes(base) ? 'application/octet-stream' : contentType;
 }
 
 export interface StoreFileInput {
@@ -96,6 +115,25 @@ export class ArtifactFileStore {
         }
         if (input.bytes.length > MAX_FILE_BYTES) {
             throw new Error(`File exceeds the maximum size of ${MAX_FILE_BYTES} bytes`);
+        }
+        // Never store a browser-executable content type for contact uploads (HTML/SVG served
+        // inline from a pre-auth URL would run script); downgrade those to generic binary.
+        input = { ...input, contentType: sanitizeContentType(input.contentType) };
+
+        // Object-level authorization: a caller-supplied secureMessageId must name a message that
+        // belongs to the authorized thread — otherwise a contact could plant files onto another
+        // thread's messages by guessing/replaying message IDs.
+        if (ctx.secureMessageId) {
+            const check = await new RunView().RunView<{ ID: string }>({
+                EntityName: 'MJ_BizApps_SecureMessaging: Secure Messages',
+                ExtraFilter: `ID = '${assertUuid(ctx.secureMessageId, 'secureMessageId')}' AND ThreadID = '${ctx.threadId.replace(/'/g, "''")}'`,
+                Fields: ['ID'],
+                MaxRows: 1,
+                ResultType: 'simple',
+            }, systemUser);
+            if (!check.Success || check.Results.length === 0) {
+                throw new Error('Message not found in this thread');
+            }
         }
 
         const engine = FileStorageEngine.Instance;

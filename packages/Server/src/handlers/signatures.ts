@@ -1,9 +1,10 @@
 import { Request, Response } from 'express';
 import { Metadata, RunView, UserInfo } from '@memberjunction/core';
+import { UUIDsEqual } from '@memberjunction/global';
 import { getSystemUser } from '@memberjunction/server';
 import { SignatureEngine } from '@memberjunction/esignature/server';
-import { PortalRequest, assertThreadAccess } from './middleware.js';
-import { getFileStore } from '@mj-biz-apps/secure-messaging-core';
+import { PortalRequest, assertThreadAccess, assertThreadWritable } from './middleware.js';
+import { getFileStore, isUuid } from '@mj-biz-apps/secure-messaging-core';
 
 /**
  * E-signature handlers, backed by the core MJ eSignature subsystem
@@ -40,6 +41,12 @@ async function assertRequestBelongsToThread(
     systemUser: UserInfo,
     res: Response,
 ): Promise<boolean> {
+    // Reject a malformed route param before it reaches any query (same UUID guard the file
+    // store applies to artifactId / messageFileId).
+    if (!isUuid(requestId)) {
+        res.status(400).json({ error: 'Invalid signature request ID' });
+        return false;
+    }
     const entityId = getSecureThreadsEntityId();
     const rv = new RunView();
     const result = await rv.RunView<{ ID: string }>({
@@ -140,12 +147,15 @@ export async function getSignatureRequests(req: Request, res: Response): Promise
             return;
         }
 
+        // NOTE: SignatureAccountID is deliberately NOT returned. It names the org's e-signature
+        // account (provider credentials holder) — internal configuration a portal contact has no
+        // use for, and leaking a valid account ID is what would let a caller drive the org's
+        // signing account through the POST route.
         const signatureRequests = (result.Results as Record<string, unknown>[]).map(r => ({
             id: r.ID,
             title: r.Name,
             status: toDisplayStatus(r.Status as string),
             externalEnvelopeId: r.ExternalEnvelopeID,
-            signatureAccountId: r.SignatureAccountID,
             sentAt: r.SentAt,
             completedAt: r.CompletedAt,
             createdAt: r.__mj_CreatedAt,
@@ -172,6 +182,7 @@ export async function getSignatureRequests(req: Request, res: Response): Promise
 export async function createSignatureRequest(req: Request, res: Response): Promise<void> {
     const access = await assertThreadAccess(req as PortalRequest, res);
     if (!access) return;
+    if (!assertThreadWritable(access, res)) return;
     const { systemUser, threadId } = access;
     const session = (req as PortalRequest).portalSession;
     const { title, signatureAccountId, artifactId, signatureAnchor } = req.body;
@@ -222,6 +233,25 @@ export async function createSignatureRequest(req: Request, res: Response): Promi
         const contactName = await resolveContactName(session.contactId, systemUser);
 
         await SignatureEngine.Instance.Config(false, systemUser);
+
+        // Validate the caller-supplied account against what is actually configured: it must be an
+        // ACTIVE MJ: Signature Account whose provider is also active. The engine itself only checks
+        // existence, and this route is reachable with a contact portal session — without this check
+        // (and with the account ID no longer echoed by the GET route) a contact could drive an
+        // arbitrary/inactive signing account by supplying its ID. Signature accounts are
+        // instance-wide in this data model (one org per instance), so active-account membership is
+        // the strongest association available to check.
+        const account = SignatureEngine.Instance.Accounts.find(
+            a => UUIDsEqual(a.ID, signatureAccountId) && a.IsActive !== false
+        );
+        const accountProvider = account
+            ? SignatureEngine.Instance.Providers.find(p => UUIDsEqual(p.ID, account.SignatureProviderID))
+            : undefined;
+        if (!account || !accountProvider || accountProvider.IsActive === false) {
+            res.status(400).json({ error: 'signatureAccountId does not name an active signature account' });
+            return;
+        }
+
         const result = await SignatureEngine.Instance.SendForSignature({
             signatureAccountId,
             title: title.trim(),

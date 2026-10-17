@@ -1,6 +1,32 @@
 import { Request, Response } from 'express';
 import { PortalRequest, assertThreadAccess, assertThreadWritable } from './middleware.js';
 import { getMessageStore } from '@mj-biz-apps/secure-messaging-core';
+import type { SecureMessageView } from '@mj-biz-apps/secure-messaging-core';
+
+/**
+ * Portal-facing serialization of a message. The AI pipeline's internal fields must never reach
+ * the external contact: `generatedReply` is an UNAPPROVED draft and `approvalStatus` is staff-side
+ * workflow state, so both are always stripped; `approvedReply` is included only once the reply has
+ * actually been sent (the store sets `sentContent`/`sentAt` at send time) — before that it is still
+ * internal. Staff surfaces read the stores directly, not this REST handler, so they are unaffected.
+ */
+function toPortalMessageView(msg: SecureMessageView): SecureMessageView {
+    const replySent = !!(msg.sentAt || msg.sentContent);
+    return {
+        id: msg.id,
+        sender: msg.sender,
+        recipient: msg.recipient,
+        subject: msg.subject,
+        content: msg.content,
+        receivedAt: msg.receivedAt,
+        generationStatus: msg.generationStatus,
+        approvedReply: replySent ? msg.approvedReply : undefined,
+        sentContent: msg.sentContent,
+        sentAt: msg.sentAt,
+        parentId: msg.parentId,
+        messageFormat: msg.messageFormat,
+    };
+}
 
 /**
  * GET /threads/:threadId/messages
@@ -19,7 +45,7 @@ export async function getThreadMessages(req: Request, res: Response): Promise<vo
 
     try {
         const messages = await getMessageStore().getThreadMessages(session, threadId, systemUser);
-        res.json({ messages });
+        res.json({ messages: messages.map(toPortalMessageView) });
     } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         console.error(`Secure Messaging get messages error: ${msg}`);
