@@ -166,7 +166,7 @@ importers:
   packages/Angular:
     dependencies:
       '@mj-biz-apps/common-entities':
-        specifier: 5.34.0
+        specifier: ^5.34.0
         version: 5.34.0(@memberjunction/core@6.1.2)(@memberjunction/global@6.1.2)
       '@mj-biz-apps/secure-messaging-core':
         specifier: 2.1.0
