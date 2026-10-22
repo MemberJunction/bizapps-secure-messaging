@@ -2,10 +2,11 @@
 
 ## Critical Rules for Metadata Creation
 
-### 1. NEVER Include System-Generated Fields
-When creating or editing metadata JSON files, **NEVER** include the following fields - they are automatically managed by the MetadataSync tool:
+### 1. `primaryKey` on Every Record; System-Generated Fields Never
+**Every record MUST have a `primaryKey`**, at the top level and on every nested `relatedEntities` child; `mj sync push` creates a new row for any record without one. Use a hardcoded UUID from CLI `uuidgen` (`uuidgen | tr '[:lower:]' '[:upper:]'`) for a row the file creates, or an `@lookup` for a row the migration stack or CodeGen already created (e.g. `"ID": "@lookup:MJ: Entity Fields.EntityID=@lookup:MJ: Entities.Name=<Entity>&Name=<Field>"`). See MJ's `metadata/CLAUDE.md` rule 1.
 
-- **primaryKey**: This object (containing ID or other key fields) is auto-generated
+**NEVER** include the following fields - they are automatically managed by the MetadataSync tool:
+
 - **sync**: This object (containing lastModified and checksum) is auto-managed
 - **__mj_CreatedAt**: System timestamp
 - **__mj_UpdatedAt**: System timestamp
@@ -155,7 +156,7 @@ metadata/
 - Don't include timestamp fields - they're auto-managed
 - Don't forget to set Status fields to "Active"
 - Don't create agent types - use existing "Loop" type
-- Don't include primaryKey or sync objects in any records
+- Don't include sync objects in any records, and don't leave any record without a `primaryKey` (rule 1)
 - `metadata/scheduled-jobs/.memory-cleanup-job.json` is **deprecated as of v5.30.x** — Memory Cleanup Agent has been folded into Memory Manager's consolidation pipeline. Don't author new scheduled jobs that reference it; trigger memory maintenance through the Memory Manager agent instead. See `packages/AI/Agents/README.md` and `specs/001-memory-consolidation/spec.md`.
 
 ### 11. Pushing Metadata with `mj sync push`
