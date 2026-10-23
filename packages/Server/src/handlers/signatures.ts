@@ -145,7 +145,9 @@ export async function getSignatureRequests(req: Request, res: Response): Promise
             title: r.Name,
             status: toDisplayStatus(r.Status as string),
             externalEnvelopeId: r.ExternalEnvelopeID,
-            signatureAccountId: r.SignatureAccountID,
+            // SignatureAccountID is deliberately NOT returned: it identifies the org's
+            // e-signature account (internal credential selector) and external contacts
+            // have no use for it.
             sentAt: r.SentAt,
             completedAt: r.CompletedAt,
             createdAt: r.__mj_CreatedAt,
@@ -161,6 +163,11 @@ export async function getSignatureRequests(req: Request, res: Response): Promise
 
 /**
  * POST /threads/:threadId/signature-requests
+ *
+ * ⚠️ STAFF-SIDE VERB — NOT mounted on the portal router. The portal's only principal is an
+ * external contact, and this handler sends envelopes from the ORG's e-signature account
+ * (caller-supplied signatureAccountId, run as systemUser). Mount it only behind staff
+ * authentication; never re-add it to the contact-facing router in routes.ts.
  *
  * Creates AND sends a signature request in one step via the MJ eSignature engine. The
  * engine's SendForSignature is atomic (create + send), so there is no separate /send route.
@@ -292,6 +299,9 @@ export async function refreshSignatureStatus(req: Request, res: Response): Promi
 
 /**
  * POST /threads/:threadId/signature-requests/:requestId/void
+ *
+ * ⚠️ STAFF-SIDE VERB — NOT mounted on the portal router. An external contact must not be
+ * able to void staff-sent envelopes. Mount only behind staff authentication.
  *
  * Voids/cancels an in-flight envelope.
  *

@@ -65,7 +65,11 @@ export async function getFileRequests(req: Request, res: Response): Promise<void
 /**
  * POST /threads/:threadId/file-requests
  *
- * Creates a file request (typically by staff) asking the contact to upload files.
+ * ⚠️ STAFF-SIDE VERB — NOT mounted on the portal router. File requests are staff asking the
+ * contact for documents; letting a portal-authenticated contact create them would fabricate
+ * staff-side demands. Mount only behind staff authentication.
+ *
+ * Creates a file request asking the contact to upload files.
  *
  * Body: { title: string, instructions?: string, dueAt?: string }
  */
