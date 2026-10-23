@@ -1,6 +1,39 @@
 import { Request, Response } from 'express';
-import { PortalRequest, assertThreadAccess, assertThreadWritable } from './middleware.js';
+import { RunView, UserInfo } from '@memberjunction/core';
+import { PortalRequest, assertThreadAccess, assertThreadWritable, isWellFormedUuid } from './middleware.js';
 import { getFileStore } from '@mj-biz-apps/secure-messaging-core';
+
+/**
+ * Object-level authorization for the optional message-link fields on an upload: the
+ * caller-supplied message ID must be a record of the given entity that belongs to THIS thread.
+ * Without this, a contact could associate an upload with a message in a different thread (the
+ * MessageFile row carries SecureMessageID/ExternalMessageID independently of ThreadID), so any
+ * consumer reading files by message ID would surface the attacker's file under someone else's
+ * message. Writes the 400 response and returns false when the link target is not in this thread.
+ */
+async function assertMessageInThread(
+    entityName: string,
+    messageId: string,
+    threadId: string,
+    systemUser: UserInfo,
+    res: Response
+): Promise<boolean> {
+    if (isWellFormedUuid(messageId)) {
+        const rv = new RunView();
+        const result = await rv.RunView<{ ID: string }>({
+            EntityName: entityName,
+            ExtraFilter: `ID = '${messageId}' AND ThreadID = '${threadId.replace(/'/g, "''")}'`,
+            Fields: ['ID'],
+            MaxRows: 1,
+            ResultType: 'simple',
+        }, systemUser);
+        if (result.Success && result.Results.length > 0) {
+            return true;
+        }
+    }
+    res.status(400).json({ error: 'The message to attach this file to was not found in this thread' });
+    return false;
+}
 
 /**
  * GET /threads/:threadId/attachments
@@ -52,7 +85,21 @@ export async function uploadAttachment(req: Request, res: Response): Promise<voi
         return;
     }
 
+    // The optional message-link fields are caller-supplied IDs — verify each one actually
+    // belongs to this thread before linking the file to it (object-level authorization).
+    const secureMessageId = typeof req.body?.secureMessageId === 'string' ? req.body.secureMessageId : undefined;
+    const externalMessageId = typeof req.body?.externalMessageId === 'string' ? req.body.externalMessageId : undefined;
+
     try {
+        if (secureMessageId && !(await assertMessageInThread(
+            'MJ_BizApps_SecureMessaging: Secure Messages', secureMessageId, threadId, systemUser, res))) {
+            return;
+        }
+        if (externalMessageId && !(await assertMessageInThread(
+            'Channel Messages', externalMessageId, threadId, systemUser, res))) {
+            return;
+        }
+
         const stored = await getFileStore().store(
             {
                 filename: file.originalname,
@@ -61,8 +108,8 @@ export async function uploadAttachment(req: Request, res: Response): Promise<voi
             },
             {
                 threadId,
-                secureMessageId: typeof req.body?.secureMessageId === 'string' ? req.body.secureMessageId : undefined,
-                externalMessageId: typeof req.body?.externalMessageId === 'string' ? req.body.externalMessageId : undefined,
+                secureMessageId,
+                externalMessageId,
             },
             systemUser
         );

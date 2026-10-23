@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { CompositeKey, Metadata, RunView } from '@memberjunction/core';
 import { mjBizAppsSecureMessagingFileRequestEntity } from '@mj-biz-apps/secure-messaging-entities';
-import { PortalRequest, assertThreadAccess, assertThreadWritable } from './middleware.js';
+import { PortalRequest, assertThreadAccess, assertThreadWritable, isWellFormedUuid } from './middleware.js';
 import { getFileStore } from '@mj-biz-apps/secure-messaging-core';
 
 /** A Pending request whose DueAt has passed is treated as Expired (PRD §7, enforced lazily). */
@@ -121,6 +121,11 @@ export async function fulfillFileRequest(req: Request, res: Response): Promise<v
     if (!assertThreadWritable(access, res)) return;
     const { systemUser, threadId } = access;
     const requestId = String(req.params.requestId);
+    // Boundary-validate the caller-supplied request ID before it reaches the entity load.
+    if (!isWellFormedUuid(requestId)) {
+        res.status(404).json({ error: 'File request not found in this thread' });
+        return;
+    }
     // Default true (a single upload fulfills); pass complete=false for intermediate multi-file uploads.
     const markComplete = String(req.body?.complete ?? 'true').toLowerCase() !== 'false';
 

@@ -38,8 +38,10 @@ function verifyPromoteSignature(req: Request, secret: string): boolean {
         return false;
     }
 
+    // Reject timestamps outside the window in EITHER direction: a future-dated timestamp must not
+    // pass (it would let a captured request replay until the clock catches up to it + the window).
     const requestTime = parseInt(timestamp, 10);
-    if (isNaN(requestTime) || Math.floor(Date.now() / 1000) - requestTime > MAX_REQUEST_AGE_SECONDS) {
+    if (isNaN(requestTime) || Math.abs(Math.floor(Date.now() / 1000) - requestTime) > MAX_REQUEST_AGE_SECONDS) {
         return false;
     }
 

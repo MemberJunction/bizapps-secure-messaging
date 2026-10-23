@@ -97,8 +97,12 @@ export interface SignatureRequest {
   id: string;
   title: string;
   status: 'Draft' | 'Sent' | 'Signed' | 'Declined' | 'Cancelled' | 'Unknown';
-  /** MJ: Signature Account the request was sent through. */
-  signatureAccountId: string | null;
+  /**
+   * MJ: Signature Account the request was sent through. No longer returned by the contact-facing
+   * API (leaking it let a contact send envelopes through the org's provider account); optional for
+   * backward compatibility with older servers.
+   */
+  signatureAccountId?: string | null;
   /** Provider-side envelope identifier, once sent. */
   externalEnvelopeId: string | null;
   sentAt: string | null;

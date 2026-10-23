@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { Metadata, RunView, UserInfo } from '@memberjunction/core';
 import { getSystemUser } from '@memberjunction/server';
 import { SignatureEngine } from '@memberjunction/esignature/server';
-import { PortalRequest, assertThreadAccess } from './middleware.js';
+import { PortalRequest, assertThreadAccess, isWellFormedUuid } from './middleware.js';
 import { getFileStore } from '@mj-biz-apps/secure-messaging-core';
 
 /**
@@ -145,7 +145,11 @@ export async function getSignatureRequests(req: Request, res: Response): Promise
             title: r.Name,
             status: toDisplayStatus(r.Status as string),
             externalEnvelopeId: r.ExternalEnvelopeID,
-            signatureAccountId: r.SignatureAccountID,
+            // NOTE: SignatureAccountID is deliberately NOT returned. This endpoint serves the
+            // external contact, and a signature-account ID is the one secret-ish input the
+            // contact-callable POST /signature-requests route needs — leaking it here let any
+            // contact who had ever received an envelope send new envelopes through the org's
+            // provider account. The contact widget never used the field.
             sentAt: r.SentAt,
             completedAt: r.CompletedAt,
             createdAt: r.__mj_CreatedAt,
@@ -183,11 +187,12 @@ export async function createSignatureRequest(req: Request, res: Response): Promi
         res.status(400).json({ error: 'A title is required' });
         return;
     }
-    if (!signatureAccountId || typeof signatureAccountId !== 'string') {
+    // Both IDs are caller-supplied and flow into record lookups — boundary-validate as UUIDs.
+    if (!signatureAccountId || typeof signatureAccountId !== 'string' || !isWellFormedUuid(signatureAccountId)) {
         res.status(400).json({ error: 'A signatureAccountId is required (the MJ: Signature Account to send through)' });
         return;
     }
-    if (!artifactId || typeof artifactId !== 'string') {
+    if (!artifactId || typeof artifactId !== 'string' || !isWellFormedUuid(artifactId)) {
         res.status(400).json({ error: 'An artifactId is required (the document to sign)' });
         return;
     }
