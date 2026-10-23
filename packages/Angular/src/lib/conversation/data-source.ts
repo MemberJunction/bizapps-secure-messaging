@@ -97,8 +97,6 @@ export interface SignatureRequest {
   id: string;
   title: string;
   status: 'Draft' | 'Sent' | 'Signed' | 'Declined' | 'Cancelled' | 'Unknown';
-  /** MJ: Signature Account the request was sent through. */
-  signatureAccountId: string | null;
   /** Provider-side envelope identifier, once sent. */
   externalEnvelopeId: string | null;
   sentAt: string | null;

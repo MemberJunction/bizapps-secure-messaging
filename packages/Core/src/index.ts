@@ -7,7 +7,7 @@ export { getMessageStore, setMessageStore, OwnedMessageStore, ChannelMessageStor
 export type { MessageStore, SecureMessageView, CreateMessageInput, CreateMessageResult, CreateOutboundMessageInput, ImportMessagesInput, ImportMessagesResult, MessageNotifier, MessageNotification } from './stores/index.js';
 
 // File/artifact store (bytes in MJ Files, wrapped as MJ Artifacts)
-export { ArtifactFileStore, getFileStore, MAX_FILE_BYTES } from './stores/ArtifactFileStore.js';
+export { ArtifactFileStore, getFileStore, MAX_FILE_BYTES, assertUuid, isUuid } from './stores/ArtifactFileStore.js';
 export type { StoreFileInput, StoreFileContext, StoredFile } from './stores/ArtifactFileStore.js';
 
 // Config (message backend selection, etc.)
