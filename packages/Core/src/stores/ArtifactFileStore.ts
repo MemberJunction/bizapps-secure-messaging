@@ -89,6 +89,33 @@ export class ArtifactFileStore {
         return (fallback?.ID) || types[0].ID;
     }
 
+    /**
+     * Object-level authorization for a caller-supplied message link: verifies the message row
+     * exists AND belongs to the target thread before a MessageFile link is written against it.
+     * Both message stores key their rows to the thread via ThreadID (SecureMessage in the owned
+     * store; Channel Messages in the channel adapter). Without this, a contact could attach an
+     * upload to a message in a thread they have no access to by supplying that message's ID.
+     */
+    private async assertMessageInThread(
+        entityName: string,
+        messageId: string,
+        threadId: string,
+        label: string,
+        systemUser: UserInfo,
+    ): Promise<void> {
+        const rv = new RunView();
+        const result = await rv.RunView<{ ID: string }>({
+            EntityName: entityName,
+            ExtraFilter: `ID = '${assertUuid(messageId, label)}' AND ThreadID = '${threadId.replace(/'/g, "''")}'`,
+            Fields: ['ID'],
+            MaxRows: 1,
+            ResultType: 'simple',
+        }, systemUser);
+        if (!result.Success || result.Results.length === 0) {
+            throw new Error(`${label} does not reference a message in this thread`);
+        }
+    }
+
     /** Stores a file and links it to a secure message. */
     async store(input: StoreFileInput, ctx: StoreFileContext, systemUser: UserInfo): Promise<StoredFile> {
         if (input.bytes.length === 0) {
@@ -96,6 +123,19 @@ export class ArtifactFileStore {
         }
         if (input.bytes.length > MAX_FILE_BYTES) {
             throw new Error(`File exceeds the maximum size of ${MAX_FILE_BYTES} bytes`);
+        }
+
+        // Verify any caller-supplied message link points at a message in THIS thread, before any
+        // bytes are uploaded or rows written (no orphan artifacts on refusal).
+        if (ctx.secureMessageId) {
+            await this.assertMessageInThread(
+                'MJ_BizApps_SecureMessaging: Secure Messages',
+                ctx.secureMessageId, ctx.threadId, 'secureMessageId', systemUser);
+        }
+        if (ctx.externalMessageId) {
+            await this.assertMessageInThread(
+                'Channel Messages',
+                ctx.externalMessageId, ctx.threadId, 'externalMessageId', systemUser);
         }
 
         const engine = FileStorageEngine.Instance;

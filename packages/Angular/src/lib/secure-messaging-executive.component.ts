@@ -149,7 +149,7 @@ interface WorkspaceNavItem {
 
     <div class="sidebar-footer">
       <i class="fa-solid fa-lock"></i>
-      <span>End-to-end encrypted</span>
+      <span>Encrypted in transit · access-controlled</span>
     </div>
   </aside>
 
@@ -268,7 +268,7 @@ interface WorkspaceNavItem {
       @if (selectedMessage.isSecure) {
         <div class="security-bar">
           <i class="fa-solid fa-shield-check"></i>
-          <span>This message is end-to-end encrypted</span>
+          <span>This message is encrypted in transit · access-controlled</span>
         </div>
       }
 
