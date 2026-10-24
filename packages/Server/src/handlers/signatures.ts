@@ -3,7 +3,6 @@ import { Metadata, RunView, UserInfo } from '@memberjunction/core';
 import { getSystemUser } from '@memberjunction/server';
 import { SignatureEngine } from '@memberjunction/esignature/server';
 import { PortalRequest, assertThreadAccess } from './middleware.js';
-import { getFileStore } from '@mj-biz-apps/secure-messaging-core';
 
 /**
  * E-signature handlers, backed by the core MJ eSignature subsystem
@@ -54,46 +53,6 @@ async function assertRequestBelongsToThread(
         return false;
     }
     return true;
-}
-
-/** The name fields we read off a person to build a signer display name. */
-interface ContactNameFields {
-    DisplayName?: string | null;
-    FirstName?: string | null;
-    LastName?: string | null;
-}
-
-/**
- * Resolve a human display name for the contact behind a portal session, for use as the signer's
- * name (so the provider shows a real name in the signing ceremony + emails rather than the raw
- * email). Read via RunView (no cross-package entity dependency needed here); best-effort — returns
- * undefined if the person can't be loaded, in which case the provider falls back to the email.
- */
-async function resolveContactName(contactId: string, contextUser: UserInfo): Promise<string | undefined> {
-    if (!contactId) {
-        return undefined;
-    }
-    try {
-        const rv = new RunView();
-        const result = await rv.RunView<ContactNameFields>(
-            {
-                EntityName: 'MJ_BizApps_Common: People',
-                ExtraFilter: `ID = '${contactId.replace(/'/g, "''")}'`,
-                Fields: ['DisplayName', 'FirstName', 'LastName'],
-                MaxRows: 1,
-                ResultType: 'simple',
-            },
-            contextUser,
-        );
-        const p = result.Success ? result.Results[0] : undefined;
-        if (!p) {
-            return undefined;
-        }
-        const name = p.DisplayName || [p.FirstName, p.LastName].filter(Boolean).join(' ').trim();
-        return name || undefined;
-    } catch {
-        return undefined;
-    }
 }
 
 /** Map a normalized MJ envelope status onto the label the portal UI displays. */
@@ -162,105 +121,25 @@ export async function getSignatureRequests(req: Request, res: Response): Promise
 /**
  * POST /threads/:threadId/signature-requests
  *
- * Creates AND sends a signature request in one step via the MJ eSignature engine. The
- * engine's SendForSignature is atomic (create + send), so there is no separate /send route.
+ * Staff-only — refused for every caller on this router. Every session the portal API serves
+ * belongs to an **external contact** (PortalSessionContext carries no staff identity), and
+ * sending an envelope here ran as the system user through whatever `signatureAccountId` the
+ * client supplied — letting any authenticated contact send envelopes through ANY
+ * MJ: Signature Account (staff-configured provider credentials) in the instance. There is no
+ * app-, thread-, or organization-level designated account to resolve server-side instead, and
+ * the contact is themself the signer, so there is no legitimate contact-initiated send.
  *
- * Body: { title: string, signatureAccountId: string, artifactId?: string }
- *   - signatureAccountId selects the MJ: Signature Account (provider + credentials) to send through.
- *   - artifactId names the document to sign; its latest version's bytes are sent.
+ * Staff send envelopes from MJ Explorer via the shipped 'Send Document for Signature' action
+ * (see the Angular action panel), which runs as the authenticated MJ user under normal entity
+ * permissions. Contacts keep the read/manage handlers below (list, refresh, void, download),
+ * all of which are scoped to envelopes already linked to their own thread.
  */
 export async function createSignatureRequest(req: Request, res: Response): Promise<void> {
     const access = await assertThreadAccess(req as PortalRequest, res);
     if (!access) return;
-    const { systemUser, threadId } = access;
-    const session = (req as PortalRequest).portalSession;
-    const { title, signatureAccountId, artifactId, signatureAnchor } = req.body;
-    // Where to place the signature field: the text in the document to anchor it to. Defaults to a
-    // "Signature:" line; if the document has no such marker the provider uses its own default.
-    const anchor = typeof signatureAnchor === 'string' && signatureAnchor.trim() ? signatureAnchor.trim() : 'Signature:';
-
-    if (!title || typeof title !== 'string' || title.trim().length === 0) {
-        res.status(400).json({ error: 'A title is required' });
-        return;
-    }
-    if (!signatureAccountId || typeof signatureAccountId !== 'string') {
-        res.status(400).json({ error: 'A signatureAccountId is required (the MJ: Signature Account to send through)' });
-        return;
-    }
-    if (!artifactId || typeof artifactId !== 'string') {
-        res.status(400).json({ error: 'An artifactId is required (the document to sign)' });
-        return;
-    }
-
-    try {
-        // Object-level authorization: the artifact must be a file attached to THIS thread
-        // (via a MessageFile link). Otherwise any authenticated contact could have an
-        // arbitrary artifact in the instance sent out for signature by guessing its ID.
-        const rv = new RunView();
-        const linkCheck = await rv.RunView<{ ID: string }>({
-            EntityName: 'MJ_BizApps_SecureMessaging: Message Files',
-            ExtraFilter: `ArtifactID = '${artifactId.replace(/'/g, "''")}' AND ThreadID = '${threadId.replace(/'/g, "''")}'`,
-            Fields: ['ID'],
-            MaxRows: 1,
-            ResultType: 'simple',
-        }, systemUser);
-        if (!linkCheck.Success || linkCheck.Results.length === 0) {
-            res.status(404).json({ error: 'Document not found in this thread' });
-            return;
-        }
-
-        // Resolve the document bytes from the artifact's latest version.
-        let document: { bytes: Buffer; filename: string; contentType: string };
-        try {
-            document = await getFileStore().loadArtifactDocument(artifactId, systemUser);
-        } catch (docErr) {
-            const m = docErr instanceof Error ? docErr.message : String(docErr);
-            res.status(400).json({ error: `Could not load the document to sign: ${m}` });
-            return;
-        }
-
-        const contactName = await resolveContactName(session.contactId, systemUser);
-
-        await SignatureEngine.Instance.Config(false, systemUser);
-        const result = await SignatureEngine.Instance.SendForSignature({
-            signatureAccountId,
-            title: title.trim(),
-            documents: [{ bytes: document.bytes, filename: document.filename, contentType: document.contentType }],
-            recipients: [
-                {
-                    email: session.contactEmail,
-                    name: contactName,
-                    // Anchor the signature field to the marker text; if the document lacks it, the
-                    // provider applies its own default placement (anchorIgnoreIfNotPresent).
-                    fields: [{ type: 'signature', anchor, anchorIgnoreIfNotPresent: true }],
-                },
-            ],
-            artifactId,
-            // Polymorphic link back to the SecureThread (v2: the thread is the owning row).
-            entityId: getSecureThreadsEntityId(),
-            recordId: threadId,
-            sendImmediately: true,
-            contextUser: systemUser,
-        });
-
-        if (!result.Success) {
-            res.status(502).json({
-                error: result.ErrorMessage || 'Signature provider could not send the envelope',
-                signatureRequestId: result.signatureRequestId,
-            });
-            return;
-        }
-
-        res.status(201).json({
-            signatureRequestId: result.signatureRequestId,
-            externalEnvelopeId: result.externalEnvelopeId,
-            status: toDisplayStatus(result.status),
-        });
-    } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        console.error(`Secure Messaging create signature request error: ${msg}`);
-        res.status(500).json({ error: 'Failed to create signature request' });
-    }
+    res.status(403).json({
+        error: 'Signature requests can only be created by staff (via the Send Document for Signature action), not from a portal session',
+    });
 }
 
 /**
