@@ -1,6 +1,15 @@
 -- =============================================================================
 -- Secure Messaging Test Seed Data
 -- =============================================================================
+-- ⚠️⚠️⚠️ SECURITY WARNING — LOCAL THROWAWAY DATABASES ONLY ⚠️⚠️⚠️
+-- This script seeds an ACTIVE portal session for the LITERAL, PUBLICLY KNOWN
+-- token `sm_testtoken_for_local_testing_only` (this file is committed to a
+-- public-ish repo, so the token and its hash are public knowledge). Anyone who
+-- can reach the API of a database this ran against can authenticate as the
+-- seeded contact with that token. NEVER run this against a shared, staging, or
+-- production database — local disposable test databases only.
+-- ⚠️⚠️⚠️
+-- =============================================================================
 -- THROWAWAY. Predates the integration-test method. Does not go through BaseEntity.
 -- Sample data for Explorer is committed by packages/IntegrationTests (SM-WORLD)
 -- via GetEntityObject + Save — same path as Orders ORD-WORLD. Do not run this.

@@ -1,6 +1,49 @@
 import { Request, Response } from 'express';
 import { PortalRequest, assertThreadAccess, assertThreadWritable } from './middleware.js';
-import { getMessageStore } from '@mj-biz-apps/secure-messaging-core';
+import { getMessageStore, SecureMessageView } from '@mj-biz-apps/secure-messaging-core';
+
+/**
+ * The message shape returned to the EXTERNAL contact (portal widget). Deliberately a SUBSET of
+ * {@link SecureMessageView}: the AI-pipeline internals — the unapproved draft (`generatedReply`),
+ * its `approvalStatus`, and the staff-side `parentId` linkage — are staff-only and must never
+ * reach an external contact. Keep this list in sync with what the widget actually renders:
+ * content / sentContent / approvedReply (message-bubble `displayContent`) and `generationStatus`
+ * (its "Preparing reply..." indicator).
+ */
+interface ContactMessageView {
+    id: string;
+    sender: string;
+    recipient?: string;
+    subject?: string;
+    content: string;
+    receivedAt: string;
+    generationStatus?: string;
+    approvedReply?: string;
+    sentContent?: string;
+    sentAt?: string;
+    messageFormat?: string;
+}
+
+/**
+ * Projects a stored message onto the contact-safe shape. This is the single projection point for
+ * CONTACT-facing message reads — staff surfaces read the entities directly through MJ and never
+ * go through this handler, so stripping here cannot affect the staff side.
+ */
+function toContactMessageView(msg: SecureMessageView): ContactMessageView {
+    return {
+        id: msg.id,
+        sender: msg.sender,
+        recipient: msg.recipient,
+        subject: msg.subject,
+        content: msg.content,
+        receivedAt: msg.receivedAt,
+        generationStatus: msg.generationStatus,
+        approvedReply: msg.approvedReply,
+        sentContent: msg.sentContent,
+        sentAt: msg.sentAt,
+        messageFormat: msg.messageFormat,
+    };
+}
 
 /**
  * GET /threads/:threadId/messages
@@ -19,7 +62,8 @@ export async function getThreadMessages(req: Request, res: Response): Promise<vo
 
     try {
         const messages = await getMessageStore().getThreadMessages(session, threadId, systemUser);
-        res.json({ messages });
+        // Project onto the contact-safe shape — never return raw store objects to the portal.
+        res.json({ messages: messages.map(toContactMessageView) });
     } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         console.error(`Secure Messaging get messages error: ${msg}`);

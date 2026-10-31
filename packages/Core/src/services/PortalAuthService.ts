@@ -313,6 +313,13 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
             return { success: false, errorMessage: 'Session not found' };
         }
 
+        // Only an Active session may be the parent of a new magic link. Issuing one against a
+        // Revoked (or Expired) session would let the link's redemption resurrect a session staff
+        // deliberately killed — revocation must be final for that session.
+        if (sessionResult.Results[0].Status !== 'Active') {
+            return { success: false, errorMessage: 'Session is not active — magic links can only be issued for an Active session' };
+        }
+
         const rawToken = generateToken(MAGIC_LINK_PREFIX);
         const expiresAt = new Date();
         expiresAt.setMinutes(expiresAt.getMinutes() + DEFAULT_MAGIC_LINK_TTL_MINUTES);
@@ -457,6 +464,14 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
         const session = await md.GetEntityObject<mjBizAppsSecureMessagingPortalSessionEntity>(
             'MJ_BizApps_SecureMessaging: Portal Sessions', systemUser);
         await session.InnerLoad(CompositeKey.FromID(magicLink.PortalSessionID));
+
+        // Never resurrect a non-Active session. A staff revocation (Status = 'Revoked') must be
+        // final: a magic link minted while the session was still Active must not flip it back to
+        // Active on redemption. The link was already consumed ('Used') above, so it cannot be
+        // retried; the session row is left untouched to preserve its revoked status for audit.
+        if (session.Status !== 'Active') {
+            return null;
+        }
 
         // Never resurrect a session past its absolute age cap — the token we'd issue would be
         // rejected by validateSessionToken anyway. The contact requests a fresh link, which
