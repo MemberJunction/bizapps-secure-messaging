@@ -1,0 +1,13 @@
+{
+  "entity": "MJ: Entity Fields",
+  "filePattern": "**/.*.json",
+  "push": {
+    "autoCreateMissingRecords": false
+  },
+  "pull": {
+    "createNewFileIfNotFound": false,
+    "updateExistingRecords": true,
+    "ignoreNullFields": true,
+    "ignoreVirtualFields": true
+  }
+}
