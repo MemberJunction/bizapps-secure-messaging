@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { Metadata, RunView, UserInfo } from '@memberjunction/core';
 import { getSystemUser } from '@memberjunction/server';
 import { SignatureEngine } from '@memberjunction/esignature/server';
-import { PortalRequest, assertThreadAccess } from './middleware.js';
+import { PortalRequest, assertThreadAccess, assertThreadWritable } from './middleware.js';
 import { getFileStore } from '@mj-biz-apps/secure-messaging-core';
 
 /**
@@ -172,6 +172,9 @@ export async function getSignatureRequests(req: Request, res: Response): Promise
 export async function createSignatureRequest(req: Request, res: Response): Promise<void> {
     const access = await assertThreadAccess(req as PortalRequest, res);
     if (!access) return;
+    // Sending a document out for signature is new activity: a Closed/Archived thread is
+    // read-only (PRD §7), same as messages, uploads, and file-request actions.
+    if (!assertThreadWritable(access, res)) return;
     const { systemUser, threadId } = access;
     const session = (req as PortalRequest).portalSession;
     const { title, signatureAccountId, artifactId, signatureAnchor } = req.body;
@@ -300,6 +303,8 @@ export async function refreshSignatureStatus(req: Request, res: Response): Promi
 export async function voidSignatureRequest(req: Request, res: Response): Promise<void> {
     const access = await assertThreadAccess(req as PortalRequest, res);
     if (!access) return;
+    // Voiding an in-flight envelope is a write — rejected on a Closed/Archived thread (PRD §7).
+    if (!assertThreadWritable(access, res)) return;
     const { systemUser, threadId } = access;
     const requestId = String(req.params.requestId);
     const reason = typeof req.body?.reason === 'string' ? req.body.reason : 'Cancelled by sender';

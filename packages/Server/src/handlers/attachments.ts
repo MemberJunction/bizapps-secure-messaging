@@ -1,6 +1,33 @@
 import { Request, Response } from 'express';
+import { RunView, UserInfo } from '@memberjunction/core';
 import { PortalRequest, assertThreadAccess, assertThreadWritable } from './middleware.js';
-import { getFileStore } from '@mj-biz-apps/secure-messaging-core';
+import { getFileStore, getSecureMessagingConfig } from '@mj-biz-apps/secure-messaging-core';
+
+/**
+ * Object-level authorization for the OPTIONAL message linkage on uploads: when the caller names a
+ * message to attach the uploaded file to, that message must belong to THIS thread. Without this
+ * check, any authenticated contact could plant their uploaded file onto a message in someone
+ * ELSE's conversation by supplying that message's ID — and message IDs are sequential GUIDs
+ * (NEWSEQUENTIALID), so cross-thread IDs are predictable from the contact's own message IDs. The
+ * planted file would then surface in the victim message's related "Message Files" view on the
+ * staff side.
+ */
+async function messageBelongsToThread(
+    entityName: string,
+    messageId: string,
+    threadId: string,
+    systemUser: UserInfo
+): Promise<boolean> {
+    const rv = new RunView();
+    const res = await rv.RunView<{ ID: string }>({
+        EntityName: entityName,
+        ExtraFilter: `ID = '${messageId.replace(/'/g, "''")}' AND ThreadID = '${threadId.replace(/'/g, "''")}'`,
+        Fields: ['ID'],
+        MaxRows: 1,
+        ResultType: 'simple',
+    }, systemUser);
+    return res.Success && res.Results.length > 0;
+}
 
 /**
  * GET /threads/:threadId/attachments
@@ -52,7 +79,25 @@ export async function uploadAttachment(req: Request, res: Response): Promise<voi
         return;
     }
 
+    const secureMessageId = typeof req.body?.secureMessageId === 'string' ? req.body.secureMessageId : undefined;
+    const externalMessageId = typeof req.body?.externalMessageId === 'string' ? req.body.externalMessageId : undefined;
+
     try {
+        // A caller-supplied message linkage must point at a message INSIDE this thread (see
+        // messageBelongsToThread above). The external (Channel) linkage is only meaningful when
+        // the channel backend is configured; otherwise it is rejected outright.
+        if (secureMessageId && !(await messageBelongsToThread(
+            'MJ_BizApps_SecureMessaging: Secure Messages', secureMessageId, threadId, systemUser))) {
+            res.status(404).json({ error: 'Message not found in this thread' });
+            return;
+        }
+        if (externalMessageId && (
+            getSecureMessagingConfig().messageBackend !== 'channel'
+            || !(await messageBelongsToThread('Channel Messages', externalMessageId, threadId, systemUser)))) {
+            res.status(404).json({ error: 'Message not found in this thread' });
+            return;
+        }
+
         const stored = await getFileStore().store(
             {
                 filename: file.originalname,
@@ -61,8 +106,8 @@ export async function uploadAttachment(req: Request, res: Response): Promise<voi
             },
             {
                 threadId,
-                secureMessageId: typeof req.body?.secureMessageId === 'string' ? req.body.secureMessageId : undefined,
-                externalMessageId: typeof req.body?.externalMessageId === 'string' ? req.body.externalMessageId : undefined,
+                secureMessageId,
+                externalMessageId,
             },
             systemUser
         );
