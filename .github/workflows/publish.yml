@@ -1,14 +1,18 @@
+# Publishes a release line: the newest line through `main` (npm dist-tag `latest`), every older
+# line from its own `lts/X.Y` branch (dist-tag `lts-X.Y`). `next` never publishes. Which line is
+# which comes from release-lines.json on `next` (guides/RELEASE_LINES.md).
+#
+# This workflow does not compute or commit a version. `changeset version` runs earlier, in the
+# Version Packages PR (changeset-release/main -> main, or changeset-release/lts/X.Y -> lts/X.Y; see
+# version.yml). Merging that PR is the release: by the time it reaches the release branch the
+# package versions ARE the instruction, and `changeset publish` publishes every package whose
+# version is not on the registry and skips the rest.
 name: Build and Publish
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'lts/**']
   workflow_dispatch:
-    inputs:
-      targetVersion:
-        description: 'Target version (e.g., 5.27.2). Leave empty for auto-detection.'
-        required: false
-        type: string
 
 permissions:
   contents: write
@@ -19,20 +23,97 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Decides whether this run is a release, of which line, under which dist-tag, and where the
+  # back-merge goes. Every answer comes from release-lines.json on `next`.
+  #
+  # A run releases only from:
+  #   - `main`, as the line the record says releases through main; or
+  #   - an `lts/X.Y` branch the record lists with `releasesThrough: branch`, and only on the push
+  #     that changed the version (the merge of its Version Packages PR). Every other push to a
+  #     line is a backport landing, which releases nothing.
+  # Anything else (including `next`) is refused on dispatch or skipped on push.
+  resolve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      release: ${{ steps.line.outputs.release }}
+      dist_tag: ${{ steps.line.outputs.dist_tag }}
+      back_merge: ${{ steps.line.outputs.back_merge }}
+      line: ${{ steps.line.outputs.line }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      - name: Which line, and is this a release?
+        id: line
+        env:
+          REF: ${{ github.ref }}
+          BRANCH: ${{ github.ref_name }}
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin next
+          skip() { echo "::notice::$1"; echo "release=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          refuse() { echo "::error::$1"; exit 1; }
+
+          if [ "$REF" = "refs/heads/main" ]; then
+            LINE=$(node .github/scripts/release-lines.mjs main-line)
+            [ "$LINE" != "{}" ] || refuse "release-lines.json on next names no line that releases through main. Nothing was published."
+            BACK_MERGE=$(jq -r .branch <<< "$LINE")
+          else
+            case "$REF" in
+              refs/heads/lts/*) ;;
+              *) refuse "Releases run only on main or a line branch (got $REF). Nothing was published." ;;
+            esac
+            LINE=$(node .github/scripts/release-lines.mjs resolve "$BRANCH")
+            if [ "$LINE" = "{}" ]; then
+              [ "$EVENT" = "push" ] && skip "$BRANCH is not in release-lines.json on next; nothing to publish."
+              refuse "$BRANCH is not in release-lines.json on next. Nothing was published."
+            fi
+            if [ "$(jq -r .releasesThrough <<< "$LINE")" != "branch" ]; then
+              [ "$EVENT" = "push" ] && skip "$BRANCH releases through main; a push here is a backport landing, not a release."
+              refuse "$BRANCH releases through main, not from its own branch. Dispatch the release on main. Nothing was published."
+            fi
+            # On push, only the merge of the Version Packages PR changes the version. A backport
+            # landing leaves it alone and must not reach `changeset publish`.
+            if [ "$EVENT" = "push" ]; then
+              NOW=$(jq -r .version packages/Entities/package.json)
+              WAS=$(git show "$BEFORE:packages/Entities/package.json" 2>/dev/null | jq -r .version || echo "")
+              [ "$NOW" != "$WAS" ] || skip "The version on $BRANCH is still $NOW; this push is a backport landing, not a release."
+            fi
+            BACK_MERGE=""
+          fi
+
+          echo "release=true" >> "$GITHUB_OUTPUT"
+          echo "line=$(jq -r .key <<< "$LINE")" >> "$GITHUB_OUTPUT"
+          echo "dist_tag=$(jq -r .distTag <<< "$LINE")" >> "$GITHUB_OUTPUT"
+          echo "back_merge=$BACK_MERGE" >> "$GITHUB_OUTPUT"
+          echo "Releasing line $(jq -r .key <<< "$LINE") from $BRANCH under dist-tag $(jq -r .distTag <<< "$LINE")${BACK_MERGE:+, back-merge into $BACK_MERGE}"
+
   build-and-publish:
+    needs: resolve
+    if: needs.resolve.outputs.release == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        id: app-token
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
           fetch-tags: true
           token: ${{ secrets.GITHUB_TOKEN }}
 
       # Must precede setup-node: `cache: 'pnpm'` needs pnpm already on PATH.
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
           cache: 'pnpm'
@@ -48,7 +129,6 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Validate all packages exist on npm
-        if: github.ref == 'refs/heads/main'
         run: ./.github/scripts/validate-npm-packages.sh
 
       - name: Validate repository.url for npm provenance
@@ -59,123 +139,179 @@ jobs:
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
 
-      - name: Check for pending changesets
-        id: changeset_check
+      - name: Validate packages restrict what they ship
+        run: ./.github/scripts/validate-package-files.sh
+
+      - name: Refuse to publish with changesets still pending
         run: |
           PENDING=$(find .changeset -name "*.md" -not -name "README.md" 2>/dev/null | wc -l | tr -d ' ')
-          echo "pending=$PENDING" >> "$GITHUB_OUTPUT"
-          if [ "$PENDING" -eq 0 ]; then
-            echo "No pending changesets — nothing to publish"
-          else
-            echo "Found $PENDING pending changeset(s)"
-          fi
-
-      - name: Determine next expected version
-        if: steps.changeset_check.outputs.pending != '0' && github.ref == 'refs/heads/main' && !github.event.inputs.targetVersion
-        id: version_check
-        run: |
-          # Get current version from entities package (any of the 4 BAC packages works since they're fixed-versioned)
-          CURRENT_VERSION=$(jq -r .version packages/Entities/package.json)
-          echo "Current version: $CURRENT_VERSION"
-
-          IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
-          NEXT_MAJOR_VERSION="$(( ${VERSION_PARTS[0]} + 1 )).0.0"
-          NEXT_MINOR_VERSION="${VERSION_PARTS[0]}.$(( ${VERSION_PARTS[1]} + 1 )).0"
-          NEXT_PATCH_VERSION="${VERSION_PARTS[0]}.${VERSION_PARTS[1]}.$(( ${VERSION_PARTS[2]} + 1 ))"
-
-          # Check if any changeset requests a major bump
-          HAS_MAJOR=false
-          for f in .changeset/*.md; do
-            [ "$f" = ".changeset/README.md" ] && continue
-            [ ! -f "$f" ] && continue
-            if grep -qE '^"@mj-biz-apps/.*":\s*major' "$f"; then
-              HAS_MAJOR=true
-              break
-            fi
-          done
-
-          if [ "$HAS_MAJOR" = true ]; then
-            echo "Major changeset found — bumping major version"
-            echo "EXPECTED_NEXT_VERSION=$NEXT_MAJOR_VERSION" >> "$GITHUB_OUTPUT"
-          else
-            # Check for new migration files since last tag
-            if git rev-parse "v${CURRENT_VERSION}" >/dev/null 2>&1; then
-              NEW_MIGRATION_FILES=$(git --no-pager diff --name-only "v${CURRENT_VERSION}" "${{ github.sha }}" -- migrations/ migrations-pg/ || true)
-            else
-              NEW_MIGRATION_FILES=""
-            fi
-
-            if [ -n "$NEW_MIGRATION_FILES" ]; then
-              echo "New migrations found — bumping minor version"
-              echo "EXPECTED_NEXT_VERSION=$NEXT_MINOR_VERSION" >> "$GITHUB_OUTPUT"
-            else
-              echo "No new migrations — bumping patch version"
-              echo "EXPECTED_NEXT_VERSION=$NEXT_PATCH_VERSION" >> "$GITHUB_OUTPUT"
-            fi
-          fi
-
-      - name: Update version
-        if: steps.changeset_check.outputs.pending != '0'
-        run: |
-          EXPECTED_NEXT_VERSION="${{ github.event.inputs.targetVersion || steps.version_check.outputs.EXPECTED_NEXT_VERSION }}"
-          echo "Expected next version: $EXPECTED_NEXT_VERSION"
-
-          pnpm run version
-
-          NEXT_VERSION=$(jq -r .version packages/Entities/package.json)
-          echo "Actual next version: $NEXT_VERSION"
-
-          if [ -n "$EXPECTED_NEXT_VERSION" ] && [ "$NEXT_VERSION" != "$EXPECTED_NEXT_VERSION" ]; then
-            echo "::error::Version mismatch! Expected $EXPECTED_NEXT_VERSION but got $NEXT_VERSION"
+          if [ "$PENDING" -ne 0 ]; then
+            echo "::error::$PENDING changeset(s) are still pending on $GITHUB_REF_NAME. Versioning happens in the line's Version Packages PR (version.yml) — merge that first, then release. Publishing now would ship versions that no changelog describes."
             exit 1
           fi
-
-      - name: Sync mj-app.json version and MJ version range
-        if: steps.changeset_check.outputs.pending != '0'
-        run: |
-          # Sync app version from entities package
-          VERSION=$(jq -r .version packages/Entities/package.json)
-          jq --arg v "$VERSION" '.version = $v' mj-app.json > mj-app.json.tmp
-          mv mj-app.json.tmp mj-app.json
-          echo "Updated mj-app.json version to $VERSION"
-
-          # Derive mjVersionRange from the @memberjunction/core dependency
-          MJ_DEP=$(jq -r '.dependencies["@memberjunction/core"] // .peerDependencies["@memberjunction/core"] // empty' packages/Entities/package.json)
-          if [ -n "$MJ_DEP" ]; then
-            # Strip semver range prefix (^, ~, >=, etc.) to get the base version
-            MJ_MIN=$(echo "$MJ_DEP" | sed 's/^[^0-9]*//')
-            # Next major = current major + 1
-            MJ_NEXT_MAJOR="$(( $(echo "$MJ_MIN" | cut -d. -f1) + 1 )).0.0"
-            MJ_RANGE=">=${MJ_MIN} <${MJ_NEXT_MAJOR}"
-            jq --arg r "$MJ_RANGE" '.mjVersionRange = $r' mj-app.json > mj-app.json.tmp
-            mv mj-app.json.tmp mj-app.json
-            echo "Updated mj-app.json mjVersionRange to $MJ_RANGE"
-          fi
+          echo "No pending changesets — versions on $GITHUB_REF_NAME are authoritative"
 
       - name: Build all packages
         run: pnpm run build:packages
 
+      # `--tag` always, even for `latest`: without it npm moves `latest` to whatever was published
+      # last, so an older line's patch would become what every new install gets.
       - name: Publish to npm
-        if: steps.changeset_check.outputs.pending != '0'
-        run: pnpm exec changeset publish
-
-      - name: Get version and create tag
-        if: steps.changeset_check.outputs.pending != '0'
-        id: get_version
-        run: |
-          git pull
-          VERSION="v$(jq -r .version packages/Entities/package.json)"
-          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "## Published $VERSION" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Commit and push
-        if: steps.changeset_check.outputs.pending != '0'
+        id: publish
         env:
-          VERSION: ${{ steps.get_version.outputs.VERSION }}
-        run: pnpm run commitpush
-
-      - name: Merge main into next and update lockfile
-        if: steps.changeset_check.outputs.pending != '0'
+          DIST_TAG: ${{ needs.resolve.outputs.dist_tag }}
         run: |
-          git checkout next
-          pnpm run mergemain:update-lock
+          set -o pipefail
+          pnpm exec changeset publish --tag "$DIST_TAG" 2>&1 | tee /tmp/publish.log
+          PUBLISHED=$(grep -c '^ *🦋 *New tag:' /tmp/publish.log || true)
+          echo "count=$PUBLISHED" >> "$GITHUB_OUTPUT"
+          echo "Packages published: $PUBLISHED"
+
+      # Decide the outcome BEFORE writing the tag, and distinguish a genuine re-run of a
+      # completed release (packages/ matches the tag) from a hotfix that skipped the version bump.
+      - name: Tag the release
+        id: tag
+        run: |
+          VERSION="v$(jq -r .version packages/Entities/package.json)"
+          PUBLISHED="${{ steps.publish.outputs.count }}"
+
+          TAG_EXISTED=false
+          if git ls-remote --exit-code --tags origin "refs/tags/$VERSION" >/dev/null 2>&1; then
+            TAG_EXISTED=true
+          fi
+
+          if [ "$PUBLISHED" -eq 0 ]; then
+            if [ "$TAG_EXISTED" != "true" ]; then
+              echo "::error::Published 0 packages, and $VERSION is not tagged. Every package version already exists on npm, so this commit reached the release branch WITHOUT a version bump. Raise a changeset, run version:prepare, and merge the bump."
+              exit 1
+            fi
+
+            git fetch --no-tags origin "refs/tags/$VERSION:refs/tags/$VERSION" 2>/dev/null || true
+            if ! git diff --quiet "$VERSION" HEAD -- packages/; then
+              echo "::error::$VERSION is already tagged and already on npm, but packages/ has changed since that tag. This commit reached the release branch WITHOUT a version bump. Raise a changeset, run 'pnpm run version:prepare', and merge the bump."
+              git --no-pager diff --stat "$VERSION" HEAD -- packages/ | tail -20
+              exit 1
+            fi
+
+            echo "released=false" >> "$GITHUB_OUTPUT"
+            echo "## Nothing published — $VERSION is already on npm" >> "$GITHUB_STEP_SUMMARY"
+            echo "Every package version already exists on the registry, the tag is already pushed, and packages/ is identical to it — this is a re-run of a completed release." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ "$TAG_EXISTED" = "true" ]; then
+            echo "Tag $VERSION already exists on origin — leaving it alone"
+          else
+            git tag "$VERSION"
+            git push origin "refs/tags/$VERSION"
+            echo "Tagged $VERSION"
+          fi
+          echo "released=true" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "## Released $VERSION" >> "$GITHUB_STEP_SUMMARY"
+          echo "$PUBLISHED package(s) published." >> "$GITHUB_STEP_SUMMARY"
+
+      # Read back the dist-tag from npm rather than trusting the publish log.
+      - name: Verify the dist-tag
+        if: steps.tag.outputs.released == 'true'
+        env:
+          DIST_TAG: ${{ needs.resolve.outputs.dist_tag }}
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          set -euo pipefail
+          WANT="${VERSION#v}"
+          DEADLINE=$((SECONDS + 600))
+          for pkg in $(jq -r 'select(.private != true) | .name' packages/*/package.json); do
+            GOT=""
+            while :; do
+              GOT=$(npm view --prefer-online "$pkg" "dist-tags.$DIST_TAG" 2>/dev/null || true)
+              [ "$GOT" = "$WANT" ] && break
+              [ "$SECONDS" -ge "$DEADLINE" ] && break
+              sleep 10
+            done
+            if [ "$GOT" != "$WANT" ]; then
+              echo "::error::$pkg dist-tag $DIST_TAG is '$GOT', expected $WANT. Fix it with: npm dist-tag add $pkg@$WANT $DIST_TAG"
+              exit 1
+            fi
+            echo "$pkg@$DIST_TAG = $WANT"
+          done
+          echo "dist-tag \`$DIST_TAG\` -> $WANT on every package" >> "$GITHUB_STEP_SUMMARY"
+
+      # Carry the bump home, to the line `main` follows. A line that releases from its own branch
+      # already has the bump, so it gets no back-merge.
+      - name: Carry the release back to the line
+        if: steps.tag.outputs.released == 'true' && needs.resolve.outputs.back_merge != ''
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          VERSION: ${{ steps.tag.outputs.version }}
+          LINE_BRANCH: ${{ needs.resolve.outputs.back_merge }}
+        run: |
+          set -euo pipefail
+          BRANCH="release-back-merge/$VERSION"
+          git push origin "HEAD:refs/heads/$BRANCH"
+
+          BODY="Carries the $VERSION bump, CHANGELOGs, mj-app.json sync and refreshed lockfile back to $LINE_BRANCH.
+
+          Opened automatically by publish.yml after $VERSION published. Until this lands, $LINE_BRANCH still holds the consumed changesets and the previous version, so the next Version Packages PR would propose a number that is already on npm."
+
+          PR_URL=$(gh pr create --base "$LINE_BRANCH" --head "$BRANCH" \
+                     --title "chore(release): carry $VERSION back to $LINE_BRANCH" \
+                     --body "$BODY" || true)
+
+          if [ -z "${PR_URL:-}" ]; then
+            echo "::error::$VERSION is published, but the back-merge PR could not be opened. Open $BRANCH -> $LINE_BRANCH by hand and merge it; the next release PR is blocked (rr: release base current) until it lands."
+            echo "Back-merge: NOT OPENED — open $BRANCH -> $LINE_BRANCH by hand" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          if ! gh pr merge "$PR_URL" --merge --delete-branch; then
+            echo "::error::$VERSION is published, but back-merge $PR_URL could not be merged automatically. Merge it by hand; the next release PR is blocked (rr: release base current) until it lands."
+            echo "Back-merge: NOT MERGED — $PR_URL" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "Back-merge: $PR_URL" >> "$GITHUB_STEP_SUMMARY"
+
+      # Remove consumed changesets from `next` so `next/.changeset` only holds unreleased work.
+      - name: Remove this release's changesets from next
+        if: steps.tag.outputs.released == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          VERSION: ${{ steps.tag.outputs.version }}
+          LINE: ${{ needs.resolve.outputs.line }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin next
+          CONSUMED=()
+          while IFS= read -r f; do
+            case "$f" in *.md) ;; *) continue ;; esac
+            [ "$(basename "$f")" = "README.md" ] && continue
+            [ -e "$f" ] && continue
+            [ -n "$(git log -1 --full-history --format=%H --diff-filter=A HEAD -- "$f")" ] && CONSUMED+=("$f")
+          done < <(git ls-tree -r --name-only origin/next -- .changeset/)
+
+          if [ "${#CONSUMED[@]}" -eq 0 ]; then
+            echo "No changeset on next was consumed by $VERSION"
+            echo "Next cleanup: nothing to remove" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          BRANCH="release-changesets/$VERSION-$LINE"
+          git checkout -q -B "$BRANCH" origin/next
+          git rm -q -- "${CONSUMED[@]}"
+          git commit -q -m "chore(release): drop changesets released in $VERSION ($LINE line)"
+          git push origin "HEAD:refs/heads/$BRANCH"
+
+          LIST=$(printf -- '- `%s`\n' "${CONSUMED[@]}")
+          BODY="$VERSION (the $LINE line) released these changesets. next never versions, so they are removed here; otherwise the next line cut would release them again.
+
+          $LIST
+
+          Opened automatically by publish.yml."
+          PR_URL=$(gh pr create --base next --head "$BRANCH" \
+                     --title "chore(release): drop changesets released in $VERSION" \
+                     --body "$BODY" || true)
+          if [ -z "${PR_URL:-}" ] || ! gh pr merge "$PR_URL" --merge --delete-branch; then
+            echo "::error::$VERSION is published, but the PR removing its changesets from next was not opened or merged (${PR_URL:-none}). Remove these from next by hand: ${CONSUMED[*]}"
+            exit 1
+          fi
+          echo "Next cleanup: $PR_URL" >> "$GITHUB_STEP_SUMMARY"
