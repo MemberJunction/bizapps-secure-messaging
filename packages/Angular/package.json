@@ -17,7 +17,6 @@
     "dev": "ngc --watch"
   },
   "dependencies": {
-    "@mj-biz-apps/common-entities": "^5.34.0",
     "@mj-biz-apps/secure-messaging-core": "2.1.0",
     "@mj-biz-apps/secure-messaging-entities": "2.1.0",
     "pdfjs-dist": "^4.10.38"
@@ -33,7 +32,7 @@
     "@memberjunction/ng-base-application": "^6.1.2",
     "@memberjunction/ng-shared": "^6.1.2",
     "@memberjunction/ng-auth-services": "^6.1.2",
-    "@mj-biz-apps/common-entities": "^5.30.0",
+    "@mj-biz-apps/common-entities": "^5.34.0",
     "@memberjunction/ng-base-forms": "^6.1.2",
     "@memberjunction/ng-entity-viewer": "^6.1.2",
     "@memberjunction/ng-link-directives": "^6.1.2"
@@ -53,7 +52,7 @@
     "@memberjunction/ng-base-application": "^6.1.2",
     "@memberjunction/ng-shared": "^6.1.2",
     "@memberjunction/ng-auth-services": "^6.1.2",
-    "@mj-biz-apps/common-entities": "^5.30.0",
+    "@mj-biz-apps/common-entities": "5.34.0",
     "typescript": "^5.9.3",
     "@memberjunction/ng-base-forms": "^6.1.2",
     "@memberjunction/ng-entity-viewer": "^6.1.2",
