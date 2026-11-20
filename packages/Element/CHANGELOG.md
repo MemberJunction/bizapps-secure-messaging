@@ -1,5 +1,13 @@
 # @mj-biz-apps/secure-messaging-element
 
+## 2.1.1
+
+### Patch Changes
+
+- Updated dependencies [c385506]
+- Updated dependencies [4b59bc3]
+  - @mj-biz-apps/secure-messaging-ng@2.1.1
+
 ## 2.1.0
 
 ### Minor Changes

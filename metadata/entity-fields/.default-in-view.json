@@ -1,0 +1,270 @@
+[
+  {
+    "_comments": [
+      "None of the SM entities have a CodeGen name-field DefaultInView, so Explorer grids are empty-looking.",
+      "Never DefaultInView TokenHash (secret). Prefer Title/Subject/Status/dates."
+    ],
+    "fields": {
+      "DefaultInView": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_SecureMessaging: Secure Threads&Name=Subject"
+    },
+    "sync": {
+      "lastModified": "2026-09-02T01:03:00.926Z",
+      "checksum": "3980a054b5d6fcb2805ae6a0b030e114ef8da0fb49036cc2ea1cd1b3823228cd"
+    }
+  },
+  {
+    "fields": {
+      "DefaultInView": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_SecureMessaging: Secure Threads&Name=Status"
+    },
+    "sync": {
+      "lastModified": "2026-09-02T01:03:00.869Z",
+      "checksum": "3980a054b5d6fcb2805ae6a0b030e114ef8da0fb49036cc2ea1cd1b3823228cd"
+    }
+  },
+  {
+    "fields": {
+      "DefaultInView": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_SecureMessaging: Secure Threads&Name=LastMessageAt"
+    },
+    "sync": {
+      "lastModified": "2026-09-02T01:03:00.889Z",
+      "checksum": "3980a054b5d6fcb2805ae6a0b030e114ef8da0fb49036cc2ea1cd1b3823228cd"
+    }
+  },
+  {
+    "fields": {
+      "DefaultInView": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_SecureMessaging: Secure Threads&Name=SourceChannel"
+    },
+    "sync": {
+      "lastModified": "2026-09-02T01:03:00.908Z",
+      "checksum": "3980a054b5d6fcb2805ae6a0b030e114ef8da0fb49036cc2ea1cd1b3823228cd"
+    }
+  },
+  {
+    "fields": {
+      "DefaultInView": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_SecureMessaging: Secure Messages&Name=Direction"
+    },
+    "sync": {
+      "lastModified": "2026-09-02T01:03:00.945Z",
+      "checksum": "3980a054b5d6fcb2805ae6a0b030e114ef8da0fb49036cc2ea1cd1b3823228cd"
+    }
+  },
+  {
+    "fields": {
+      "DefaultInView": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_SecureMessaging: Secure Messages&Name=Sender"
+    },
+    "sync": {
+      "lastModified": "2026-09-02T01:03:01.020Z",
+      "checksum": "3980a054b5d6fcb2805ae6a0b030e114ef8da0fb49036cc2ea1cd1b3823228cd"
+    }
+  },
+  {
+    "fields": {
+      "DefaultInView": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_SecureMessaging: Secure Messages&Name=Status"
+    },
+    "sync": {
+      "lastModified": "2026-09-02T01:03:00.965Z",
+      "checksum": "3980a054b5d6fcb2805ae6a0b030e114ef8da0fb49036cc2ea1cd1b3823228cd"
+    }
+  },
+  {
+    "fields": {
+      "DefaultInView": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_SecureMessaging: Secure Messages&Name=ReceivedAt"
+    },
+    "sync": {
+      "lastModified": "2026-09-02T01:03:00.984Z",
+      "checksum": "3980a054b5d6fcb2805ae6a0b030e114ef8da0fb49036cc2ea1cd1b3823228cd"
+    }
+  },
+  {
+    "fields": {
+      "DefaultInView": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_SecureMessaging: Secure Messages&Name=IsStarred"
+    },
+    "sync": {
+      "lastModified": "2026-09-02T01:03:01.003Z",
+      "checksum": "3980a054b5d6fcb2805ae6a0b030e114ef8da0fb49036cc2ea1cd1b3823228cd"
+    }
+  },
+  {
+    "fields": {
+      "DefaultInView": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_SecureMessaging: File Requests&Name=Title"
+    },
+    "sync": {
+      "lastModified": "2026-09-02T01:03:01.039Z",
+      "checksum": "3980a054b5d6fcb2805ae6a0b030e114ef8da0fb49036cc2ea1cd1b3823228cd"
+    }
+  },
+  {
+    "fields": {
+      "DefaultInView": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_SecureMessaging: File Requests&Name=Status"
+    },
+    "sync": {
+      "lastModified": "2026-09-02T01:03:01.097Z",
+      "checksum": "3980a054b5d6fcb2805ae6a0b030e114ef8da0fb49036cc2ea1cd1b3823228cd"
+    }
+  },
+  {
+    "fields": {
+      "DefaultInView": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_SecureMessaging: File Requests&Name=DueAt"
+    },
+    "sync": {
+      "lastModified": "2026-09-02T01:03:01.118Z",
+      "checksum": "3980a054b5d6fcb2805ae6a0b030e114ef8da0fb49036cc2ea1cd1b3823228cd"
+    }
+  },
+  {
+    "fields": {
+      "DefaultInView": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_SecureMessaging: File Requests&Name=FulfilledAt"
+    },
+    "sync": {
+      "lastModified": "2026-09-02T01:03:01.138Z",
+      "checksum": "3980a054b5d6fcb2805ae6a0b030e114ef8da0fb49036cc2ea1cd1b3823228cd"
+    }
+  },
+  {
+    "fields": {
+      "DefaultInView": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_SecureMessaging: Message Files&Name=Filename"
+    },
+    "sync": {
+      "lastModified": "2026-09-02T01:03:01.198Z",
+      "checksum": "3980a054b5d6fcb2805ae6a0b030e114ef8da0fb49036cc2ea1cd1b3823228cd"
+    }
+  },
+  {
+    "fields": {
+      "DefaultInView": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_SecureMessaging: Message Files&Name=ContentType"
+    },
+    "sync": {
+      "lastModified": "2026-09-02T01:03:01.159Z",
+      "checksum": "3980a054b5d6fcb2805ae6a0b030e114ef8da0fb49036cc2ea1cd1b3823228cd"
+    }
+  },
+  {
+    "fields": {
+      "DefaultInView": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_SecureMessaging: Message Files&Name=Size"
+    },
+    "sync": {
+      "lastModified": "2026-09-02T01:03:01.179Z",
+      "checksum": "3980a054b5d6fcb2805ae6a0b030e114ef8da0fb49036cc2ea1cd1b3823228cd"
+    }
+  },
+  {
+    "fields": {
+      "DefaultInView": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_SecureMessaging: Portal Sessions&Name=Status"
+    },
+    "sync": {
+      "lastModified": "2026-09-02T01:03:01.218Z",
+      "checksum": "3980a054b5d6fcb2805ae6a0b030e114ef8da0fb49036cc2ea1cd1b3823228cd"
+    }
+  },
+  {
+    "fields": {
+      "DefaultInView": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_SecureMessaging: Portal Sessions&Name=ExpiresAt"
+    },
+    "sync": {
+      "lastModified": "2026-09-02T01:03:01.237Z",
+      "checksum": "3980a054b5d6fcb2805ae6a0b030e114ef8da0fb49036cc2ea1cd1b3823228cd"
+    }
+  },
+  {
+    "fields": {
+      "DefaultInView": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_SecureMessaging: Portal Sessions&Name=LastAccessedAt"
+    },
+    "sync": {
+      "lastModified": "2026-09-02T01:03:01.256Z",
+      "checksum": "3980a054b5d6fcb2805ae6a0b030e114ef8da0fb49036cc2ea1cd1b3823228cd"
+    }
+  },
+  {
+    "fields": {
+      "DefaultInView": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_SecureMessaging: Portal Magic Links&Name=Status"
+    },
+    "sync": {
+      "lastModified": "2026-09-02T01:03:01.276Z",
+      "checksum": "3980a054b5d6fcb2805ae6a0b030e114ef8da0fb49036cc2ea1cd1b3823228cd"
+    }
+  },
+  {
+    "fields": {
+      "DefaultInView": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_SecureMessaging: Portal Magic Links&Name=ExpiresAt"
+    },
+    "sync": {
+      "lastModified": "2026-09-02T01:03:01.345Z",
+      "checksum": "3980a054b5d6fcb2805ae6a0b030e114ef8da0fb49036cc2ea1cd1b3823228cd"
+    }
+  },
+  {
+    "fields": {
+      "DefaultInView": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_SecureMessaging: Portal Magic Links&Name=UsedAt"
+    },
+    "sync": {
+      "lastModified": "2026-09-02T01:03:01.325Z",
+      "checksum": "3980a054b5d6fcb2805ae6a0b030e114ef8da0fb49036cc2ea1cd1b3823228cd"
+    }
+  }
+]

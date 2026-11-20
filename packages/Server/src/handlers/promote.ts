@@ -39,7 +39,8 @@ function verifyPromoteSignature(req: Request, secret: string): boolean {
     }
 
     const requestTime = parseInt(timestamp, 10);
-    if (isNaN(requestTime) || Math.floor(Date.now() / 1000) - requestTime > MAX_REQUEST_AGE_SECONDS) {
+    // Bound the skew in BOTH directions — a far-future timestamp must not extend replayability.
+    if (isNaN(requestTime) || Math.abs(Math.floor(Date.now() / 1000) - requestTime) > MAX_REQUEST_AGE_SECONDS) {
         return false;
     }
 

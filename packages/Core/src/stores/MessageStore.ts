@@ -5,6 +5,10 @@ import { PortalSessionContext, PromotedMessageInput } from '../services/PortalAu
  * A message as returned to API callers (widget / inbox). Implementations map their
  * underlying storage (the owned SecureMessage table, or an external Channel Messages
  * entity) onto this shape.
+ *
+ * This view is served to the EXTERNAL contact, so it carries only contact-safe content.
+ * Internal pipeline state (unapproved AI drafts, generation/approval status) must never
+ * appear here — adapters that integrate an AI pipeline expose only the approved/sent output.
  */
 export interface SecureMessageView {
     id: string;
@@ -13,10 +17,7 @@ export interface SecureMessageView {
     subject?: string;
     content: string;
     receivedAt: string;
-    /** Optional AI-pipeline fields — populated only by adapters that integrate one. */
-    generationStatus?: string;
-    generatedReply?: string;
-    approvalStatus?: string;
+    /** Optional pipeline OUTPUT fields — the approved/sent reply content only. */
     approvedReply?: string;
     sentContent?: string;
     sentAt?: string;

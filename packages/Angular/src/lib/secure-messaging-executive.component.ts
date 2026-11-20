@@ -2293,7 +2293,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
       // 1. MessageFile (att.id) → underlying MJ: Files ID
       const linkResult = await rv.RunView({
         EntityName: 'MJ_BizApps_SecureMessaging: Message Files',
-        ExtraFilter: `ID = '${att.id}'`,
+        ExtraFilter: `ID = '${this.esc(att.id)}'`,
         Fields: ['ID', 'FileID'],
         MaxRows: 1,
         ResultType: 'simple',
@@ -2309,7 +2309,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
       // 2. MJ: Files → ProviderID + ProviderKey
       const fileResult = await rv.RunView({
         EntityName: 'MJ: Files',
-        ExtraFilter: `ID = '${fileId}'`,
+        ExtraFilter: `ID = '${this.esc(fileId)}'`,
         Fields: ['ID', 'Name', 'ProviderID', 'ProviderKey'],
         MaxRows: 1,
         ResultType: 'simple',
@@ -2325,7 +2325,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
       // 3. Resolve a storage account on that provider (first active)
       const acctResult = await rv.RunView({
         EntityName: 'MJ: File Storage Accounts',
-        ExtraFilter: `ProviderID = '${providerId}'`,
+        ExtraFilter: `ProviderID = '${this.esc(providerId)}'`,
         Fields: ['ID', 'ProviderID'],
         MaxRows: 1,
         ResultType: 'simple',
@@ -2348,6 +2348,9 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
   }
 
   /* ─── Helpers ─── */
+
+  private esc(s: string): string { return (s || '').replace(/'/g, "''"); }
+  private inList(ids: string[]): string { return ids.map(id => `'${this.esc(id)}'`).join(', ') || "''"; }
 
   /** Null-safe initials. Private — callers bind precomputed properties (userInitials /
    * selectedInitials) so the template never recomputes mid-CD (avoids NG0100). */
@@ -2563,10 +2566,9 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
 
     try {
       const rv = new RunView();
-      const inList = personIds.map(id => `'${id}'`).join(', ');
       const result = await rv.RunView<mjBizAppsCommonPersonEntity>({
         EntityName: 'MJ_BizApps_Common: People',
-        ExtraFilter: `ID IN (${inList})`,
+        ExtraFilter: `ID IN (${this.inList(personIds)})`,
         ResultType: 'simple',
       });
       if (result.Success && result.Results) {

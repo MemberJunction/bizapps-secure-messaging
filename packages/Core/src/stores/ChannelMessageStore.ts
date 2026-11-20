@@ -43,9 +43,8 @@ export class ChannelMessageStore implements MessageStore {
             subject: msg.Subject as string | undefined,
             content: msg.MessageContent as string,
             receivedAt: msg.ReceivedAt as string,
-            generationStatus: msg.GenerationStatus as string | undefined,
-            generatedReply: msg.GeneratedReplyContent as string | undefined,
-            approvalStatus: msg.ApprovalStatus as string | undefined,
+            // Contact-safe pipeline output only: the unapproved AI draft (GeneratedReplyContent)
+            // and the Generation/Approval status columns are internal and never leave the server.
             approvedReply: msg.ApprovedReplyContent as string | undefined,
             sentContent: msg.SentContent as string | undefined,
             sentAt: msg.SentAt as string | undefined,

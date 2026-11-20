@@ -1886,7 +1886,7 @@ When a migration creates a new lookup or reference table (e.g., `AIAgentRequestT
      }
    }
    ```
-3. Create the seed data file (e.g., `.agent-request-types.json`) as a JSON array of records. Each record has a `"fields"` object with the column values. **Omit `primaryKey` and `sync`** — these are auto-populated by mj-sync on first push.
+3. Create the seed data file (e.g., `.agent-request-types.json`) as a JSON array of records. Each record has a `"fields"` object with the column values and a `primaryKey` UUID from CLI `uuidgen`; omit `sync`, which the release-time `mj sync push` writes. A record without a `primaryKey` is inserted as a new row on every push (MJ's `metadata/CLAUDE.md` rule 1).
 4. Push with: `npx mj sync push --dir=metadata --include="agent-request-types"`
 
 **Why metadata files over SQL INSERTs:**
@@ -1906,7 +1906,7 @@ When creating new applications with custom dashboards:
    - `ResourceType`: Usually `"Custom"` for dashboard resources
    - `DriverClass`: Class name registered with `@RegisterClass(BaseResourceComponent, 'ClassName')`
    - `isDefault`: Set to `true` for the default tab (only one per app)
-4. For new apps, omit `primaryKey` and `sync` sections - they're populated by mj-sync
+4. For new apps, include a `primaryKey` from CLI `uuidgen` and omit `sync` (MJ's `metadata/CLAUDE.md` rule 1)
 5. Include `"relatedEntities": { "Application Entities": [] }` for the sync structure
 
 ### Resource Components for Custom Dashboards
@@ -2007,3 +2007,17 @@ npx playwright-cli close
 
 ## Recent Changes
 - 601-mcp-oauth: Added TypeScript 5.x, Node.js 18+ + `@memberjunction/server` (auth providers), `express`, `jsonwebtoken`, `@modelcontextprotocol/sdk`
+
+## Release lines
+
+`next` is built on MJ Edge and never publishes. Production releases come from release lines (`lts/<MJ major.minor>`), listed in `release-lines.json`. Land every change on `next` first, then add a `backport lts/X.Y` label (for example `backport lts/6.1`); a PR that adds a migration needs a label for every open line, or its files listed as edge-only in `release-lines.json`. Never open a PR straight into a line or into `main`. Full rules, publishing and the line cut: [guides/RELEASE_LINES.md](guides/RELEASE_LINES.md).
+
+## Metadata ships as release migrations
+
+`mj app install` and upgrades run migrations only. There is no metadata phase, by design. A record that exists only as JSON under `metadata/` reaches no host until a release ships it inside a migration.
+
+- **PRs carry metadata JSON only.** Never hand-write or generate a `*__Metadata_Sync.sql` in a feature PR.
+- **The build engineer** generates one differential `Metadata_Sync` migration per release, from a fresh database.
+- **Rows missing after a fresh install** usually mean a release shipped without its metadata migration. Hand that to the build engineer rather than changing the installer.
+
+The model, and the Open App steps that differ from core (`--schema`, the `${mjSchema}` substitution): [Release Metadata Migrations Guide](https://github.com/MemberJunction/MJ/blob/next/guides/RELEASE_METADATA_MIGRATIONS_GUIDE.md).

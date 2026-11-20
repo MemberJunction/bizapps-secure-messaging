@@ -26,6 +26,8 @@ const upload = multer({
  */
 function corsMiddleware(req: Request, res: Response, next: NextFunction): void {
     res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+    // The allowed origin is reflected per-request, so caches must key on Origin.
+    res.setHeader('Vary', 'Origin');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.setHeader('Access-Control-Max-Age', '86400');

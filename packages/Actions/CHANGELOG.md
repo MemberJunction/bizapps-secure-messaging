@@ -1,5 +1,11 @@
 # @mj-biz-apps/secure-messaging-actions
 
+## 2.1.1
+
+### Patch Changes
+
+- @mj-biz-apps/secure-messaging-core@2.1.1
+
 ## 2.1.0
 
 ### Minor Changes

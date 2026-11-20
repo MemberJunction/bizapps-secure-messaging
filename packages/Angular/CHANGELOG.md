@@ -1,5 +1,15 @@
 # @mj-biz-apps/secure-messaging-ng
 
+## 2.1.1
+
+### Patch Changes
+
+- c385506: Dependency ranges are caret: `@mj-biz-apps/common-entities` is `^5.34.0` instead of exact `5.34.0`, so a host on a later release keeps one copy.
+- 4b59bc3: Move `@mj-biz-apps/common-entities` from `dependencies` to `peerDependencies` (`^5.34.0`) with an exact `devDependencies` anchor (`5.34.0`), matching the Open App dependency model so hosts keep a single copy of sibling app entity packages.
+- Updated dependencies [2145848]
+  - @mj-biz-apps/secure-messaging-entities@2.1.1
+  - @mj-biz-apps/secure-messaging-core@2.1.1
+
 ## 2.1.0
 
 ### Minor Changes

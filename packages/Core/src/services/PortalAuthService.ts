@@ -301,11 +301,12 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
         systemUser: UserInfo,
         deepLinkThreadId?: string
     ): Promise<MagicLinkResult> {
-        // Verify the session exists.
+        // Verify the session exists AND is still usable — never mint a link against a
+        // revoked/expired session.
         const rv = new RunView();
         const sessionResult = await rv.RunView<mjBizAppsSecureMessagingPortalSessionEntity>({
             EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
-            ExtraFilter: `ID = '${sessionId.replace(/'/g, "''")}'`,
+            ExtraFilter: `ID = '${sessionId.replace(/'/g, "''")}' AND Status = 'Active' AND ExpiresAt > SYSDATETIMEOFFSET()`,
             ResultType: 'entity_object',
         }, systemUser);
 
@@ -457,6 +458,12 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
         const session = await md.GetEntityObject<mjBizAppsSecureMessagingPortalSessionEntity>(
             'MJ_BizApps_SecureMessaging: Portal Sessions', systemUser);
         await session.InnerLoad(CompositeKey.FromID(magicLink.PortalSessionID));
+
+        // Revoked is permanent: redemption may resume an Expired session (that is the magic-link
+        // lifecycle), but it must never reactivate a session staff explicitly revoked.
+        if (session.Status === 'Revoked') {
+            return null;
+        }
 
         // Never resurrect a session past its absolute age cap — the token we'd issue would be
         // rejected by validateSessionToken anyway. The contact requests a fresh link, which
