@@ -35,55 +35,55 @@ importers:
         specifier: ^21.2.23
         version: 21.2.23(@angular/core@21.2.23(@angular/compiler@21.2.23)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2)
       '@memberjunction/actions':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2
       '@memberjunction/actions-base':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2
       '@memberjunction/communication-engine':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))(@smithy/signature-v4@5.7.3)(axios@1.20.0)(chokidar@3.6.0)(encoding@0.1.13)(typescript@5.9.3)(ws@8.21.3)(zod@3.25.76)
       '@memberjunction/communication-types':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2
       '@memberjunction/core':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2
       '@memberjunction/core-entities':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2
       '@memberjunction/esignature':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2(encoding@0.1.13)(typescript@5.9.3)
       '@memberjunction/esignature-docusign':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2(encoding@0.1.13)(typescript@5.9.3)
       '@memberjunction/esignature-dropboxsign':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2(encoding@0.1.13)(typescript@5.9.3)
       '@memberjunction/esignature-pandadoc':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2(encoding@0.1.13)(typescript@5.9.3)
       '@memberjunction/global':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2
       '@memberjunction/graphql-dataprovider':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2(ws@8.21.3)
       '@memberjunction/ng-base-application':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2(@angular/common@21.2.23(@angular/core@21.2.23(@angular/compiler@21.2.23)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2))(@angular/core@21.2.23(@angular/compiler@21.2.23)(rxjs@7.8.2)(zone.js@0.16.3))
       '@memberjunction/ng-shared':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2(db3e1ca7cbcd770439a465851af979aa)
       '@memberjunction/server':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2(@aws-sdk/credential-provider-node@3.972.83)(@aws-sdk/credential-providers@3.1126.0)(@azure/identity@4.13.2)(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))(@smithy/signature-v4@5.7.3)(axios@1.20.0)(chokidar@3.6.0)(encoding@0.1.13)(socks@2.8.10)(typescript@5.9.3)
       '@memberjunction/sqlserver-dataprovider':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))(@smithy/signature-v4@5.7.3)(axios@1.20.0)(chokidar@3.6.0)(encoding@0.1.13)(typescript@5.9.3)(ws@8.21.3)(zod@3.25.76)
       '@memberjunction/storage':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2(encoding@0.1.13)(typescript@5.9.3)
       '@okta/okta-auth-js':
         specifier: ^7.14.1
@@ -99,10 +99,10 @@ importers:
         specifier: ^2.29.8
         version: 2.31.1(@types/node@25.9.5)
       '@memberjunction/cli':
-        specifier: ^6.1.2
+        specifier: 6.1.2
         version: 6.1.2(@aws-sdk/credential-provider-node@3.972.83)(@aws-sdk/credential-providers@3.1126.0)(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))(@smithy/signature-v4@5.7.3)(@types/node@25.9.5)(axios@1.20.0)(chokidar@3.6.0)(encoding@0.1.13)(socks@2.8.10)(typescript@5.9.3)(ws@8.21.3)
       '@memberjunction/testing-integration':
-        specifier: ^6.1.2
+        specifier: 6.1.2
         version: 6.1.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))(@smithy/signature-v4@5.7.3)(axios@1.20.0)(chokidar@3.6.0)(encoding@0.1.13)(typescript@5.9.3)(ws@8.21.3)(zod@3.25.76)
       '@mj-biz-apps/common-entities':
         specifier: ^5.30.0
@@ -138,19 +138,19 @@ importers:
   packages/Actions:
     dependencies:
       '@memberjunction/actions':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2
       '@memberjunction/actions-base':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2
       '@memberjunction/core':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2
       '@memberjunction/core-entities':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2
       '@memberjunction/global':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2
       '@mj-biz-apps/secure-messaging-core':
         specifier: 2.1.0
@@ -194,37 +194,37 @@ importers:
         specifier: ^21.2.23
         version: 21.2.23(@angular/animations@21.2.23(@angular/core@21.2.23(@angular/compiler@21.2.23)(rxjs@7.8.2)(zone.js@0.16.3)))(@angular/common@21.2.23(@angular/core@21.2.23(@angular/compiler@21.2.23)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2))(@angular/core@21.2.23(@angular/compiler@21.2.23)(rxjs@7.8.2)(zone.js@0.16.3))
       '@memberjunction/actions-base':
-        specifier: ^6.1.2
+        specifier: 6.1.2
         version: 6.1.2
       '@memberjunction/core':
-        specifier: ^6.1.2
+        specifier: 6.1.2
         version: 6.1.2
       '@memberjunction/core-entities':
-        specifier: ^6.1.2
+        specifier: 6.1.2
         version: 6.1.2
       '@memberjunction/global':
-        specifier: ^6.1.2
+        specifier: 6.1.2
         version: 6.1.2
       '@memberjunction/graphql-dataprovider':
-        specifier: ^6.1.2
+        specifier: 6.1.2
         version: 6.1.2(ws@8.21.3)
       '@memberjunction/ng-auth-services':
-        specifier: ^6.1.2
+        specifier: 6.1.2
         version: 6.1.2(760f7d2dbc6611a351ccdfa5f74b82e1)
       '@memberjunction/ng-base-application':
-        specifier: ^6.1.2
+        specifier: 6.1.2
         version: 6.1.2(@angular/common@21.2.23(@angular/core@21.2.23(@angular/compiler@21.2.23)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2))(@angular/core@21.2.23(@angular/compiler@21.2.23)(rxjs@7.8.2)(zone.js@0.16.3))
       '@memberjunction/ng-base-forms':
-        specifier: ^6.1.2
+        specifier: 6.1.2
         version: 6.1.2(fdcac4a09c5b02e50d9930a9363fa818)
       '@memberjunction/ng-entity-viewer':
-        specifier: ^6.1.2
+        specifier: 6.1.2
         version: 6.1.2(daf1273d2653c68e4eac9defb5483293)
       '@memberjunction/ng-link-directives':
-        specifier: ^6.1.2
+        specifier: 6.1.2
         version: 6.1.2(db3e1ca7cbcd770439a465851af979aa)
       '@memberjunction/ng-shared':
-        specifier: ^6.1.2
+        specifier: 6.1.2
         version: 6.1.2(db3e1ca7cbcd770439a465851af979aa)
       '@mj-biz-apps/common-entities':
         specifier: 5.34.0
@@ -236,16 +236,16 @@ importers:
   packages/Core:
     dependencies:
       '@memberjunction/core':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2
       '@memberjunction/core-entities':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2
       '@memberjunction/global':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2
       '@memberjunction/storage':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2(encoding@0.1.13)(typescript@5.9.3)
       '@mj-biz-apps/secure-messaging-entities':
         specifier: 2.1.0
@@ -316,10 +316,10 @@ importers:
   packages/Entities:
     dependencies:
       '@memberjunction/core':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2
       '@memberjunction/global':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2
       zod:
         specifier: ^3.25.28
@@ -335,13 +335,13 @@ importers:
   packages/IntegrationTests:
     dependencies:
       '@memberjunction/core':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2
       '@memberjunction/global':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2
       '@memberjunction/testing-integration':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))(@smithy/signature-v4@5.7.3)(axios@1.20.0)(chokidar@3.6.0)(encoding@0.1.13)(typescript@5.9.3)(ws@8.21.3)(zod@3.25.76)
       '@mj-biz-apps/common-entities':
         specifier: ^5.30.0
@@ -366,46 +366,46 @@ importers:
   packages/Server:
     dependencies:
       '@memberjunction/actions':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2
       '@memberjunction/actions-base':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2
       '@memberjunction/communication-engine':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))(@smithy/signature-v4@5.7.3)(axios@1.20.0)(chokidar@3.6.0)(encoding@0.1.13)(typescript@5.9.3)(ws@8.21.3)(zod@3.25.76)
       '@memberjunction/communication-types':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2
       '@memberjunction/core':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2
       '@memberjunction/core-entities':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2
       '@memberjunction/esignature':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2(encoding@0.1.13)(typescript@5.9.3)
       '@memberjunction/esignature-docusign':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2(encoding@0.1.13)(typescript@5.9.3)
       '@memberjunction/esignature-dropboxsign':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2(encoding@0.1.13)(typescript@5.9.3)
       '@memberjunction/esignature-pandadoc':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2(encoding@0.1.13)(typescript@5.9.3)
       '@memberjunction/global':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2
       '@memberjunction/server':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2(@aws-sdk/credential-provider-node@3.972.83)(@aws-sdk/credential-providers@3.1126.0)(@azure/identity@4.13.2)(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))(@smithy/signature-v4@5.7.3)(axios@1.20.0)(chokidar@3.6.0)(encoding@0.1.13)(socks@2.8.10)(typescript@5.9.3)
       '@memberjunction/sqlserver-dataprovider':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))(@smithy/signature-v4@5.7.3)(axios@1.20.0)(chokidar@3.6.0)(encoding@0.1.13)(typescript@5.9.3)(ws@8.21.3)(zod@3.25.76)
       '@memberjunction/storage':
-        specifier: ^6.1.2
+        specifier: '>=6.1.2 <6.2.0'
         version: 6.1.2(encoding@0.1.13)(typescript@5.9.3)
       '@mj-biz-apps/secure-messaging-actions':
         specifier: 2.1.0
@@ -5406,6 +5406,7 @@ packages:
 
   axios-retry@4.5.0:
     resolution: {integrity: sha512-aR99oXhpEDGo0UuAlYcn2iGRds30k366Zfa05XWScR9QaQD4JYiP3/1Qt1u7YlefUOK+cn0CcwoL1oefavQUlQ==}
+    deprecated: axios-retry is no longer maintained. See https://github.com/softonic/axios-retry for alternatives.
     peerDependencies:
       axios: 0.x || 1.x
 
@@ -7173,6 +7174,7 @@ packages:
   http-call@5.3.0:
     resolution: {integrity: sha512-ahwimsC23ICE4kPl9xTBjKB4inbRaeLyZeRunC/1Jy/Z6X8tv22MEAjK+KBOMSVLaqXPTTmd8638waVIKLGx2w==}
     engines: {node: '>=8.0.0'}
+    deprecated: Renamed to @heroku/http-call — please install @heroku/http-call instead.
 
   http-deceiver@1.2.7:
     resolution: {integrity: sha512-LmpOGxTfbpgtGVxJrj5k7asXHCgNZp5nLfp+hWc8QQRqtb7fUy6kRY3BO1h9ddF6yIPYUARgxGOwB42DnxIaNw==}
@@ -11140,7 +11142,7 @@ snapshots:
 
   '@aws-sdk/checksums@3.1000.29':
     dependencies:
-      '@aws-sdk/core': 3.977.9
+      '@aws-sdk/core': 3.978.0
       '@aws-sdk/types': 3.974.5
       '@smithy/core': 3.33.3
       '@smithy/types': 4.18.0
@@ -11148,8 +11150,8 @@ snapshots:
 
   '@aws-sdk/client-bedrock-runtime@3.1126.0':
     dependencies:
-      '@aws-sdk/core': 3.977.9
-      '@aws-sdk/credential-provider-node': 3.972.82
+      '@aws-sdk/core': 3.978.0
+      '@aws-sdk/credential-provider-node': 3.972.83
       '@aws-sdk/eventstream-handler-node': 3.972.34
       '@aws-sdk/middleware-eventstream': 3.972.29
       '@aws-sdk/middleware-websocket': 3.972.52
@@ -11209,8 +11211,8 @@ snapshots:
   '@aws-sdk/client-s3@3.1126.0':
     dependencies:
       '@aws-sdk/checksums': 3.1000.29
-      '@aws-sdk/core': 3.977.9
-      '@aws-sdk/credential-provider-node': 3.972.82
+      '@aws-sdk/core': 3.978.0
+      '@aws-sdk/credential-provider-node': 3.972.83
       '@aws-sdk/middleware-sdk-s3': 3.972.75
       '@aws-sdk/signature-v4-multi-region': 3.996.46
       '@aws-sdk/types': 3.974.5
@@ -11222,8 +11224,8 @@ snapshots:
 
   '@aws-sdk/client-sagemaker@3.1126.0':
     dependencies:
-      '@aws-sdk/core': 3.977.9
-      '@aws-sdk/credential-provider-node': 3.972.82
+      '@aws-sdk/core': 3.978.0
+      '@aws-sdk/credential-provider-node': 3.972.83
       '@aws-sdk/types': 3.974.5
       '@smithy/core': 3.33.3
       '@smithy/fetch-http-handler': 5.8.0
@@ -11252,11 +11254,10 @@ snapshots:
       '@smithy/types': 4.18.0
       bowser: 2.14.1
       tslib: 2.8.1
-    optional: true
 
   '@aws-sdk/credential-provider-cognito-identity@3.972.69':
     dependencies:
-      '@aws-sdk/nested-clients': 3.997.44
+      '@aws-sdk/nested-clients': 3.997.45
       '@aws-sdk/types': 3.974.5
       '@smithy/core': 3.33.3
       '@smithy/types': 4.18.0
@@ -11264,7 +11265,7 @@ snapshots:
 
   '@aws-sdk/credential-provider-env@3.972.70':
     dependencies:
-      '@aws-sdk/core': 3.977.9
+      '@aws-sdk/core': 3.978.0
       '@aws-sdk/types': 3.974.5
       '@smithy/core': 3.33.3
       '@smithy/types': 4.18.0
@@ -11277,11 +11278,10 @@ snapshots:
       '@smithy/core': 3.33.3
       '@smithy/types': 4.18.0
       tslib: 2.8.1
-    optional: true
 
   '@aws-sdk/credential-provider-http@3.972.72':
     dependencies:
-      '@aws-sdk/core': 3.977.9
+      '@aws-sdk/core': 3.978.0
       '@aws-sdk/types': 3.974.5
       '@smithy/core': 3.33.3
       '@smithy/fetch-http-handler': 5.8.0
@@ -11298,17 +11298,16 @@ snapshots:
       '@smithy/node-http-handler': 4.12.1
       '@smithy/types': 4.18.0
       tslib: 2.8.1
-    optional: true
 
   '@aws-sdk/credential-provider-ini@3.973.15':
     dependencies:
-      '@aws-sdk/core': 3.977.9
-      '@aws-sdk/credential-provider-env': 3.972.70
-      '@aws-sdk/credential-provider-http': 3.972.72
+      '@aws-sdk/core': 3.978.0
+      '@aws-sdk/credential-provider-env': 3.972.71
+      '@aws-sdk/credential-provider-http': 3.972.73
       '@aws-sdk/credential-provider-login': 3.972.77
-      '@aws-sdk/credential-provider-process': 3.972.70
-      '@aws-sdk/credential-provider-sso': 3.973.14
-      '@aws-sdk/credential-provider-web-identity': 3.972.76
+      '@aws-sdk/credential-provider-process': 3.972.71
+      '@aws-sdk/credential-provider-sso': 3.973.15
+      '@aws-sdk/credential-provider-web-identity': 3.972.77
       '@aws-sdk/nested-clients': 3.997.44
       '@aws-sdk/types': 3.974.5
       '@smithy/core': 3.33.3
@@ -11331,11 +11330,10 @@ snapshots:
       '@smithy/credential-provider-imds': 4.5.2
       '@smithy/types': 4.18.0
       tslib: 2.8.1
-    optional: true
 
   '@aws-sdk/credential-provider-login@3.972.77':
     dependencies:
-      '@aws-sdk/core': 3.977.9
+      '@aws-sdk/core': 3.978.0
       '@aws-sdk/nested-clients': 3.997.44
       '@aws-sdk/types': 3.974.5
       '@smithy/core': 3.33.3
@@ -11350,7 +11348,6 @@ snapshots:
       '@smithy/core': 3.33.3
       '@smithy/types': 4.18.0
       tslib: 2.8.1
-    optional: true
 
   '@aws-sdk/credential-provider-node@3.972.82':
     dependencies:
@@ -11379,11 +11376,10 @@ snapshots:
       '@smithy/credential-provider-imds': 4.5.2
       '@smithy/types': 4.18.0
       tslib: 2.8.1
-    optional: true
 
   '@aws-sdk/credential-provider-process@3.972.70':
     dependencies:
-      '@aws-sdk/core': 3.977.9
+      '@aws-sdk/core': 3.978.0
       '@aws-sdk/types': 3.974.5
       '@smithy/core': 3.33.3
       '@smithy/types': 4.18.0
@@ -11396,11 +11392,10 @@ snapshots:
       '@smithy/core': 3.33.3
       '@smithy/types': 4.18.0
       tslib: 2.8.1
-    optional: true
 
   '@aws-sdk/credential-provider-sso@3.973.14':
     dependencies:
-      '@aws-sdk/core': 3.977.9
+      '@aws-sdk/core': 3.978.0
       '@aws-sdk/nested-clients': 3.997.44
       '@aws-sdk/token-providers': 3.1116.0
       '@aws-sdk/types': 3.974.5
@@ -11417,11 +11412,10 @@ snapshots:
       '@smithy/core': 3.33.3
       '@smithy/types': 4.18.0
       tslib: 2.8.1
-    optional: true
 
   '@aws-sdk/credential-provider-web-identity@3.972.76':
     dependencies:
-      '@aws-sdk/core': 3.977.9
+      '@aws-sdk/core': 3.978.0
       '@aws-sdk/nested-clients': 3.997.44
       '@aws-sdk/types': 3.974.5
       '@smithy/core': 3.33.3
@@ -11436,21 +11430,20 @@ snapshots:
       '@smithy/core': 3.33.3
       '@smithy/types': 4.18.0
       tslib: 2.8.1
-    optional: true
 
   '@aws-sdk/credential-providers@3.1126.0':
     dependencies:
-      '@aws-sdk/core': 3.977.9
+      '@aws-sdk/core': 3.978.0
       '@aws-sdk/credential-provider-cognito-identity': 3.972.69
-      '@aws-sdk/credential-provider-env': 3.972.70
-      '@aws-sdk/credential-provider-http': 3.972.72
-      '@aws-sdk/credential-provider-ini': 3.973.15
-      '@aws-sdk/credential-provider-login': 3.972.77
-      '@aws-sdk/credential-provider-node': 3.972.82
-      '@aws-sdk/credential-provider-process': 3.972.70
-      '@aws-sdk/credential-provider-sso': 3.973.14
-      '@aws-sdk/credential-provider-web-identity': 3.972.76
-      '@aws-sdk/nested-clients': 3.997.44
+      '@aws-sdk/credential-provider-env': 3.972.71
+      '@aws-sdk/credential-provider-http': 3.972.73
+      '@aws-sdk/credential-provider-ini': 3.973.16
+      '@aws-sdk/credential-provider-login': 3.972.78
+      '@aws-sdk/credential-provider-node': 3.972.83
+      '@aws-sdk/credential-provider-process': 3.972.71
+      '@aws-sdk/credential-provider-sso': 3.973.15
+      '@aws-sdk/credential-provider-web-identity': 3.972.77
+      '@aws-sdk/nested-clients': 3.997.45
       '@aws-sdk/types': 3.974.5
       '@smithy/core': 3.33.3
       '@smithy/credential-provider-imds': 4.5.2
@@ -11473,7 +11466,7 @@ snapshots:
 
   '@aws-sdk/middleware-sdk-s3@3.972.75':
     dependencies:
-      '@aws-sdk/core': 3.977.9
+      '@aws-sdk/core': 3.978.0
       '@aws-sdk/signature-v4-multi-region': 3.996.46
       '@aws-sdk/types': 3.974.5
       '@smithy/core': 3.33.3
@@ -11482,7 +11475,7 @@ snapshots:
 
   '@aws-sdk/middleware-websocket@3.972.52':
     dependencies:
-      '@aws-sdk/core': 3.977.9
+      '@aws-sdk/core': 3.978.0
       '@aws-sdk/types': 3.974.5
       '@smithy/core': 3.33.3
       '@smithy/fetch-http-handler': 5.8.0
@@ -11492,7 +11485,7 @@ snapshots:
 
   '@aws-sdk/nested-clients@3.997.44':
     dependencies:
-      '@aws-sdk/core': 3.977.9
+      '@aws-sdk/core': 3.978.0
       '@aws-sdk/signature-v4-multi-region': 3.996.46
       '@aws-sdk/types': 3.974.5
       '@smithy/core': 3.33.3
@@ -11511,11 +11504,10 @@ snapshots:
       '@smithy/node-http-handler': 4.12.1
       '@smithy/types': 4.18.0
       tslib: 2.8.1
-    optional: true
 
   '@aws-sdk/s3-request-presigner@3.1126.0':
     dependencies:
-      '@aws-sdk/core': 3.977.9
+      '@aws-sdk/core': 3.978.0
       '@aws-sdk/signature-v4-multi-region': 3.996.46
       '@aws-sdk/types': 3.974.5
       '@smithy/core': 3.33.3
@@ -11531,7 +11523,7 @@ snapshots:
 
   '@aws-sdk/token-providers@3.1116.0':
     dependencies:
-      '@aws-sdk/core': 3.977.9
+      '@aws-sdk/core': 3.978.0
       '@aws-sdk/nested-clients': 3.997.44
       '@aws-sdk/types': 3.974.5
       '@smithy/core': 3.33.3
@@ -11540,8 +11532,8 @@ snapshots:
 
   '@aws-sdk/token-providers@3.1126.0':
     dependencies:
-      '@aws-sdk/core': 3.977.9
-      '@aws-sdk/nested-clients': 3.997.44
+      '@aws-sdk/core': 3.978.0
+      '@aws-sdk/nested-clients': 3.997.45
       '@aws-sdk/types': 3.974.5
       '@smithy/core': 3.33.3
       '@smithy/types': 4.18.0
@@ -11555,7 +11547,6 @@ snapshots:
       '@smithy/core': 3.33.3
       '@smithy/types': 4.18.0
       tslib: 2.8.1
-    optional: true
 
   '@aws-sdk/types@3.974.5':
     dependencies:
@@ -21709,7 +21700,7 @@ snapshots:
       parse5: 7.3.0
       parse5-htmlparser2-tree-adapter: 7.1.0
       parse5-parser-stream: 7.1.2
-      undici: 7.29.0
+      undici: 7.29.1
       whatwg-mimetype: 4.0.0
 
   chokidar@3.6.0:
