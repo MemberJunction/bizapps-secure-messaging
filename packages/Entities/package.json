@@ -17,6 +17,8 @@
   "author": "MemberJunction.com",
   "license": "MIT",
   "devDependencies": {
+    "@memberjunction/core": "6.3.0-edge.1",
+    "@memberjunction/global": "6.3.0-edge.1",
     "tsc-alias": "^1.8.16",
     "typescript": "^5.9.3"
   },
