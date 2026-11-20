@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { Metadata, RunView, UserInfo } from '@memberjunction/core';
 import { getSystemUser } from '@memberjunction/server';
 import { SignatureEngine } from '@memberjunction/esignature/server';
-import { PortalRequest, assertThreadAccess } from './middleware.js';
+import { PortalRequest, assertThreadAccess, assertThreadWritable } from './middleware.js';
 import { getFileStore } from '@mj-biz-apps/secure-messaging-core';
 
 /**
@@ -145,7 +145,9 @@ export async function getSignatureRequests(req: Request, res: Response): Promise
             title: r.Name,
             status: toDisplayStatus(r.Status as string),
             externalEnvelopeId: r.ExternalEnvelopeID,
-            signatureAccountId: r.SignatureAccountID,
+            // SignatureAccountID is deliberately NOT returned: it identifies the org's
+            // e-signature account (internal credential selector) and external contacts
+            // have no use for it.
             sentAt: r.SentAt,
             completedAt: r.CompletedAt,
             createdAt: r.__mj_CreatedAt,
@@ -162,6 +164,11 @@ export async function getSignatureRequests(req: Request, res: Response): Promise
 /**
  * POST /threads/:threadId/signature-requests
  *
+ * ⚠️ STAFF-SIDE VERB — NOT mounted on the portal router. The portal's only principal is an
+ * external contact, and this handler sends envelopes from the ORG's e-signature account
+ * (caller-supplied signatureAccountId, run as systemUser). Mount it only behind staff
+ * authentication; never re-add it to the contact-facing router in routes.ts.
+ *
  * Creates AND sends a signature request in one step via the MJ eSignature engine. The
  * engine's SendForSignature is atomic (create + send), so there is no separate /send route.
  *
@@ -172,6 +179,9 @@ export async function getSignatureRequests(req: Request, res: Response): Promise
 export async function createSignatureRequest(req: Request, res: Response): Promise<void> {
     const access = await assertThreadAccess(req as PortalRequest, res);
     if (!access) return;
+    // Sending a document out for signature is new activity: a Closed/Archived thread is
+    // read-only (PRD §7), same as messages, uploads, and file-request actions.
+    if (!assertThreadWritable(access, res)) return;
     const { systemUser, threadId } = access;
     const session = (req as PortalRequest).portalSession;
     const { title, signatureAccountId, artifactId, signatureAnchor } = req.body;
@@ -293,6 +303,9 @@ export async function refreshSignatureStatus(req: Request, res: Response): Promi
 /**
  * POST /threads/:threadId/signature-requests/:requestId/void
  *
+ * ⚠️ STAFF-SIDE VERB — NOT mounted on the portal router. An external contact must not be
+ * able to void staff-sent envelopes. Mount only behind staff authentication.
+ *
  * Voids/cancels an in-flight envelope.
  *
  * Body: { reason?: string }
@@ -300,6 +313,8 @@ export async function refreshSignatureStatus(req: Request, res: Response): Promi
 export async function voidSignatureRequest(req: Request, res: Response): Promise<void> {
     const access = await assertThreadAccess(req as PortalRequest, res);
     if (!access) return;
+    // Voiding an in-flight envelope is a write — rejected on a Closed/Archived thread (PRD §7).
+    if (!assertThreadWritable(access, res)) return;
     const { systemUser, threadId } = access;
     const requestId = String(req.params.requestId);
     const reason = typeof req.body?.reason === 'string' ? req.body.reason : 'Cancelled by sender';
