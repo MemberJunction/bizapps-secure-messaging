@@ -1,5 +1,12 @@
 # @mj-biz-apps/secure-messaging-core
 
+## 2.1.1
+
+### Patch Changes
+
+- Updated dependencies [2145848]
+  - @mj-biz-apps/secure-messaging-entities@2.1.1
+
 ## 2.1.0
 
 ### Minor Changes
