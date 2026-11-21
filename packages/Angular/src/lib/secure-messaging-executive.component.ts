@@ -149,7 +149,10 @@ interface WorkspaceNavItem {
 
     <div class="sidebar-footer">
       <i class="fa-solid fa-lock"></i>
-      <span>End-to-end encrypted</span>
+      <!-- Accurate claim only: transport is TLS and content is stored in the org's own database
+           (README §security) — this is NOT end-to-end encryption, and saying so to users and
+           compliance reviewers would be a false security representation. -->
+      <span>Encrypted in transit and at rest</span>
     </div>
   </aside>
 
@@ -268,7 +271,7 @@ interface WorkspaceNavItem {
       @if (selectedMessage.isSecure) {
         <div class="security-bar">
           <i class="fa-solid fa-shield-check"></i>
-          <span>This message is end-to-end encrypted</span>
+          <span>This message is encrypted in transit and at rest</span>
         </div>
       }
 

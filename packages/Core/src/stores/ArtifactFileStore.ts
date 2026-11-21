@@ -41,6 +41,22 @@ export function sanitizeFilename(filename: string): string {
     return cleaned;
 }
 
+/**
+ * Content types a browser executes as a DOCUMENT. The declared type is attacker-controlled
+ * upload input, and storage providers serve pre-auth download URLs honoring the stored type \u2014
+ * so an upload declared `text/html` or `image/svg+xml` would render as active content (script)
+ * on the storage origin when staff opens it. Such types are stored as opaque bytes instead;
+ * the filename and the actual bytes are untouched, only the declared type is neutralized.
+ */
+const SCRIPTABLE_CONTENT_TYPES = /^(text\/html|application\/xhtml\+xml|image\/svg\+xml|text\/xml|application\/xml)\s*(;|$)/i;
+
+/** Normalizes a caller-supplied content type: empty \u2192 octet-stream, scriptable \u2192 octet-stream. */
+export function neutralizeScriptableContentType(contentType: string): string {
+    const ct = (contentType || '').trim();
+    if (!ct) return 'application/octet-stream';
+    return SCRIPTABLE_CONTENT_TYPES.test(ct) ? 'application/octet-stream' : ct;
+}
+
 export interface StoreFileInput {
     filename: string;
     contentType: string;
@@ -117,6 +133,10 @@ export class ArtifactFileStore {
         // normalize it before ANY use (path traversal / control chars / bidi spoofing).
         const filename = sanitizeFilename(input.filename);
 
+        // The declared content type is attacker-controlled too — neutralize scriptable types
+        // before ANY use (upload, artifact type resolution, persisted records, API response).
+        const contentType = neutralizeScriptableContentType(input.contentType);
+
         const engine = FileStorageEngine.Instance;
         await engine.Config(false, systemUser);
         if (!engine.HasStorageAccounts) {
@@ -127,14 +147,14 @@ export class ArtifactFileStore {
         const upload = await engine.UploadFile({
             content: input.bytes,
             fileName: filename,
-            mimeType: input.contentType,
+            mimeType: contentType,
             contextUser: systemUser,
         });
 
         const md = new Metadata();
 
         // 2a. MJ: Artifacts
-        const typeId = await this.resolveArtifactTypeId(input.contentType, systemUser);
+        const typeId = await this.resolveArtifactTypeId(contentType, systemUser);
         const artifact = await md.GetEntityObject<MJArtifactEntity>('MJ: Artifacts', systemUser);
         artifact.NewRecord();
         artifact.Name = filename;
@@ -151,7 +171,7 @@ export class ArtifactFileStore {
         version.VersionNumber = 1;
         version.ContentMode = 'File';
         version.FileID = upload.FileID;
-        version.MimeType = input.contentType;
+        version.MimeType = contentType;
         version.FileName = filename;
         version.ContentSizeBytes = input.bytes.length;
         version.UserID = systemUser.ID;
@@ -168,7 +188,7 @@ export class ArtifactFileStore {
         link.Set('ArtifactID', artifact.ID);
         link.Set('FileID', upload.FileID);
         link.Set('Filename', filename);
-        link.Set('ContentType', input.contentType);
+        link.Set('ContentType', contentType);
         link.Set('Size', input.bytes.length);
         if (!(await link.Save())) {
             throw new Error(link.LatestResult?.CompleteMessage || 'Failed to link file to message');
@@ -179,7 +199,7 @@ export class ArtifactFileStore {
             artifactId: artifact.ID,
             fileId: upload.FileID,
             filename,
-            contentType: input.contentType,
+            contentType,
             size: input.bytes.length,
         };
     }
