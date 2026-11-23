@@ -35,11 +35,14 @@ A line is `open` (features, fixes and migrations, all backported from `next`) or
 | `lines: record` | PRs into `next` | `release-lines.json` is valid; a line's branch, MJ version and major never change; LTS never reopens |
 | `lines: backport or edge-only` | PRs into `next` | an added migration is labelled for every open line, or is edge-only; no migration goes to an LTS line |
 | `lines: on next first` | PRs into `lts/*` | every commit carries `(cherry picked from commit <sha>)` with `<sha>` on `next`; hand-written conflict fixes need `backport-adjusted` |
-| `lines: migrations` | PRs into `lts/*` | open line: its migrations are `next`'s, same content, no edge-only ones, none skipped (older than the line's newest); LTS line: no migration or metadata change, no minor or major changeset |
+| `lines: migrations` | PRs into `lts/*` | open line: its migrations are `next`'s, same content, no edge-only ones, none added older than the line's newest; LTS line: no migration or metadata change, no minor or major changeset |
 | `lines: mj pin` | PRs into `lts/*` and `main` | `@memberjunction/*` peers are the line range (`>=6.1.2 <6.2.0`), pins and the lockfile stay on the line's MJ minor, and `mj-app.json` has the line range and `"line"` |
 | `repo: guards` | all PRs | cross-app ranges are bounded peers only (private packages bounded too); `mj.config.cjs` never sets `outOfOrder: true` |
 
-The `next`-only timestamp watermark does not run on a line: a backported migration is often older than the line's newest. `lines: migrations` checks order there instead.
+The `next` timestamp watermark compares against `next`'s newest, which a backport is often older
+than, so it does not run on a line. `lines: migrations` keeps the line's own watermark instead: a
+backport may not add a migration older than the line's newest. A line may skip `next`'s
+migrations; it does not have to follow `next`'s order.
 
 ## Cutting a line
 
@@ -47,8 +50,20 @@ The line cut is coordinated across apps: bizapps-common first, then the apps tha
 
 1. On `next`, add the line to `release-lines.json` (`status: open`, `releasesThrough: main`) and move the previous newest line to `releasesThrough: branch`. Merge after a review by one of its owners.
 2. Create `lts/X.Y` from `next` and give it the `protect-lts` ruleset (it covers `lts/*`).
-3. On a branch off the new line, run `node .github/scripts/check-mj-line.mjs --line X.Y --file release-lines.json --fix`, then `pnpm install --lockfile-only`. This caps the MJ peers at the line, pins `mj-app.json`, and adds `"line"`. Set the line's `.github/CODEOWNERS` to `* <the line's reviewers>`; `protect-lts` requires code-owner review, so every change to the line needs one of them. When cutting a subsequent line (for example `6.2`), also add a `major` changeset (each line has its own app major) and re-stamp edge-only migrations to the cut date on SQL Server and PostgreSQL together. Open the cut PR into `lts/X.Y` with the `line-cut` label (a maintainer or admin adds it).
+3. On a branch off the new line, run `node .github/scripts/check-mj-line.mjs --line X.Y --file release-lines.json --fix`, then `pnpm install --lockfile-only`. This caps the MJ peers at the line, pins `mj-app.json`, and adds `"line"`. Set the line's `.github/CODEOWNERS` to `* <the line's reviewers>`; `protect-lts` requires code-owner review, so every change to the line needs one of them. When cutting a subsequent line (for example `6.2`), also add a `major` changeset (each line has its own app major) and re-stamp migrations as in [Moving to a new line](#moving-to-a-new-line). Open the cut PR into `lts/X.Y` with the `line-cut` label (a maintainer or admin adds it).
 4. The first release of a new newest line has to replace `main`'s history with the line's.
+
+## Moving to a new line
+
+A line takes `next`'s migrations with `next`'s stamps but may skip some, so its hosts can be
+behind `next` on a migration older than one they ran. Hosts never move from a line straight to
+`next`'s files. When they move to a new line:
+
+1. Re-stamp every `next` migration the old line does not have so it sorts after the old line's
+   newest migration, on SQL Server and PostgreSQL together.
+2. Check that a database built from the old line's migrations plus the re-stamped ones matches a
+   database built from `next`'s migrations.
+3. Add migrations to close any gap, or replace the history with a baseline migration.
 
 ## Not settled yet
 
