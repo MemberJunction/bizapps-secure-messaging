@@ -1,6 +1,6 @@
 {
   "name": "@mj-biz-apps/secure-messaging-element",
-  "version": "2.1.0",
+  "version": "6.3.0-edge.1",
   "description": "MJ Secure Messaging external contact widget — bundles the conversation UI into a single <mj-secure-messaging> custom element embeddable on any website (REST + token auth).",
   "publishConfig": {
     "access": "public"
@@ -24,7 +24,7 @@
     "@angular/forms": "21.2.22",
     "@angular/platform-browser": "21.2.22",
     "@angular/platform-browser-dynamic": "21.2.22",
-    "@mj-biz-apps/secure-messaging-ng": "2.1.0",
+    "@mj-biz-apps/secure-messaging-ng": "6.3.0-edge.1",
     "rxjs": "^7.8.2",
     "tslib": "^2.8.1",
     "typescript": "^5.9.3",

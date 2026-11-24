@@ -1,6 +1,6 @@
 {
   "name": "mj-secure-messaging",
-  "version": "1.0.0",
+  "version": "6.3.0-edge.1",
   "license": "MIT",
   "description": "MJ Secure Messaging - a secure web messaging portal Open App for MemberJunction",
   "workspaces": [
