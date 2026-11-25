@@ -66,7 +66,7 @@ interface WorkspaceNavItem {
 <div class="sm-layout" [class.sidebar-collapsed]="isSidebarCollapsed">
 
   <!-- LEFT SIDEBAR -->
-  <aside class="sm-sidebar">
+  <aside class="sm-sidebar" data-mj-tour-anchor="secmsg.inbox.sidebar">
     <div class="sidebar-header">
       <div class="sidebar-brand">
         <i class="fa-solid fa-shield-halved"></i>
@@ -154,7 +154,7 @@ interface WorkspaceNavItem {
   </aside>
 
   <!-- MIDDLE: MESSAGE LIST -->
-  <div class="sm-message-list">
+  <div class="sm-message-list" data-mj-tour-anchor="secmsg.inbox.threads">
     <div class="list-header">
       <div class="search-box">
         <i class="fa-solid fa-magnifying-glass"></i>
@@ -228,7 +228,7 @@ interface WorkspaceNavItem {
   </div>
 
   <!-- RIGHT: DETAIL PANEL -->
-  <div class="sm-detail-panel">
+  <div class="sm-detail-panel" data-mj-tour-anchor="secmsg.inbox.detail">
     @if (selectedMessage) {
       <div class="detail-header">
         <div class="detail-header-top">
