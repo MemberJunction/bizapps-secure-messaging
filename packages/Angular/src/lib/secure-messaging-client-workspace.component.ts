@@ -76,7 +76,7 @@ const ADV_PREF_KEY = 'sm.workspace.advanced';
   standalone: false,
   selector: 'mj-secure-messaging-client-workspace',
   template: `
-<div class="ws" [attr.data-mode]="mode">
+<div class="ws" [attr.data-mode]="mode" data-mj-tour-anchor="secmsg.portal.workspace">
   <div class="ws-inner">
 
     <!-- CLIENT HEADER -->

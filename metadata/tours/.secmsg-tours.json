@@ -1,0 +1,162 @@
+[
+  {
+    "fields": {
+      "Name": "Encrypted Threads, File Requests & Portal Magic Links",
+      "TourKey": "secmsg.threads-portal",
+      "Description": "Manage encrypted client conversations in Secure Messages: triage Secure Threads in the executive inbox, issue File Requests and signature workflows, and send passwordless Portal Magic Links.",
+      "ApplicationID": "@lookup:MJ: Applications.Name=Secure Messages",
+      "RunInAuthenticatedHosts": true,
+      "Status": "Draft",
+      "EstimatedMinutes": 3,
+      "Priority": 85,
+      "DefaultGuideMode": "Visual",
+      "AllowAgentActions": false,
+      "Goal": {
+        "Type": "Navigation",
+        "AppName": "Secure Messages",
+        "Description": "User explores Secure Threads, File Requests, signature actions, and external Portal Magic Links in SecureMessagingResource."
+      },
+      "StartLocation": {
+        "Application": "Secure Messages",
+        "NavItem": "SecureMessagingResource"
+      }
+    },
+    "primaryKey": {
+      "ID": "84D858C2-9F8F-4017-A0F0-EEA8EB2761F4"
+    },
+    "relatedEntities": {
+      "MJ: Tour Steps": [
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "StepKey": "secmsg-welcome",
+            "Sequence": 1,
+            "StepTypeID": "@lookup:MJ: Tour Step Types.Name=Modal",
+            "Title": "Welcome to Secure Messages",
+            "Body": "**Secure Messages** provides an encrypted staff inbox and external contact portal — uniting **Secure Threads**, **File Requests**, **Signature Requests**, and passwordless **Portal Magic Links**.",
+            "Configuration": {
+              "Variant": "welcome",
+              "PrimaryButtonText": "Explore Secure Messages",
+              "ShowProgress": true
+            },
+            "Placement": "Center",
+            "Mode": "Show",
+            "Prepare": {
+              "ApplicationName": "Secure Messages",
+              "DriverClass": "SecureMessagingResource"
+            },
+            "Completion": {
+              "Type": "NextButton"
+            },
+            "OnMissing": "Center",
+            "IsOptional": false
+          },
+          "primaryKey": {
+            "ID": "E292069A-E287-4DA1-AEF3-3224BDD83AC7"
+          }
+        },
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "StepKey": "secmsg-threads-inbox",
+            "Sequence": 2,
+            "StepTypeID": "@lookup:MJ: Tour Step Types.Name=Spotlight",
+            "Title": "Triage Encrypted Threads & Contact Workspaces",
+            "Body": "Scan **Secure Threads** in the message list, filter by category or per-contact workspace in the sidebar, and sort by date, sender, or status to stay on top of client replies.",
+            "Configuration": {
+              "ShowProgress": true
+            },
+            "Anchor": {
+              "Strategy": "Registered",
+              "Key": "secmsg.inbox.threads"
+            },
+            "Prepare": {
+              "ApplicationName": "Secure Messages",
+              "DriverClass": "SecureMessagingResource"
+            },
+            "Placement": "Right",
+            "Mode": "Guide",
+            "Completion": {
+              "Type": "NextButton"
+            },
+            "OnMissing": "Center",
+            "IsOptional": false
+          },
+          "primaryKey": {
+            "ID": "23A96C27-9F84-4691-AA10-13C9C2626A86"
+          }
+        },
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "StepKey": "secmsg-file-requests-portal",
+            "Sequence": 3,
+            "StepTypeID": "@lookup:MJ: Tour Step Types.Name=Spotlight",
+            "Title": "Send File Requests, E-Signatures & Portal Magic Links",
+            "Body": "From the thread detail header or Client Workspace, create tracked **File Requests**, send documents for e-signature, or issue fresh **Portal Magic Links** so external contacts authenticate directly without passwords.",
+            "Configuration": {
+              "ShowProgress": true
+            },
+            "Anchor": {
+              "Strategy": "Registered",
+              "Key": "secmsg.inbox.detail"
+            },
+            "Placement": "Left",
+            "Mode": "Guide",
+            "Completion": {
+              "Type": "NextButton"
+            },
+            "OnMissing": "Center",
+            "IsOptional": false
+          },
+          "primaryKey": {
+            "ID": "C965D20B-CB12-4416-96F2-BF9FC13F8DD9"
+          }
+        },
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "StepKey": "secmsg-summary",
+            "Sequence": 4,
+            "StepTypeID": "@lookup:MJ: Tour Step Types.Name=Modal",
+            "Title": "Secure Client Communications Ready",
+            "Body": "You can now manage encrypted contact threads, request documents, and govern external portal sessions from **Secure Messages**.",
+            "Configuration": {
+              "Variant": "summary",
+              "PrimaryButtonText": "Finish",
+              "ShowProgress": true
+            },
+            "Placement": "Center",
+            "Mode": "Show",
+            "Completion": {
+              "Type": "NextButton"
+            },
+            "OnMissing": "Center",
+            "IsOptional": false
+          },
+          "primaryKey": {
+            "ID": "4AEE38A3-C4B2-436E-96D4-85A8D5E46798"
+          }
+        }
+      ],
+      "MJ: Tour Triggers": [
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "TriggerType": "FirstVisit",
+            "Configuration": {
+              "Application": "Secure Messages"
+            },
+            "Delivery": "Offer",
+            "CooldownDays": 30,
+            "Priority": 85,
+            "Status": "Active"
+          },
+          "primaryKey": {
+            "ID": "F698653C-3E17-47D4-A8AF-43AEA7C65C6F"
+          }
+        }
+      ]
+    }
+  }
+]

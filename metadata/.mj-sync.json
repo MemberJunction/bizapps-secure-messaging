@@ -7,6 +7,9 @@
     "entity-fields",
     "action-categories",
     "actions",
-    "applications"
+    "applications",
+    "tours",
+    "learning-paths",
+    "tour-publications"
   ]
 }
