@@ -69,8 +69,10 @@
     "@memberjunction/esignature-pandadoc": "^6.3.0-edge.1",
     "@memberjunction/global": "^6.3.0-edge.1",
     "@memberjunction/graphql-dataprovider": "^6.3.0-edge.1",
+    "@memberjunction/ng-artifacts": "^6.3.0-edge.1",
     "@memberjunction/ng-base-application": "^6.3.0-edge.1",
     "@memberjunction/ng-shared": "^6.3.0-edge.1",
+    "@memberjunction/ng-ui-components": "^6.3.0-edge.1",
     "@memberjunction/server": "^6.3.0-edge.1",
     "@memberjunction/sqlserver-dataprovider": "^6.3.0-edge.1",
     "@memberjunction/storage": "^6.3.0-edge.1"

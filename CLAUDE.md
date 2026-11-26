@@ -2053,3 +2053,21 @@ Every server handler, store, action, and Angular component in this repository MU
 ### Rule 5: RLS-Safe Two-Step Entity Reads — Zero Raw SQL Subqueries
 - When filtering across related or RLS-protected entities (e.g. resolving `MJ_BizApps_Common: People` names for `PersonID`s on loaded messages, or loading `Secure Messages`/`File Requests`/`Message Files`/`Signature Requests` for a contact's `threadIds`), execute a first-class `RunView` on the owning/junction entity first, then issue a chunked `ID IN (...)` (max ~200 IDs per chunk, batched via `rv.RunViews([...])`) on the target entity.
 - **NEVER** embed raw SQL `IN (SELECT ... FROM ...)` subqueries across tables — subqueries bypass MJ entity-level RLS and permission checks.
+
+---
+
+## MJ Docs (`MJ: Artifacts`) vs. `MJ: Comments` vs. Quick Notes
+
+Use this architectural rubric when deciding where user-authored text or documents belong in `bizapps-secure-messaging` (and companion MemberJunction BizApps):
+
+| Category | Storage Primitive | When to Use | Secure Messaging Classification |
+|---|---|---|---|
+| **Category A — Record Discussions (`MJ: Comments`)** | `MJ: Comments` | Lightweight, internal, threaded annotations attached to any MJ entity record (team review notes, mentions, record-scoped discussion). | Use for internal staff record annotations on non-portal entities; **do not** use for external client portal messages. |
+| **Category B — MJ Docs (`MJ: Artifacts`)** | `MJ: Artifacts` + `MJ: Artifact Versions` | Structured, versioned, shareable deliverables (briefs, contracts, BAAs, engagement letters, SOC-2 matrices, generated reports) that benefit from version history (`v1 → v2`), rich MIME/type rendering via `@memberjunction/ng-artifacts` (`<mj-artifact-viewer-panel>`), and in-place preview. | **`MessageFile.ArtifactID`** — attached deliverable stored via `ArtifactFileStore` (`packages/Core/src/stores/ArtifactFileStore.ts`) and rendered in-place via `<mj-secure-messaging-artifact-preview>` wrapping `<mj-artifact-viewer-panel>`. Non-artifact binary files (`MessageFile.ArtifactID = null`) fall back to authenticated download. |
+| **Category C — Quick Notes & Transactional Relational Text** | Direct `NVARCHAR` columns on the owning entity table | Short-form, high-frequency transactional text tightly coupled to a parent record's lifecycle, queries, pagination, sorting, or full-text indexing. | **`SecureMessage.Content`** and **`FileRequest.Instructions`** — MUST remain Category C relational columns in `__mj_BizAppsSecureMessaging` for low-latency querying, indexing, and single-round-trip thread hydration. |
+
+### Non-Negotiable Boundaries for Contributors & AI Agents
+- **Render `MessageFile.ArtifactID` in-place via `@memberjunction/ng-artifacts`**: Do not navigate users away from the conversation thread and do not build bespoke Markdown/JSON/HTML document renderers in `packages/Angular`. Mount `<mj-artifact-viewer-panel>` lazily inside `<mj-secure-messaging-artifact-preview>` only when an attachment with a populated `ArtifactID` is opened; fall back to the existing download flow when `ArtifactID` is `null`.
+- **Keep `SecureMessage.Content` and `FileRequest.Instructions` relational**: Never migrate transactional message bodies or file-request prompts into `MJ: Artifacts` or `MJ: Comments`. They require direct relational filtering, ordering, search indexing, and bounded per-thread window reads (`SecureMessagingEngineBase.Instance.LoadThreadWindow`).
+- **Keep `MJ: Comments` separate from external portal threads**: External contact exchanges belong in `Secure Threads` / `Secure Messages` with portal session isolation and auditability — never conflate internal `MJ: Comments` with external client messages.
+- **Full feature specification**: See [`.mj/specs/ng-artifacts-in-place-preview/spec.md`](.mj/specs/ng-artifacts-in-place-preview/spec.md) and [`AGENTS.md`](AGENTS.md).

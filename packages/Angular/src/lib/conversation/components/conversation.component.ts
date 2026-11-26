@@ -22,27 +22,34 @@ import {
             </div>
 
             <!-- Pending file requests from the organization -->
-            <div *ngFor="let fr of pendingFileRequests" class="sm-request-banner sm-request-banner--file">
-                <div class="sm-request-banner__icon">📥</div>
-                <div class="sm-request-banner__body">
-                    <div class="sm-request-banner__title">File requested: {{ fr.title }}</div>
-                    <div class="sm-request-banner__desc" *ngIf="fr.instructions">{{ fr.instructions }}</div>
+            @for (fr of pendingFileRequests; track fr.id) {
+                <div class="sm-request-banner sm-request-banner--file">
+                    <div class="sm-request-banner__icon"><i class="fa-solid fa-file-arrow-up"></i></div>
+                    <div class="sm-request-banner__body">
+                        <div class="sm-request-banner__title">File requested: {{ fr.title }}</div>
+                        @if (fr.instructions) {
+                            <div class="sm-request-banner__desc">{{ fr.instructions }}</div>
+                        }
+                    </div>
+                    <button
+                        type="button"
+                        class="sm-request-banner__action"
+                        [disabled]="uploading"
+                        (click)="triggerFulfill(fr)"
+                    >Upload</button>
                 </div>
-                <button
-                    class="sm-request-banner__action"
-                    [disabled]="uploading"
-                    (click)="triggerFulfill(fr)"
-                >Upload</button>
-            </div>
+            }
 
             <!-- Pending signature requests -->
-            <div *ngFor="let sr of pendingSignatureRequests" class="sm-request-banner sm-request-banner--sign">
-                <div class="sm-request-banner__icon">✍️</div>
-                <div class="sm-request-banner__body">
-                    <div class="sm-request-banner__title">Signature requested: {{ sr.title }}</div>
-                    <div class="sm-request-banner__desc">Awaiting your signature ({{ sr.status }})</div>
+            @for (sr of pendingSignatureRequests; track sr.id) {
+                <div class="sm-request-banner sm-request-banner--sign">
+                    <div class="sm-request-banner__icon"><i class="fa-solid fa-file-signature"></i></div>
+                    <div class="sm-request-banner__body">
+                        <div class="sm-request-banner__title">Signature requested: {{ sr.title }}</div>
+                        <div class="sm-request-banner__desc">Awaiting your signature ({{ sr.status }})</div>
+                    </div>
                 </div>
-            </div>
+            }
 
             <input
                 #fulfillInput
@@ -52,42 +59,55 @@ import {
             />
 
             <div class="sm-conversation__messages" #messageContainer>
-                <div *ngIf="loading && messages.length === 0" class="sm-conversation__loading">
-                    <div class="sm-spinner"></div>
-                    <p>Loading messages...</p>
-                </div>
+                @if (loading && messages.length === 0) {
+                    <div class="sm-conversation__loading">
+                        <div class="sm-spinner"></div>
+                        <p>Loading messages...</p>
+                    </div>
+                }
 
-                <div *ngIf="!loading && messages.length === 0" class="sm-conversation__empty">
-                    <p>No messages yet. Send a message to get started.</p>
-                </div>
+                @if (!loading && messages.length === 0) {
+                    <div class="sm-conversation__empty">
+                        <p>No messages yet. Send a message to get started.</p>
+                    </div>
+                }
 
-                <sm-message-bubble
-                    *ngFor="let msg of messages"
-                    [message]="msg"
-                    [contactEmail]="contactEmail"
-                ></sm-message-bubble>
+                @for (msg of messages; track msg.id) {
+                    <sm-message-bubble
+                        [message]="msg"
+                        [contactEmail]="contactEmail"
+                    ></sm-message-bubble>
+                }
 
                 <!-- Shared files in this conversation -->
-                <div *ngIf="attachments.length > 0" class="sm-attachments">
-                    <div class="sm-attachments__label">📎 Files</div>
-                    <button
-                        *ngFor="let att of attachments"
-                        class="sm-attachments__item"
-                        [disabled]="downloadingId === att.id"
-                        (click)="download(att)"
-                        [title]="'Download ' + att.filename"
-                    >
-                        <span class="sm-attachments__name">{{ att.filename }}</span>
-                        <span class="sm-attachments__size">{{ formatSize(att.size) }}</span>
-                    </button>
-                </div>
+                @if (attachments.length > 0) {
+                    <div class="sm-attachments">
+                        <div class="sm-attachments__label"><i class="fa-solid fa-paperclip"></i> Files</div>
+                        @for (att of attachments; track att.id) {
+                            <button
+                                type="button"
+                                class="sm-attachments__item"
+                                [disabled]="downloadingId === att.id"
+                                (click)="onAttachmentClick(att)"
+                                [title]="att.artifactId ? 'Preview ' + att.filename : 'Download ' + att.filename"
+                            >
+                                <span class="sm-attachments__name">{{ att.filename }}</span>
+                                @if (att.artifactId) {
+                                    <span class="sm-attachments__badge">MJ Doc</span>
+                                }
+                                <span class="sm-attachments__size">{{ formatSize(att.size) }}</span>
+                            </button>
+                        }
+                    </div>
+                }
             </div>
 
-            <sm-compose-box
-                *ngIf="!readOnly"
-                [sending]="sending"
-                (messageSent)="onMessageSent($event)"
-            ></sm-compose-box>
+            @if (!readOnly) {
+                <sm-compose-box
+                    [sending]="sending"
+                    (messageSent)="onMessageSent($event)"
+                ></sm-compose-box>
+            }
         </div>
     `,
     styles: [`
@@ -103,37 +123,37 @@ import {
             flex-direction: column;
             flex: 1;
             min-height: 0;
-            background: var(--mat-sys-surface-container-lowest, #fff);
+            background: var(--mj-bg-surface);
         }
         .sm-conversation__header {
             display: flex;
             align-items: center;
             gap: 0.75rem;
             padding: 0.75rem 1rem;
-            border-bottom: 1px solid var(--mat-sys-outline-variant, #e0e0e0);
-            background: var(--mat-sys-surface-container-low, #f8f9fa);
+            border-bottom: 1px solid var(--mj-border-default);
+            background: var(--mj-bg-surface-card);
         }
         .sm-conversation__title {
             font-weight: 700;
             font-size: 1rem;
-            color: var(--mat-sys-on-surface, #333);
+            color: var(--mj-text-primary);
         }
         .sm-conversation__email {
             flex: 1;
             font-size: 0.8rem;
-            color: var(--mat-sys-on-surface-variant, #666);
+            color: var(--mj-text-muted);
         }
         .sm-conversation__refresh {
             padding: 0.35rem 0.75rem;
-            border: 1px solid var(--mat-sys-outline-variant, #e0e0e0);
+            border: 1px solid var(--mj-border-default);
             border-radius: 6px;
-            background: white;
+            background: var(--mj-bg-surface);
             font-size: 0.8rem;
             cursor: pointer;
-            color: var(--mat-sys-on-surface, #333);
+            color: var(--mj-text-primary);
         }
         .sm-conversation__refresh:hover:not(:disabled) {
-            background: var(--mat-sys-surface-container, #f0f0f0);
+            background: var(--mj-bg-surface-hover);
         }
         .sm-conversation__refresh:disabled {
             opacity: 0.5;
@@ -152,13 +172,13 @@ import {
             align-items: center;
             justify-content: center;
             flex: 1;
-            color: var(--mat-sys-on-surface-variant, #666);
+            color: var(--mj-text-muted);
         }
         .sm-spinner {
             width: 30px;
             height: 30px;
-            border: 3px solid var(--mat-sys-outline-variant, #e0e0e0);
-            border-top-color: var(--sm-brand-color, var(--mat-sys-primary, #1a73e8));
+            border: 3px solid var(--mj-border-default);
+            border-top-color: var(--sm-brand-color, var(--mj-brand-primary));
             border-radius: 50%;
             animation: sm-spin 0.8s linear infinite;
         }
@@ -171,30 +191,30 @@ import {
             align-items: center;
             gap: 0.6rem;
             padding: 0.6rem 1rem;
-            border-bottom: 1px solid var(--mat-sys-outline-variant, #e0e0e0);
-            background: var(--mat-sys-primary-container, #f1f6ff);
+            border-bottom: 1px solid var(--mj-border-default);
+            background: var(--mj-status-info-bg);
         }
         .sm-request-banner--sign {
-            background: var(--mat-sys-surface-container-high, #fff7e6);
+            background: var(--mj-status-warning-bg);
         }
-        .sm-request-banner__icon { font-size: 1.1rem; }
+        .sm-request-banner__icon { font-size: 1.1rem; color: var(--mj-brand-primary); }
         .sm-request-banner__body { flex: 1; min-width: 0; }
         .sm-request-banner__title {
             font-weight: 600;
             font-size: 0.85rem;
-            color: var(--mat-sys-on-surface, #333);
+            color: var(--mj-text-primary);
         }
         .sm-request-banner__desc {
             font-size: 0.78rem;
-            color: var(--mat-sys-on-surface-variant, #666);
+            color: var(--mj-text-muted);
         }
         .sm-request-banner__action {
             flex-shrink: 0;
             padding: 0.35rem 0.85rem;
             border: none;
             border-radius: 6px;
-            background: var(--sm-brand-color, var(--mat-sys-primary, #1a73e8));
-            color: white;
+            background: var(--sm-brand-color, var(--mj-brand-primary));
+            color: var(--mj-brand-on-primary);
             font-size: 0.8rem;
             font-weight: 600;
             cursor: pointer;
@@ -209,7 +229,7 @@ import {
         }
         .sm-attachments__label {
             font-size: 0.78rem;
-            color: var(--mat-sys-on-surface-variant, #666);
+            color: var(--mj-text-muted);
             margin-right: 0.25rem;
         }
         .sm-attachments__item {
@@ -217,16 +237,24 @@ import {
             align-items: center;
             gap: 0.4rem;
             padding: 0.3rem 0.6rem;
-            border: 1px solid var(--mat-sys-outline-variant, #e0e0e0);
+            border: 1px solid var(--mj-border-default);
             border-radius: 14px;
-            background: var(--mat-sys-surface-container, #f4f4f4);
+            background: var(--mj-bg-surface-sunken);
             font-size: 0.78rem;
-            color: var(--mat-sys-on-surface, #333);
+            color: var(--mj-text-primary);
             cursor: pointer;
         }
-        .sm-attachments__item:hover:not(:disabled) { background: var(--mat-sys-surface-container, #ececec); }
+        .sm-attachments__item:hover:not(:disabled) { background: var(--mj-bg-surface-hover); }
         .sm-attachments__item:disabled { opacity: 0.5; cursor: wait; }
-        .sm-attachments__size { color: var(--mat-sys-on-surface-variant, #888); }
+        .sm-attachments__badge {
+            padding: 1px 6px;
+            border-radius: 9999px;
+            background: color-mix(in srgb, var(--mj-brand-primary) 12%, var(--mj-bg-surface));
+            color: var(--mj-brand-primary);
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+        .sm-attachments__size { color: var(--mj-text-muted); }
     `]
 })
 export class ConversationComponent implements OnInit {
@@ -240,6 +268,9 @@ export class ConversationComponent implements OnInit {
 
     /** Emitted when a file is uploaded, so the host widget can surface a CustomEvent. */
     @Output() fileUploaded = new EventEmitter<{ attachmentId: string; filename: string }>();
+
+    /** Emitted when an attachment with a populated ArtifactID is clicked and the host handles in-place preview. */
+    @Output() artifactPreviewRequested = new EventEmitter<ThreadAttachment>();
 
     messages: ThreadMessage[] = [];
     attachments: ThreadAttachment[] = [];
@@ -388,6 +419,15 @@ export class ConversationComponent implements OnInit {
             this.uploading = false;
             this.cdr.detectChanges();
         }
+    }
+
+    /** Routes attachment clicks: emits artifactPreviewRequested when ArtifactID is populated and observed, else falls back to download. */
+    onAttachmentClick(att: ThreadAttachment): void {
+        if (att.artifactId?.trim() && this.artifactPreviewRequested.observed) {
+            this.artifactPreviewRequested.emit(att);
+            return;
+        }
+        void this.download(att);
     }
 
     async download(att: ThreadAttachment): Promise<void> {

@@ -1,5 +1,13 @@
 import { LogStatus } from '@memberjunction/core';
-import { LoadSecureMessagingComponent } from './lib/secure-messaging-executive.resource';
+import { LoadSecureMessagingComponent, SecureMessagingResource } from './lib/secure-messaging-executive.resource';
+import { SecureMessagingApplication } from './lib/secure-messaging.application';
+import { GeneratedFormsModule } from './lib/generated/generated-forms.module';
+import { mjBizAppsSecureMessagingFileRequestFormComponent } from './lib/generated/Entities/mjBizAppsSecureMessagingFileRequest/mjbizappssecuremessagingfilerequest.form.component';
+import { mjBizAppsSecureMessagingMessageFileFormComponent } from './lib/generated/Entities/mjBizAppsSecureMessagingMessageFile/mjbizappssecuremessagingmessagefile.form.component';
+import { mjBizAppsSecureMessagingPortalMagicLinkFormComponent } from './lib/generated/Entities/mjBizAppsSecureMessagingPortalMagicLink/mjbizappssecuremessagingportalmagiclink.form.component';
+import { mjBizAppsSecureMessagingPortalSessionFormComponent } from './lib/generated/Entities/mjBizAppsSecureMessagingPortalSession/mjbizappssecuremessagingportalsession.form.component';
+import { mjBizAppsSecureMessagingSecureMessageFormComponent } from './lib/generated/Entities/mjBizAppsSecureMessagingSecureMessage/mjbizappssecuremessagingsecuremessage.form.component';
+import { mjBizAppsSecureMessagingSecureThreadFormComponent } from './lib/generated/Entities/mjBizAppsSecureMessagingSecureThread/mjbizappssecuremessagingsecurethread.form.component';
 
 // Import entity packages to trigger @RegisterClass decorators for entity subclasses.
 // common-entities is needed because the Client Workspace resolves contacts via the typed
@@ -14,11 +22,21 @@ import '@mj-biz-apps/common-entities';
 import { CLASS_REGISTRATIONS } from './lib/generated/class-registrations-manifest';
 export { CLASS_REGISTRATIONS } from './lib/generated/class-registrations-manifest';
 
+// Generated entity forms module & form components (OpenApp Dual Form Registration Parity)
+export * from './lib/generated/generated-forms.module';
+export * from './lib/generated/Entities/mjBizAppsSecureMessagingFileRequest/mjbizappssecuremessagingfilerequest.form.component';
+export * from './lib/generated/Entities/mjBizAppsSecureMessagingMessageFile/mjbizappssecuremessagingmessagefile.form.component';
+export * from './lib/generated/Entities/mjBizAppsSecureMessagingPortalMagicLink/mjbizappssecuremessagingportalmagiclink.form.component';
+export * from './lib/generated/Entities/mjBizAppsSecureMessagingPortalSession/mjbizappssecuremessagingportalsession.form.component';
+export * from './lib/generated/Entities/mjBizAppsSecureMessagingSecureMessage/mjbizappssecuremessagingsecuremessage.form.component';
+export * from './lib/generated/Entities/mjBizAppsSecureMessagingSecureThread/mjbizappssecuremessagingsecurethread.form.component';
+
 // Module
 export * from './lib/secure-messaging.module';
 
 // Staff components & Application
 export * from './lib/secure-messaging.contracts';
+export * from './lib/secure-messaging-artifact-preview.component';
 export * from './lib/secure-messaging-executive.component';
 export * from './lib/secure-messaging-client-workspace.component';
 export * from './lib/secure-messaging-action-panel.component';
@@ -39,11 +57,23 @@ export * from './lib/conversation/services/auth.service';
 /**
  * Client-side bootstrap function for MJ Secure Messaging.
  * Called by MJ's dynamic package loader during client startup.
- * Registers both the Executive resource component and the SecureMessagingApplication
- * in MJ Explorer's ClassFactory via @RegisterClass decorators.
+ * Registers the Executive resource component, SecureMessagingApplication, and all generated
+ * BaseFormComponent subclasses in MJ Explorer's ClassFactory via @RegisterClass decorators.
  */
 export function LoadSecureMessagingClient(): void {
     LoadSecureMessagingComponent();
-    void CLASS_REGISTRATIONS; // anchor the manifest so registrations are never tree-shaken
+    // Anchor all @RegisterClass classes and modules so bundlers cannot tree-shake them.
+    void [
+        CLASS_REGISTRATIONS,
+        GeneratedFormsModule,
+        SecureMessagingApplication,
+        SecureMessagingResource,
+        mjBizAppsSecureMessagingFileRequestFormComponent,
+        mjBizAppsSecureMessagingMessageFileFormComponent,
+        mjBizAppsSecureMessagingPortalMagicLinkFormComponent,
+        mjBizAppsSecureMessagingPortalSessionFormComponent,
+        mjBizAppsSecureMessagingSecureMessageFormComponent,
+        mjBizAppsSecureMessagingSecureThreadFormComponent,
+    ];
     LogStatus('MJ Secure Messaging: Client bootstrap loaded.');
 }

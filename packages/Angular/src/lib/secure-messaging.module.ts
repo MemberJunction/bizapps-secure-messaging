@@ -1,7 +1,11 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ArtifactsModule } from '@memberjunction/ng-artifacts';
+import { MJPageLayoutComponent } from '@memberjunction/ng-ui-components';
 
+import { GeneratedFormsModule } from './generated/generated-forms.module';
+import { SecureMessagingArtifactPreviewComponent } from './secure-messaging-artifact-preview.component';
 import { SecureMessagingExecutiveComponent } from './secure-messaging-executive.component';
 import { SecureMessagingClientWorkspaceComponent } from './secure-messaging-client-workspace.component';
 import { SecureMessagingActionPanelComponent } from './secure-messaging-action-panel.component';
@@ -20,9 +24,15 @@ import './secure-messaging.application';
   ],
   imports: [
     CommonModule,
-    FormsModule
+    FormsModule,
+    ArtifactsModule,
+    MJPageLayoutComponent,
+    GeneratedFormsModule,
+    SecureMessagingArtifactPreviewComponent
   ],
   exports: [
+    GeneratedFormsModule,
+    SecureMessagingArtifactPreviewComponent,
     SecureMessagingExecutiveComponent,
     SecureMessagingClientWorkspaceComponent,
     SecureMessagingActionPanelComponent,

@@ -14,7 +14,8 @@
   "scripts": {
     "prebuild": "mj codegen manifest --exclude-packages @memberjunction --no-sync-deps --scan-dist --output ./src/lib/generated/class-registrations-manifest.ts || echo 'Warning: mj codegen manifest not available, using existing manifest'",
     "build": "ngc",
-    "dev": "ngc --watch"
+    "dev": "ngc --watch",
+    "test": "vitest run"
   },
   "dependencies": {
     "@mj-biz-apps/secure-messaging-core": "6.3.0-edge.1",
@@ -29,8 +30,10 @@
     "@memberjunction/core-entities": "^6.3.0-edge.1",
     "@memberjunction/global": "^6.3.0-edge.1",
     "@memberjunction/graphql-dataprovider": "^6.3.0-edge.1",
+    "@memberjunction/ng-artifacts": "^6.3.0-edge.1",
     "@memberjunction/ng-base-application": "^6.3.0-edge.1",
     "@memberjunction/ng-shared": "^6.3.0-edge.1",
+    "@memberjunction/ng-ui-components": "^6.3.0-edge.1",
     "@memberjunction/ng-auth-services": "^6.3.0-edge.1",
     "@mj-biz-apps/common-entities": ">=5.34.0 <7.0.0",
     "@memberjunction/ng-base-forms": "^6.3.0-edge.1",
@@ -39,6 +42,8 @@
     "@memberjunction/actions-base": "^6.3.0-edge.1"
   },
   "devDependencies": {
+    "@angular/animations": "21.2.22",
+    "@angular/cdk": "21.2.14",
     "@angular/common": "21.2.22",
     "@angular/compiler": "21.2.22",
     "@angular/compiler-cli": "21.2.22",
@@ -50,11 +55,17 @@
     "@memberjunction/global": "6.3.0-edge.1",
     "@memberjunction/graphql-dataprovider": "6.3.0-edge.1",
     "@memberjunction/actions-base": "6.3.0-edge.1",
+    "@memberjunction/ng-artifacts": "6.3.0-edge.1",
     "@memberjunction/ng-base-application": "6.3.0-edge.1",
     "@memberjunction/ng-shared": "6.3.0-edge.1",
+    "@memberjunction/ng-ui-components": "6.3.0-edge.1",
     "@memberjunction/ng-auth-services": "6.3.0-edge.1",
     "@mj-biz-apps/common-entities": "5.34.0",
+    "@types/node": "^22.0.0",
+    "jsdom": "26.1.0",
+    "rxjs": "^7.8.2",
     "typescript": "^5.9.3",
+    "vitest": "^4.0.18",
     "@memberjunction/ng-base-forms": "6.3.0-edge.1",
     "@memberjunction/ng-entity-viewer": "6.3.0-edge.1",
     "@memberjunction/ng-link-directives": "6.3.0-edge.1"
