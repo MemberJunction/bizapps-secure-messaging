@@ -11,12 +11,16 @@ import { ThreadMessage } from '../data-source.js';
                     <span class="sm-bubble__sender">{{ isOutbound ? 'You' : 'Support' }}</span>
                     <span class="sm-bubble__time">{{ message.receivedAt | date:'shortTime' }}</span>
                 </div>
-                <div *ngIf="message.subject" class="sm-bubble__subject">{{ message.subject }}</div>
+                @if (message.subject) {
+                    <div class="sm-bubble__subject">{{ message.subject }}</div>
+                }
                 <div class="sm-bubble__content">{{ displayContent }}</div>
-                <div *ngIf="isProcessing" class="sm-bubble__processing">
-                    <div class="sm-spinner-small"></div>
-                    <span>Preparing reply...</span>
-                </div>
+                @if (isProcessing) {
+                    <div class="sm-bubble__processing">
+                        <div class="sm-spinner-small"></div>
+                        <span>Preparing reply...</span>
+                    </div>
+                }
             </div>
         </div>
     `,
@@ -41,13 +45,13 @@ import { ThreadMessage } from '../data-source.js';
         }
         .sm-bubble--outbound {
             /* Subtle brand tint rather than a heavy fill — flat + readable, MJ-style. */
-            background: color-mix(in srgb, var(--sm-brand-color, var(--mat-sys-primary, #1a73e8)) 14%, var(--mat-sys-surface-container-lowest, #fff));
-            color: var(--mat-sys-on-surface, #333);
+            background: color-mix(in srgb, var(--sm-brand-color, var(--mj-brand-primary)) 14%, var(--mj-bg-surface));
+            color: var(--mj-text-primary);
             border-bottom-right-radius: 4px;
         }
         .sm-bubble--inbound {
-            background: var(--mat-sys-surface-container, #f1f3f4);
-            color: var(--mat-sys-on-surface, #333);
+            background: var(--mj-bg-surface-sunken);
+            color: var(--mj-text-primary);
             border-bottom-left-radius: 4px;
         }
         .sm-bubble__head {
@@ -59,11 +63,11 @@ import { ThreadMessage } from '../data-source.js';
         .sm-bubble__sender {
             font-size: 0.78rem;
             font-weight: 600;
-            color: var(--mat-sys-on-surface, #333);
+            color: var(--mj-text-primary);
         }
         .sm-bubble__time {
             font-size: 0.7rem;
-            color: var(--mat-sys-on-surface-variant, #888);
+            color: var(--mj-text-muted);
             margin-left: auto;
         }
         .sm-bubble__subject {
@@ -80,13 +84,13 @@ import { ThreadMessage } from '../data-source.js';
             gap: 0.5rem;
             margin-top: 0.5rem;
             font-size: 0.8rem;
-            color: var(--mat-sys-on-surface-variant, #888);
+            color: var(--mj-text-muted);
         }
         .sm-spinner-small {
             width: 14px;
             height: 14px;
-            border: 2px solid var(--mat-sys-outline-variant, rgba(0,0,0,0.1));
-            border-top-color: var(--sm-brand-color, var(--mat-sys-primary, #1a73e8));
+            border: 2px solid var(--mj-border-default);
+            border-top-color: var(--sm-brand-color, var(--mj-brand-primary));
             border-radius: 50%;
             animation: sm-spin 0.8s linear infinite;
         }

@@ -59,8 +59,8 @@ export interface CreateMessageResponse {
 
 export interface ThreadAttachment {
   id: string;
-  artifactId: string;
-  fileId: string;
+  artifactId?: string | null;
+  fileId?: string | null;
   filename: string;
   contentType: string;
   size: number;

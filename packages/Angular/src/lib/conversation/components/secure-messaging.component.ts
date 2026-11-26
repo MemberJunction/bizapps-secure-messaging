@@ -14,48 +14,59 @@ import { ThreadSummary } from '../data-source.js';
     standalone: false,
     selector: 'sm-root',
     template: `
-        <div class="sm-container" [style.--sm-brand-color]="brandColor">
+        <div class="sm-container" [style.--sm-brand-color]="brandColor || null">
             <!-- Auth / loading / error states -->
-            <sm-auth-view
-                *ngIf="authService.state !== 'authenticated'"
-                [state]="displayState"
-                [errorMessage]="authService.errorMessage"
-            ></sm-auth-view>
+            @if (authService.state !== 'authenticated') {
+                <sm-auth-view
+                    [state]="displayState"
+                    [errorMessage]="authService.errorMessage"
+                ></sm-auth-view>
+            }
 
-            <ng-container *ngIf="authService.state === 'authenticated' && authService.session">
+            @if (authService.state === 'authenticated' && authService.session) {
                 <!-- Inbox: the contact's threads (shown only when there's more than one) -->
-                <div class="sm-inbox" *ngIf="view === 'inbox'">
-                    <div class="sm-inbox__head">
-                        <div class="sm-inbox__title">Your secure conversations</div>
-                        <div class="sm-inbox__sub">{{ authService.session!.contactEmail }}</div>
+                @if (view === 'inbox') {
+                    <div class="sm-inbox">
+                        <div class="sm-inbox__head">
+                            <div class="sm-inbox__title">Your secure conversations</div>
+                            <div class="sm-inbox__sub">{{ authService.session!.contactEmail }}</div>
+                        </div>
+                        <div class="sm-inbox__list">
+                            @for (t of threads; track t.id) {
+                                <button type="button" class="sm-thread" (click)="openThread(t)">
+                                    <div class="sm-thread__main">
+                                        <div class="sm-thread__subject">{{ t.subject }}</div>
+                                        <div class="sm-thread__time">{{ relativeTime(t.lastMessageAt) }}</div>
+                                    </div>
+                                    <span class="sm-thread__chip" [class.sm-thread__chip--closed]="t.status !== 'Active'">{{ t.status }}</span>
+                                </button>
+                            }
+                        </div>
                     </div>
-                    <div class="sm-inbox__list">
-                        <button type="button" class="sm-thread" *ngFor="let t of threads" (click)="openThread(t)">
-                            <div class="sm-thread__main">
-                                <div class="sm-thread__subject">{{ t.subject }}</div>
-                                <div class="sm-thread__time">{{ relativeTime(t.lastMessageAt) }}</div>
-                            </div>
-                            <span class="sm-thread__chip" [class.sm-thread__chip--closed]="t.status !== 'Active'">{{ t.status }}</span>
-                        </button>
-                    </div>
-                </div>
+                }
 
                 <!-- Conversation view -->
-                <div class="sm-convo-wrap" *ngIf="view === 'conversation' && activeThreadId">
-                    <button type="button" class="sm-back" *ngIf="threads.length > 1" (click)="backToInbox()">
-                        ‹ All conversations
-                    </button>
-                    <div class="sm-closed-banner" *ngIf="activeThreadClosed">
-                        This conversation has been closed. You can read it, but replies are disabled.
+                @if (view === 'conversation' && activeThreadId) {
+                    <div class="sm-convo-wrap">
+                        @if (threads.length > 1) {
+                            <button type="button" class="sm-back" (click)="backToInbox()">
+                                ‹ All conversations
+                            </button>
+                        }
+                        @if (activeThreadClosed) {
+                            <div class="sm-closed-banner">
+                                This conversation has been closed. You can read it, but replies are disabled.
+                            </div>
+                        }
+                        <sm-conversation
+                            [threadId]="activeThreadId"
+                            [contactEmail]="authService.session!.contactEmail"
+                            [readOnly]="activeThreadClosed"
+                            (fileUploaded)="fileUploadedEvent.emit($event)"
+                        ></sm-conversation>
                     </div>
-                    <sm-conversation
-                        [threadId]="activeThreadId"
-                        [contactEmail]="authService.session!.contactEmail"
-                        [readOnly]="activeThreadClosed"
-                        (fileUploaded)="fileUploadedEvent.emit($event)"
-                    ></sm-conversation>
-                </div>
-            </ng-container>
+                }
+            }
         </div>
     `,
     styles: [`
@@ -63,40 +74,41 @@ import { ThreadSummary } from '../data-source.js';
         .sm-container {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             height: 100%;
-            border: 1px solid var(--mat-sys-outline-variant, #e0e0e0);
+            border: 1px solid var(--mj-border-default);
             border-radius: 8px;
             overflow: hidden;
             display: flex;
             flex-direction: column;
         }
         .sm-inbox { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
-        .sm-inbox__head { padding: 16px 18px; border-bottom: 1px solid var(--mat-sys-outline-variant, #e0e0e0); }
-        .sm-inbox__title { font-size: 16px; font-weight: 700; color: var(--mat-sys-on-surface, #1f1f1f); }
-        .sm-inbox__sub { font-size: 12px; color: var(--mat-sys-on-surface-variant, #666); margin-top: 2px; }
+        .sm-inbox__head { padding: 16px 18px; border-bottom: 1px solid var(--mj-border-default); }
+        .sm-inbox__title { font-size: 16px; font-weight: 700; color: var(--mj-text-primary); }
+        .sm-inbox__sub { font-size: 12px; color: var(--mj-text-muted); margin-top: 2px; }
         .sm-inbox__list { flex: 1; overflow-y: auto; }
         .sm-thread {
             display: flex; align-items: center; gap: 10px; width: 100%;
-            padding: 14px 18px; border: 0; border-bottom: 1px solid var(--mat-sys-outline-variant, #eee);
+            padding: 14px 18px; border: 0; border-bottom: 1px solid var(--mj-border-subtle);
             background: transparent; cursor: pointer; text-align: left;
         }
-        .sm-thread:hover { background: color-mix(in srgb, var(--sm-brand-color) 6%, transparent); }
+        .sm-thread:hover { background: color-mix(in srgb, var(--sm-brand-color, var(--mj-brand-primary)) 6%, transparent); }
         .sm-thread__main { flex: 1; min-width: 0; }
-        .sm-thread__subject { font-size: 14px; font-weight: 600; color: var(--mat-sys-on-surface, #1f1f1f); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .sm-thread__time { font-size: 12px; color: var(--mat-sys-on-surface-variant, #888); margin-top: 2px; }
+        .sm-thread__subject { font-size: 14px; font-weight: 600; color: var(--mj-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .sm-thread__time { font-size: 12px; color: var(--mj-text-muted); margin-top: 2px; }
         .sm-thread__chip {
             font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
-            background: color-mix(in srgb, var(--sm-brand-color) 14%, transparent); color: var(--sm-brand-color);
+            background: color-mix(in srgb, var(--sm-brand-color, var(--mj-brand-primary)) 14%, transparent);
+            color: var(--sm-brand-color, var(--mj-brand-primary));
         }
-        .sm-thread__chip--closed { background: rgba(0,0,0,0.06); color: var(--mat-sys-on-surface-variant, #888); }
+        .sm-thread__chip--closed { background: var(--mj-bg-surface-sunken); color: var(--mj-text-muted); }
         .sm-convo-wrap { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
         .sm-back {
-            border: 0; background: transparent; color: var(--sm-brand-color); cursor: pointer;
+            border: 0; background: transparent; color: var(--sm-brand-color, var(--mj-brand-primary)); cursor: pointer;
             font-size: 13px; font-weight: 600; padding: 10px 14px; text-align: left;
-            border-bottom: 1px solid var(--mat-sys-outline-variant, #eee);
+            border-bottom: 1px solid var(--mj-border-subtle);
         }
         .sm-closed-banner {
-            padding: 8px 14px; font-size: 12px; background: rgba(0,0,0,0.05);
-            color: var(--mat-sys-on-surface-variant, #666); border-bottom: 1px solid var(--mat-sys-outline-variant, #eee);
+            padding: 8px 14px; font-size: 12px; background: var(--mj-bg-surface-sunken);
+            color: var(--mj-text-muted); border-bottom: 1px solid var(--mj-border-subtle);
         }
     `]
 })
@@ -107,8 +119,8 @@ export class SecureMessagingComponent implements OnInit {
     /** Session token. If not provided, reads from URL ?token= param. */
     @Input() token = '';
 
-    /** Brand color (hex) for header and buttons */
-    @Input('brand-color') brandColor = '#1a73e8';
+    /** Optional brand accent CSS color override; defaults to semantic `--mj-brand-primary`. */
+    @Input('brand-color') brandColor = '';
 
     @Output('session-ready') sessionReady = new EventEmitter<{
         sessionId: string; contactEmail: string; threadId?: string;

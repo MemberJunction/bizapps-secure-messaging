@@ -173,15 +173,15 @@ interface FieldChip {
   styles: [`
 .fp-backdrop {
   position: fixed; inset: 0; z-index: 2000;
-  background: var(--mj-bg-overlay, rgba(0,0,0,0.55));
+  background: var(--mj-bg-overlay);
   display: flex; align-items: center; justify-content: center;
 }
 .fp-modal {
   width: min(1100px, 94vw); height: min(90vh, 900px);
   display: flex; flex-direction: column;
   background: var(--mj-bg-surface); color: var(--mj-text-primary);
-  border-radius: var(--mat-sys-corner-medium, 12px);
-  box-shadow: 0 12px 48px rgba(0,0,0,0.3); overflow: hidden;
+  border-radius: var(--mj-radius-lg, 12px);
+  box-shadow: var(--mj-shadow-xl); overflow: hidden;
 }
 .fp-header {
   display: flex; align-items: center; gap: 10px;
@@ -232,7 +232,7 @@ interface FieldChip {
 .fp-page-num { font-size: 11px; color: var(--mj-text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
 .fp-page {
   position: relative; line-height: 0;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.15); background: #fff;
+  box-shadow: var(--mj-shadow-md); background: var(--mj-bg-surface);
 }
 .fp-page canvas { display: block; }
 .fp-field {

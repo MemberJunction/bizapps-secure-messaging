@@ -6,26 +6,34 @@ import { AuthState } from '../services/auth.service.js';
     selector: 'sm-auth-view',
     template: `
         <div class="sm-auth-view">
-            <div *ngIf="state === 'loading'" class="sm-auth-loading">
-                <div class="sm-spinner"></div>
-                <p>Verifying your session...</p>
-            </div>
+            @if (state === 'loading') {
+                <div class="sm-auth-loading">
+                    <div class="sm-spinner"></div>
+                    <p>Verifying your session...</p>
+                </div>
+            }
 
-            <div *ngIf="state === 'expired'" class="sm-auth-expired">
-                <h2>Session Expired</h2>
-                <p>Your session has expired. Please check your email for a new link, or contact us for assistance.</p>
-            </div>
+            @if (state === 'expired') {
+                <div class="sm-auth-expired">
+                    <h2>Session Expired</h2>
+                    <p>Your session has expired. Please check your email for a new link, or contact us for assistance.</p>
+                </div>
+            }
 
-            <div *ngIf="state === 'error'" class="sm-auth-error">
-                <h2>Something Went Wrong</h2>
-                <p>{{ errorMessage }}</p>
-                <p>Please try again or contact us for assistance.</p>
-            </div>
+            @if (state === 'error') {
+                <div class="sm-auth-error">
+                    <h2>Something Went Wrong</h2>
+                    <p>{{ errorMessage }}</p>
+                    <p>Please try again or contact us for assistance.</p>
+                </div>
+            }
 
-            <div *ngIf="state === 'no-token'" class="sm-auth-no-token">
-                <h2>No Access Token</h2>
-                <p>This page requires a valid access link. Please check the link in your email.</p>
-            </div>
+            @if (state === 'no-token') {
+                <div class="sm-auth-no-token">
+                    <h2>No Access Token</h2>
+                    <p>This page requires a valid access link. Please check the link in your email.</p>
+                </div>
+            }
         </div>
     `,
     styles: [`
@@ -41,17 +49,17 @@ import { AuthState } from '../services/auth.service.js';
             min-height: 300px;
             text-align: center;
             padding: 2rem;
-            color: var(--mat-sys-on-surface, #333);
+            color: var(--mj-text-primary);
         }
         .sm-auth-loading p {
             margin-top: 1rem;
-            color: var(--mat-sys-on-surface-variant, #666);
+            color: var(--mj-text-muted);
         }
         .sm-spinner {
             width: 40px;
             height: 40px;
-            border: 3px solid var(--mat-sys-outline-variant, #e0e0e0);
-            border-top-color: var(--sm-brand-color, var(--mat-sys-primary, #1a73e8));
+            border: 3px solid var(--mj-border-default);
+            border-top-color: var(--sm-brand-color, var(--mj-brand-primary));
             border-radius: 50%;
             animation: sm-spin 0.8s linear infinite;
             margin: 0 auto;
@@ -65,7 +73,7 @@ import { AuthState } from '../services/auth.service.js';
         }
         p {
             margin: 0.25rem 0;
-            color: var(--mat-sys-on-surface-variant, #666);
+            color: var(--mj-text-muted);
         }
     `]
 })

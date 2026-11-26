@@ -14,22 +14,26 @@ export interface StagedFile {
     template: `
         <div class="sm-compose-wrap">
             <!-- Staged attachments (chips) — shown above the input, removed before send like MJ chat -->
-            <div *ngIf="stagedFiles.length > 0" class="sm-staged">
-                <div *ngFor="let f of stagedFiles" class="sm-staged__chip" [title]="f.name">
-                    <i class="fa-solid fa-paperclip sm-staged__icon"></i>
-                    <span class="sm-staged__name">{{ f.name }}</span>
-                    <span class="sm-staged__size">{{ formatSize(f.size) }}</span>
-                    <button
-                        type="button"
-                        class="sm-staged__remove"
-                        title="Remove"
-                        [disabled]="sending"
-                        (click)="removeStaged(f.id)"
-                    >
-                        <i class="fa-solid fa-times"></i>
-                    </button>
+            @if (stagedFiles.length > 0) {
+                <div class="sm-staged">
+                    @for (f of stagedFiles; track f.id) {
+                        <div class="sm-staged__chip" [title]="f.name">
+                            <i class="fa-solid fa-paperclip sm-staged__icon"></i>
+                            <span class="sm-staged__name">{{ f.name }}</span>
+                            <span class="sm-staged__size">{{ formatSize(f.size) }}</span>
+                            <button
+                                type="button"
+                                class="sm-staged__remove"
+                                title="Remove"
+                                [disabled]="sending"
+                                (click)="removeStaged(f.id)"
+                            >
+                                <i class="fa-solid fa-times"></i>
+                            </button>
+                        </div>
+                    }
                 </div>
-            </div>
+            }
             <div class="sm-compose">
                 <div class="sm-compose__field">
                     <input
@@ -53,7 +57,7 @@ export interface StagedFile {
                             title="Attach a file"
                             [disabled]="sending"
                             (click)="fileInput.click()"
-                        >📎</button>
+                        ><i class="fa-solid fa-paperclip"></i></button>
                         <button
                             class="sm-compose__send"
                             type="button"
@@ -61,8 +65,11 @@ export interface StagedFile {
                             [disabled]="sending || !canSend"
                             (click)="send()"
                         >
-                            <span *ngIf="!sending">➤</span>
-                            <span *ngIf="sending" class="sm-compose__send-spinner"></span>
+                            @if (!sending) {
+                                <i class="fa-solid fa-paper-plane"></i>
+                            } @else {
+                                <span class="sm-compose__send-spinner"></span>
+                            }
                         </button>
                     </div>
                 </div>
@@ -74,8 +81,8 @@ export interface StagedFile {
             flex-shrink: 0;
         }
         .sm-compose-wrap {
-            border-top: 1px solid var(--mat-sys-outline-variant, #e0e0e0);
-            background: var(--mat-sys-surface-container-low, #fff);
+            border-top: 1px solid var(--mj-border-default);
+            background: var(--mj-bg-surface-card);
         }
         .sm-staged {
             display: flex;
@@ -89,31 +96,31 @@ export interface StagedFile {
             gap: 0.4rem;
             max-width: 240px;
             padding: 0.3rem 0.55rem;
-            border: 1px solid var(--mat-sys-outline-variant, #e0e0e0);
+            border: 1px solid var(--mj-border-default);
             border-radius: 999px;
-            background: var(--mat-sys-surface-container, #f0f0f0);
+            background: var(--mj-bg-surface-sunken);
             font-size: 0.8rem;
         }
-        .sm-staged__icon { color: var(--mat-sys-on-surface-variant, #888); flex-shrink: 0; }
+        .sm-staged__icon { color: var(--mj-text-muted); flex-shrink: 0; }
         .sm-staged__name {
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            color: var(--mat-sys-on-surface, #333);
+            color: var(--mj-text-primary);
         }
-        .sm-staged__size { color: var(--mat-sys-on-surface-variant, #888); flex-shrink: 0; }
+        .sm-staged__size { color: var(--mj-text-muted); flex-shrink: 0; }
         .sm-staged__remove {
             flex-shrink: 0;
             border: none;
             background: transparent;
             cursor: pointer;
-            color: var(--mat-sys-on-surface-variant, #888);
+            color: var(--mj-text-muted);
             padding: 0;
             line-height: 1;
             display: flex;
             align-items: center;
         }
-        .sm-staged__remove:hover:not(:disabled) { color: var(--mat-sys-error, #d32f2f); }
+        .sm-staged__remove:hover:not(:disabled) { color: var(--mj-status-error-text); }
         .sm-staged__remove:disabled { opacity: 0.4; cursor: not-allowed; }
         .sm-compose {
             padding: 0.75rem;
@@ -122,14 +129,14 @@ export interface StagedFile {
         /* MJ-style single bordered field-card holding the input + the inline action buttons. */
         .sm-compose__field {
             position: relative;
-            border: 2px solid var(--mat-sys-outline-variant, #e0e0e0);
+            border: 2px solid var(--mj-border-default);
             border-radius: 12px;
-            background: var(--mat-sys-surface-container-lowest, #fff);
+            background: var(--mj-bg-surface);
             transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
         .sm-compose__field:focus-within {
-            border-color: var(--sm-brand-color, var(--mat-sys-primary, #1a73e8));
-            box-shadow: 0 2px 12px color-mix(in srgb, var(--sm-brand-color, var(--mat-sys-primary, #1a73e8)) 15%, transparent);
+            border-color: var(--sm-brand-color, var(--mj-brand-primary));
+            box-shadow: 0 2px 12px color-mix(in srgb, var(--sm-brand-color, var(--mj-brand-primary)) 15%, transparent);
         }
         .sm-compose__input {
             display: block;
@@ -145,11 +152,11 @@ export interface StagedFile {
             font-family: inherit;
             font-size: 0.9rem;
             line-height: 1.5;
-            color: var(--mat-sys-on-surface, #333);
+            color: var(--mj-text-primary);
             background: transparent;
             border-radius: 12px;
         }
-        .sm-compose__input::placeholder { color: var(--mat-sys-on-surface-variant, #888); }
+        .sm-compose__input::placeholder { color: var(--mj-text-muted); }
         .sm-compose__input:disabled { opacity: 0.6; }
         .sm-compose__actions {
             position: absolute;
@@ -174,29 +181,29 @@ export interface StagedFile {
         }
         .sm-compose__attach {
             background: transparent;
-            color: var(--mat-sys-on-surface-variant, #888);
+            color: var(--mj-text-muted);
             font-size: 1.05rem;
         }
         .sm-compose__attach:hover:not(:disabled) {
-            background: color-mix(in srgb, var(--mat-sys-on-surface, #333) 6%, transparent);
+            background: color-mix(in srgb, var(--mj-text-primary) 6%, transparent);
         }
         .sm-compose__send {
-            background: var(--sm-brand-color, var(--mat-sys-primary, #1a73e8));
-            color: #fff;
+            background: var(--sm-brand-color, var(--mj-brand-primary));
+            color: var(--mj-brand-on-primary);
             font-size: 0.95rem;
         }
         .sm-compose__send:hover:not(:disabled) { transform: scale(1.05); }
         .sm-compose__attach:disabled,
         .sm-compose__send:disabled { opacity: 0.4; cursor: not-allowed; }
         .sm-compose__send:disabled {
-            background: var(--mat-sys-outline-variant, #e0e0e0);
-            color: var(--mat-sys-on-surface-variant, #888);
+            background: var(--mj-border-default);
+            color: var(--mj-text-muted);
         }
         .sm-compose__send-spinner {
             width: 14px;
             height: 14px;
-            border: 2px solid rgba(255,255,255,0.4);
-            border-top-color: #fff;
+            border: 2px solid color-mix(in srgb, var(--mj-brand-on-primary) 40%, transparent);
+            border-top-color: var(--mj-brand-on-primary);
             border-radius: 50%;
             animation: sm-spin 0.8s linear infinite;
         }

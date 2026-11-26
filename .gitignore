@@ -3,6 +3,8 @@ dist/
 out-tsc/
 build/
 *.js.map
+*.tsbuildinfo
+.DS_Store
 .angular/
 .turbo/
 

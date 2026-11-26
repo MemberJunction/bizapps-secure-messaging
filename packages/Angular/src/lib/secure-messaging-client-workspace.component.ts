@@ -1,5 +1,6 @@
 import { Component, OnInit, Input, Output, EventEmitter, ChangeDetectorRef } from '@angular/core';
 import { CompositeKey, IMetadataProvider, Metadata, RunView, RunViewParams } from '@memberjunction/core';
+import { UserInfoEngine } from '@memberjunction/core-entities';
 import { GraphQLDataProvider, GraphQLFileStorageClient, GraphQLActionClient } from '@memberjunction/graphql-dataprovider';
 import { ActionResult, ActionParam } from '@memberjunction/actions-base';
 import {
@@ -62,6 +63,7 @@ interface WorkspaceMessageFileRow {
   Filename: string | null;
   ContentType: string | null;
   Size: number | null;
+  ArtifactID: string | null;
   FileID: string | null;
   __mj_CreatedAt: string | null;
 }
@@ -103,7 +105,10 @@ interface RequestRow {
 interface DocRow {
   id: string;
   filename: string;
+  contentType: string;
+  size: number;
   sub: string;
+  artifactId: string | null;
   fileId: string | null;
   iconClass: string;
 }
@@ -139,7 +144,7 @@ const ADV_PREF_KEY = 'sm.workspace.advanced';
  * client header, the three actions, and the conversation list. **Advanced mode** (a
  * per-user-sticky toggle) reveals the stats, Overview, Requests & Signatures, Documents,
  * Session & Security, Compliance, and the Audit Trail. The preference is persisted per
- * user in localStorage.
+ * user via `UserInfoEngine.Instance`.
  *
  * Sibling to {@link SecureMessagingExecutiveComponent}; the inbox can navigate into this
  * per-contact. Data is read live from the owned `MJ_BizApps_SecureMessaging:` entities,
@@ -256,7 +261,7 @@ const ADV_PREF_KEY = 'sm.workspace.advanced';
             </div>
             @if (newLink) {
               <div class="sec-link-row">
-                <input class="sec-link" type="text" [value]="newLink" readonly (focus)="$any($event.target).select()">
+                <input class="sec-link" type="text" [value]="newLink" readonly (focus)="selectInputText($event)">
                 <button class="btn btn-secondary btn-sm" (click)="copyNewLink()"><i class="fa-solid fa-copy"></i> Copy</button>
               </div>
               <p class="sec-link-hint">Send this single-use link to the contact. It re-activates their secure session.</p>
@@ -325,10 +330,24 @@ const ADV_PREF_KEY = 'sm.workspace.advanced';
         <div class="panel-head"><i class="fa-solid fa-folder accent-i"></i><h3>All documents</h3></div>
         <div class="panel-body">
           @for (d of docs; track d.id) {
-            <div class="row" (click)="downloadDoc(d)">
+            <div class="row" (click)="openDoc(d, $event)">
               <div class="ic" [ngClass]="d.iconClass"><i class="fa-solid" [ngClass]="docIcon(d)"></i></div>
-              <div class="row-main"><div class="row-title">{{ d.filename }}</div><div class="row-sub">{{ d.sub }}</div></div>
-              <div class="row-right"><i class="fa-solid fa-download chev"></i></div>
+              <div class="row-main">
+                <div class="row-title">
+                  {{ d.filename }}
+                  @if (d.artifactId) {
+                    <span class="badge badge-delivered">MJ Doc</span>
+                  }
+                </div>
+                <div class="row-sub">{{ d.sub }}</div>
+              </div>
+              <div class="row-right">
+                @if (d.artifactId) {
+                  <i class="fa-solid fa-eye chev" title="Preview in place"></i>
+                } @else {
+                  <i class="fa-solid fa-download chev" title="Download"></i>
+                }
+              </div>
             </div>
           }
           @if (docs.length === 0 && !loading) { <div class="empty">No documents shared yet.</div> }
@@ -357,6 +376,18 @@ const ADV_PREF_KEY = 'sm.workspace.advanced';
 
   </div>
 
+  <mj-secure-messaging-artifact-preview
+    [ArtifactId]="previewDoc?.artifactId ?? null"
+    [Filename]="previewDoc?.filename ?? ''"
+    [ContentType]="previewDoc?.contentType ?? ''"
+    [FileSize]="previewDoc?.size ?? 0"
+    [CanDownload]="!!previewDoc?.fileId"
+    [TriggerElement]="previewTriggerElement"
+    [Provider]="Provider"
+    (DownloadRequested)="onPreviewDownloadRequested()"
+    (Closed)="closeDocPreview()">
+  </mj-secure-messaging-artifact-preview>
+
   <div class="toast" [class.show]="toastShown"><i class="fa-solid fa-circle-check"></i><span>{{ toastMsg }}</span></div>
 </div>
 `,
@@ -366,7 +397,7 @@ const ADV_PREF_KEY = 'sm.workspace.advanced';
 .ws-inner { max-width:1240px; margin:0 auto; }
 
 .avatar { width:64px; height:64px; border-radius:50%; background:var(--mj-status-warning); color:var(--mj-text-inverse); display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:700; flex-shrink:0; }
-.client-head { background:var(--mj-bg-surface); border:1px solid var(--mj-border-default); border-radius:16px; box-shadow:0 1px 2px rgba(0,0,0,.04); padding:22px 24px; display:flex; align-items:center; gap:20px; }
+.client-head { background:var(--mj-bg-surface); border:1px solid var(--mj-border-default); border-radius:16px; box-shadow:var(--mj-shadow-sm); padding:22px 24px; display:flex; align-items:center; gap:20px; }
 .ch-back { flex-shrink:0; width:36px; height:36px; border-radius:50%; border:1px solid var(--mj-border-default); background:var(--mj-bg-surface); color:var(--mj-text-secondary); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:15px; }
 .ch-back:hover { background:var(--mj-bg-surface-hover); color:var(--mj-text-primary); }
 .ch-name { font-size:22px; font-weight:800; letter-spacing:-.01em; }
@@ -383,7 +414,7 @@ const ADV_PREF_KEY = 'sm.workspace.advanced';
 .adv-toggle { display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:600; color:var(--mj-text-muted); cursor:pointer; user-select:none; padding:6px 11px; border:1px solid var(--mj-border-default); border-radius:999px; background:var(--mj-bg-surface); transition:all .15s; }
 .adv-toggle:hover { color:var(--mj-text-primary); border-color:var(--mj-border-strong); }
 .adv-toggle .sw { position:relative; width:30px; height:17px; border-radius:999px; background:var(--mj-border-strong); transition:background .15s; flex-shrink:0; }
-.adv-toggle .sw::after { content:''; position:absolute; top:2px; left:2px; width:13px; height:13px; border-radius:50%; background:var(--mj-bg-surface); box-shadow:0 1px 2px rgba(0,0,0,.2); transition:transform .15s; }
+.adv-toggle .sw::after { content:''; position:absolute; top:2px; left:2px; width:13px; height:13px; border-radius:50%; background:var(--mj-bg-surface); box-shadow:var(--mj-shadow-sm); transition:transform .15s; }
 .ws[data-mode="advanced"] .adv-toggle { color:var(--mj-brand-primary); border-color:var(--mj-brand-primary); background:color-mix(in srgb, var(--mj-brand-primary) 12%, var(--mj-bg-surface)); }
 .ws[data-mode="advanced"] .adv-toggle .sw { background:var(--mj-brand-primary); }
 .ws[data-mode="advanced"] .adv-toggle .sw::after { transform:translateX(13px); }
@@ -394,7 +425,7 @@ const ADV_PREF_KEY = 'sm.workspace.advanced';
 
 /* Stats */
 .stats { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-top:16px; }
-.stat { background:var(--mj-bg-surface); border:1px solid var(--mj-border-default); border-radius:12px; box-shadow:0 1px 2px rgba(0,0,0,.04); padding:16px 18px; }
+.stat { background:var(--mj-bg-surface); border:1px solid var(--mj-border-default); border-radius:12px; box-shadow:var(--mj-shadow-sm); padding:16px 18px; }
 .stat .v { font-size:26px; font-weight:800; letter-spacing:-.02em; }
 .stat .l { font-size:12px; color:var(--mj-text-muted); margin-top:2px; display:flex; align-items:center; gap:6px; }
 .stat.accent .v { color:var(--mj-brand-primary); } .stat.warn .v { color:var(--mj-status-warning-text); } .stat.violet .v { color:var(--mj-brand-tertiary); }
@@ -408,7 +439,7 @@ const ADV_PREF_KEY = 'sm.workspace.advanced';
 
 .grid { display:grid; grid-template-columns:1.7fr 1fr; gap:20px; margin-top:20px; align-items:start; }
 .pane { display:none; } .pane.active { display:block; }
-.panel { background:var(--mj-bg-surface); border:1px solid var(--mj-border-default); border-radius:12px; box-shadow:0 1px 2px rgba(0,0,0,.04); margin-bottom:20px; overflow:hidden; }
+.panel { background:var(--mj-bg-surface); border:1px solid var(--mj-border-default); border-radius:12px; box-shadow:var(--mj-shadow-sm); margin-bottom:20px; overflow:hidden; }
 .panel-head { display:flex; align-items:center; gap:10px; padding:14px 18px; border-bottom:1px solid var(--mj-border-default); }
 .panel-head h3 { margin:0; font-size:14px; font-weight:700; }
 .panel-head .btn { margin-left:auto; }
@@ -496,7 +527,7 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
   /** Embeddability knobs (defaults preserve standalone behavior). */
   @Input() initialMode: 'basic' | 'advanced' | null = null;   // overrides the persisted preference
   @Input() suppressToasts = false;                            // host owns user feedback
-  @Input() persistModePreference = true;                      // disable localStorage when embedded multiple times
+  @Input() persistModePreference = true;                      // disable persisted UserInfoEngine preference when embedded multiple times
 
   /** Optional metadata provider override for multi-provider Angular hosts. */
   @Input() Provider: IMetadataProvider | null = null;
@@ -536,6 +567,10 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
   /** Open mode for the shared action panel (Request files / Send for signature); null = closed. */
   actionPanel: 'request' | 'signature' | null = null;
 
+  /** Active MJ Doc being previewed in-place from the Documents tab. */
+  previewDoc: DocRow | null = null;
+  previewTriggerElement: HTMLElement | null = null;
+
   stats = { openThreads: 0, pendingRequests: 0, awaitingSignature: 0, filesShared: 0 };
 
   toastMsg = '';
@@ -567,7 +602,11 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
   }
   private readSavedAdvanced(): boolean {
     if (!this.persistModePreference) return false;
-    try { return localStorage.getItem(this.modePrefKey) === '1'; } catch { return false; }
+    try {
+      return UserInfoEngine.Instance.GetSetting(this.modePrefKey) === '1';
+    } catch {
+      return false;
+    }
   }
   private applyMode(advanced: boolean): void {
     this.mode = advanced ? 'advanced' : 'basic';
@@ -581,7 +620,11 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
   toggleMode(): void {
     const advanced = this.mode !== 'advanced';
     if (this.persistModePreference) {
-      try { localStorage.setItem(this.modePrefKey, advanced ? '1' : '0'); } catch { /* ignore */ }
+      try {
+        void UserInfoEngine.Instance.SetSetting(this.modePrefKey, advanced ? '1' : '0', this.ProviderToUse?.CurrentUser);
+      } catch {
+        /* ignore when UserInfoEngine is not initialized */
+      }
     }
     this.applyMode(advanced);
     this.modeChanged.emit(advanced ? 'advanced' : 'basic');
@@ -725,7 +768,7 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
       views.push({
         EntityName: 'MJ_BizApps_SecureMessaging: Message Files',
         ExtraFilter: `ThreadID IN (${inThreads})`,
-        Fields: ['ID', 'Filename', 'ContentType', 'Size', 'FileID', '__mj_CreatedAt'],
+        Fields: ['ID', 'Filename', 'ContentType', 'Size', 'ArtifactID', 'FileID', '__mj_CreatedAt'],
         OrderBy: '__mj_CreatedAt DESC',
         ResultType: 'simple',
       });
@@ -831,13 +874,17 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
   private applyDocumentRows(rows: WorkspaceMessageFileRow[]): void {
     this.docs = rows.map(r => {
       const filename = String(r.Filename || 'document');
+      const contentType = String(r.ContentType || '');
       const size = r.Size ? Number(r.Size) : 0;
       return {
         id: String(r.ID),
         filename,
+        contentType,
+        size,
         sub: `${this.formatSize(size)} · ${this.shortDate(r.__mj_CreatedAt)}`,
+        artifactId: r.ArtifactID ? String(r.ArtifactID) : null,
         fileId: r.FileID ? String(r.FileID) : null,
-        iconClass: this.docIconClass(filename, String(r.ContentType || '')),
+        iconClass: this.docIconClass(filename, contentType),
       };
     });
   }
@@ -1034,9 +1081,15 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
    *   3. dev default — the widget dev server on :4400.
    * Trailing slashes are trimmed so the link never doubles `//`.
    */
+  selectInputText(event: FocusEvent): void {
+    const target = event.target;
+    if (target instanceof HTMLInputElement) {
+      target.select();
+    }
+  }
+
   private portalBaseUrl(): string {
-    const w = window as unknown as { __SECURE_MESSAGING_PORTAL_URL__?: string };
-    const base = this.PortalBaseUrl || w.__SECURE_MESSAGING_PORTAL_URL__ || 'http://localhost:4400';
+    const base = this.PortalBaseUrl || window.__SECURE_MESSAGING_PORTAL_URL__ || 'http://localhost:4400';
     return base.replace(/\/+$/, '');
   }
 
@@ -1058,6 +1111,31 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
   }
 
   /* ───────── Documents ───────── */
+
+  openDoc(d: DocRow, event?: Event): void {
+    const artifactId = d.artifactId?.trim() || null;
+    if (artifactId) {
+      this.previewTriggerElement =
+        event?.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+      this.previewDoc = { ...d, artifactId };
+      this.cdr.detectChanges();
+      return;
+    }
+    void this.downloadDoc(d);
+  }
+
+  closeDocPreview(): void {
+    if (!this.previewDoc) return;
+    this.previewDoc = null;
+    this.previewTriggerElement = null;
+    this.cdr.detectChanges();
+  }
+
+  onPreviewDownloadRequested(): void {
+    if (this.previewDoc) {
+      void this.downloadDoc(this.previewDoc);
+    }
+  }
 
   async downloadDoc(d: DocRow): Promise<void> {
     if (!d.fileId) { this.toast('No stored file for this document'); return; }

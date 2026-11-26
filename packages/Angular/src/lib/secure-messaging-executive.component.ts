@@ -26,12 +26,19 @@ interface StatusBadge {
   label: string;
 }
 
-interface MessageAttachment {
+export interface MessageAttachment {
   id: string;
+  artifactId?: string | null;
   fileId?: string | null;
   filename: string;
   contentType: string;
   size: number;
+}
+
+declare global {
+  interface Window {
+    __SECURE_MESSAGING_PORTAL_URL__?: string;
+  }
 }
 
 interface ThreadStatusRow {
@@ -357,13 +364,49 @@ interface WorkspaceNavItem {
               {{ selectedMessage.attachments.length }} attachment{{ selectedMessage.attachments.length > 1 ? 's' : '' }}
             </div>
             @for (att of selectedMessage.attachments; track att.id) {
-              <div class="attachment-item">
+              <div
+                class="attachment-item"
+                [class.attachment-item--artifact]="!!att.artifactId"
+                role="button"
+                tabindex="0"
+                [title]="att.artifactId ? 'Preview MJ Doc: ' + att.filename : 'Download ' + att.filename"
+                (click)="openAttachment(att, $event)"
+                (keydown.enter)="openAttachment(att, $event)"
+                (keydown.space)="$event.preventDefault(); openAttachment(att, $event)"
+              >
                 <i [class]="getFileIcon(att.contentType)"></i>
                 <div class="attachment-info">
-                  <div class="attachment-name">{{ att.filename }}</div>
-                  <div class="attachment-size">{{ formatFileSize(att.size) }}</div>
+                  <div class="attachment-name-row">
+                    <span class="attachment-name">{{ att.filename }}</span>
+                    @if (att.artifactId) {
+                      <span class="attachment-artifact-badge">MJ Doc</span>
+                    }
+                  </div>
+                  <div class="attachment-size">
+                    {{ formatFileSize(att.size) }}
+                    @if (att.artifactId) {
+                      <span> &middot; Click to preview</span>
+                    }
+                  </div>
                 </div>
-                <button class="attachment-download" title="Download" (click)="downloadAttachment(att)">
+                @if (att.artifactId) {
+                  <button
+                    type="button"
+                    class="attachment-action"
+                    title="Preview in place"
+                    aria-label="Preview in place"
+                    (click)="$event.stopPropagation(); openAttachment(att, $event)"
+                  >
+                    <i class="fa-solid fa-eye"></i>
+                  </button>
+                }
+                <button
+                  type="button"
+                  class="attachment-download"
+                  title="Download"
+                  aria-label="Download attachment"
+                  (click)="$event.stopPropagation(); downloadAttachment(att)"
+                >
                   <i class="fa-solid fa-download"></i>
                 </button>
               </div>
@@ -447,6 +490,19 @@ interface WorkspaceNavItem {
     </div>
   }
 
+  <!-- IN-PLACE MJ DOC ARTIFACT PREVIEW HOST -->
+  <mj-secure-messaging-artifact-preview
+    [ArtifactId]="previewAttachment?.artifactId ?? null"
+    [Filename]="previewAttachment?.filename ?? ''"
+    [ContentType]="previewAttachment?.contentType ?? ''"
+    [FileSize]="previewAttachment?.size ?? 0"
+    [CanDownload]="!!(previewAttachment?.fileId || previewAttachment?.id)"
+    [TriggerElement]="previewTriggerElement"
+    [Provider]="Provider"
+    (DownloadRequested)="onPreviewDownloadRequested()"
+    (Closed)="closeAttachmentPreview()">
+  </mj-secure-messaging-artifact-preview>
+
 </div>
   `,
   styles: [`
@@ -471,16 +527,16 @@ interface WorkspaceNavItem {
   background: var(--mat-sys-surface-container, var(--mj-bg-surface-sunken));
 }
 
-/* ─── LEFT SIDEBAR (always dark) ─── */
+/* ─── LEFT SIDEBAR ─── */
 
 .sm-sidebar {
   width: 240px;
   min-width: 240px;
-  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
-  color: #f8fafc;
+  background: var(--mj-bg-surface-card);
+  color: var(--mj-text-primary);
   display: flex;
   flex-direction: column;
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  border-right: 1px solid var(--mj-border-default);
   transition: width 0.2s ease, min-width 0.2s ease;
 }
 
@@ -494,7 +550,7 @@ interface WorkspaceNavItem {
   align-items: center;
   justify-content: space-between;
   padding: 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--mj-border-subtle);
 }
 
 .sidebar-brand {
@@ -505,7 +561,7 @@ interface WorkspaceNavItem {
 
 .sidebar-brand i {
   font-size: 16px;
-  color: var(--mat-sys-primary, var(--mj-brand-primary));
+  color: var(--mj-brand-primary);
 }
 
 .brand-text {
@@ -522,8 +578,8 @@ interface WorkspaceNavItem {
   width: 28px;
   height: 28px;
   border: none;
-  background: rgba(255, 255, 255, 0.06);
-  color: #94a3b8;
+  background: var(--mj-bg-surface-sunken);
+  color: var(--mj-text-muted);
   border-radius: 6px;
   cursor: pointer;
   display: flex;
@@ -535,8 +591,8 @@ interface WorkspaceNavItem {
 }
 
 .sidebar-toggle:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #f8fafc;
+  background: var(--mj-bg-surface-hover);
+  color: var(--mj-text-primary);
 }
 
 /* Profile */
@@ -546,7 +602,7 @@ interface WorkspaceNavItem {
   display: flex;
   align-items: center;
   gap: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--mj-border-subtle);
 }
 
 .sidebar-collapsed .sidebar-profile {
@@ -557,14 +613,14 @@ interface WorkspaceNavItem {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: var(--mj-brand-primary);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 13px;
   font-weight: 700;
   flex-shrink: 0;
-  color: #ffffff;
+  color: var(--mj-brand-on-primary);
 }
 
 .profile-avatar-img {
@@ -590,7 +646,7 @@ interface WorkspaceNavItem {
 
 .profile-email {
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--mj-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -601,10 +657,10 @@ interface WorkspaceNavItem {
 .compose-btn {
   margin: 16px;
   padding: 11px 0;
-  background: var(--mat-sys-primary, var(--mj-brand-primary));
+  background: var(--mj-brand-primary);
   border: none;
   border-radius: 10px;
-  color: var(--mat-sys-on-primary, var(--mj-brand-on-primary));
+  color: var(--mj-brand-on-primary);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -640,7 +696,7 @@ interface WorkspaceNavItem {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  color: #64748b;
+  color: var(--mj-text-muted);
 }
 
 .sidebar-collapsed .sidebar-section-label {
@@ -658,7 +714,7 @@ interface WorkspaceNavItem {
   align-items: center;
   gap: 12px;
   padding: 9px 16px;
-  color: #cbd5e1;
+  color: var(--mj-text-secondary);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -667,8 +723,8 @@ interface WorkspaceNavItem {
 }
 
 .sidebar-item:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: #f8fafc;
+  background: var(--mj-bg-surface-hover);
+  color: var(--mj-text-primary);
 }
 
 .sidebar-item.active {
@@ -684,13 +740,13 @@ interface WorkspaceNavItem {
   width: 18px;
   text-align: center;
   font-size: 14px;
-  color: #94a3b8;
+  color: var(--mj-text-muted);
   flex-shrink: 0;
 }
 
 .sidebar-item .badge {
   margin-left: auto;
-  background: var(--mat-sys-primary, var(--mj-brand-primary));
+  background: var(--mj-brand-primary);
   color: var(--mj-brand-on-primary);
   font-size: 10px;
   font-weight: 700;
@@ -726,11 +782,11 @@ interface WorkspaceNavItem {
 
 .sidebar-footer {
   padding: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--mj-border-subtle);
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #64748b;
+  color: var(--mj-text-muted);
   font-size: 11px;
 }
 
@@ -995,8 +1051,8 @@ interface WorkspaceNavItem {
 }
 
 .status-replied {
-  background: #ede9fe;
-  color: #7c3aed;
+  background: color-mix(in srgb, var(--mj-brand-tertiary) 14%, var(--mj-bg-surface));
+  color: var(--mj-text-violet);
 }
 
 .msg-indicators {
@@ -1082,11 +1138,11 @@ interface WorkspaceNavItem {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #f59e0b, #d97706);
+  background: var(--mj-status-warning);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--mj-text-inverse);
+  color: var(--mj-status-on-warning);
   font-size: 16px;
   font-weight: 700;
   flex-shrink: 0;
@@ -1334,7 +1390,7 @@ interface WorkspaceNavItem {
   background: var(--mat-sys-surface-container-lowest, var(--mj-bg-surface));
   border-radius: var(--mat-sys-corner-medium, 12px);
   padding: 28px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--mj-shadow-sm);
   border: 1px solid var(--mat-sys-outline-variant, var(--mj-border-default));
   font-size: 14px;
   line-height: 1.7;
@@ -1390,20 +1446,31 @@ interface WorkspaceNavItem {
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background: var(--mat-sys-surface-container-lowest, var(--mj-bg-surface));
-  border: 1px solid var(--mat-sys-outline-variant, var(--mj-border-default));
-  border-radius: var(--mat-sys-corner-small, 8px);
+  background: var(--mj-bg-surface);
+  border: 1px solid var(--mj-border-default);
+  border-radius: var(--mj-radius-md, 8px);
   margin-bottom: 8px;
-  transition: all 0.15s;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
 }
 
 .attachment-item:hover {
-  border-color: var(--mat-sys-outline, var(--mj-border-strong));
+  border-color: var(--mj-border-strong);
+  background: var(--mj-bg-surface-hover);
+}
+
+.attachment-item--artifact:hover {
+  border-color: var(--mj-brand-primary);
+}
+
+.attachment-item:focus-visible {
+  outline: none;
+  box-shadow: var(--mj-focus-ring);
 }
 
 .attachment-item > i {
   font-size: 20px;
-  color: var(--mat-sys-primary, var(--mj-brand-primary));
+  color: var(--mj-brand-primary);
   width: 24px;
   text-align: center;
 }
@@ -1413,27 +1480,46 @@ interface WorkspaceNavItem {
   min-width: 0;
 }
 
+.attachment-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .attachment-name {
   font-size: 13px;
   font-weight: 500;
-  color: var(--mat-sys-on-surface, var(--mj-text-primary));
+  color: var(--mj-text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.attachment-size {
-  font-size: 11px;
-  color: var(--mat-sys-on-surface-variant, var(--mj-text-disabled));
+.attachment-artifact-badge {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border-radius: var(--mj-radius-full, 9999px);
+  background: color-mix(in srgb, var(--mj-brand-primary) 12%, var(--mj-bg-surface));
+  color: var(--mj-brand-primary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
+.attachment-size {
+  font-size: 11px;
+  color: var(--mj-text-muted);
+}
+
+.attachment-action,
 .attachment-download {
   width: 32px;
   height: 32px;
   border: none;
   background: transparent;
-  color: var(--mat-sys-on-surface-variant, var(--mj-text-disabled));
-  border-radius: var(--mat-sys-corner-small, 8px);
+  color: var(--mj-text-muted);
+  border-radius: var(--mj-radius-md, 8px);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1442,9 +1528,10 @@ interface WorkspaceNavItem {
   transition: all 0.15s;
 }
 
+.attachment-action:hover,
 .attachment-download:hover {
-  background: var(--mat-sys-surface-container, var(--mj-bg-surface-hover));
-  color: var(--mat-sys-primary, var(--mj-brand-primary));
+  background: var(--mj-bg-surface-hover);
+  color: var(--mj-brand-primary);
 }
 
 /* Reply bar */
@@ -1541,7 +1628,7 @@ interface WorkspaceNavItem {
 /* Compose modal */
 .compose-overlay {
   position: fixed; inset: 0; z-index: 1000;
-  background: var(--mj-bg-overlay, rgba(0,0,0,0.4));
+  background: var(--mj-bg-overlay);
   display: flex; align-items: center; justify-content: center;
 }
 .compose-modal {
@@ -1549,7 +1636,7 @@ interface WorkspaceNavItem {
   background: var(--mj-bg-surface);
   border: 1px solid var(--mj-border-default);
   border-radius: 14px;
-  box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+  box-shadow: var(--mj-shadow-xl);
   overflow: hidden;
 }
 .compose-modal__head {
@@ -1776,6 +1863,12 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
   // Which mode the shared <mj-secure-messaging-action-panel> opens in (null = closed).
   actionPanel: 'request' | 'signature' | null = null;
 
+  /* ─── In-place artifact preview state ─── */
+  /** Currently previewed MJ Doc attachment (`MessageFile.ArtifactID`), or null when closed. */
+  previewAttachment: MessageAttachment | null = null;
+  /** Attachment row element that triggered the preview, used to restore focus on close. */
+  previewTriggerElement: HTMLElement | null = null;
+
   /* ─── Loading ─── */
   isLoading = true;
 
@@ -1911,8 +2004,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
    * Trailing slashes are trimmed so the link never doubles `//`.
    */
   private portalBaseUrl(): string {
-    const w = window as unknown as { __SECURE_MESSAGING_PORTAL_URL__?: string };
-    const base = this.PortalBaseUrl || w.__SECURE_MESSAGING_PORTAL_URL__ || 'http://localhost:4400';
+    const base = this.PortalBaseUrl || window.__SECURE_MESSAGING_PORTAL_URL__ || 'http://localhost:4400';
     return base.replace(/\/+$/, '');
   }
 
@@ -2055,6 +2147,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
     }
     this.replyText = '';
     this.closeActionPanel();
+    this.closeAttachmentPreview();
     // Seed the conversation view with the clicked message, then load the full thread + attachments
     // in one batched/cached call via SecureMessagingEngineBase.LoadThreadWindow.
     this.threadMessages = message.threadId ? [message] : [];
@@ -2077,6 +2170,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
       this.threadMessages = windowData.messages.map(r => this.mapRowToMessageItem(r));
       const atts: MessageAttachment[] = windowData.files.map(r => ({
         id: r.ID,
+        artifactId: r.ArtifactID ?? null,
         fileId: r.FileID,
         filename: r.Filename ?? 'file',
         contentType: r.ContentType ?? '',
@@ -2321,6 +2415,38 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
   openRequestFiles(): void { this.actionPanel = 'request'; }
   openSendForSignature(): void { this.actionPanel = 'signature'; }
   closeActionPanel(): void { this.actionPanel = null; }
+
+  /**
+   * Routes clicking a thread attachment:
+   * - Populated `MessageFile.ArtifactID` -> opens the in-place `<mj-secure-messaging-artifact-preview>` host.
+   * - Null/empty `ArtifactID` -> falls back cleanly to standard file download.
+   */
+  openAttachment(att: MessageAttachment, event?: Event): void {
+    const artifactId = att.artifactId?.trim() || null;
+    if (artifactId) {
+      this.previewTriggerElement =
+        event?.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+      this.previewAttachment = { ...att, artifactId };
+      this.cdr.detectChanges();
+      return;
+    }
+    void this.downloadAttachment(att);
+  }
+
+  /** Closes the in-place artifact preview host while preserving thread scroll position. */
+  closeAttachmentPreview(): void {
+    if (!this.previewAttachment) return;
+    this.previewAttachment = null;
+    this.previewTriggerElement = null;
+    this.cdr.detectChanges();
+  }
+
+  /** Executes standard download fallback when triggered from inside the preview host. */
+  onPreviewDownloadRequested(): void {
+    if (this.previewAttachment) {
+      void this.downloadAttachment(this.previewAttachment);
+    }
+  }
 
   async downloadAttachment(att: MessageAttachment): Promise<void> {
     try {
