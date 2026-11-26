@@ -35,6 +35,14 @@ See [`CLAUDE.md`](CLAUDE.md) for the complete MemberJunction development ruleset
 5. **RLS-safe two-step entity reads — zero raw SQL subqueries**
    - Load IDs from the owning/junction entity via first-class `RunView`, then fetch related records with chunked `ID IN (...)` clauses (max 200 IDs per chunk, batched via `rv.RunViews([...])`). Never write raw SQL subqueries (`IN (SELECT ...)`) that bypass entity-level RLS.
 
+## MJ Docs (`MJ: Artifacts`) vs. `MJ: Comments` vs. Quick Notes
+
+See [`CLAUDE.md`](CLAUDE.md#mj-docs-mj-artifacts-vs-mj-comments-vs-quick-notes) and [`.mj/specs/ng-artifacts-in-place-preview/spec.md`](.mj/specs/ng-artifacts-in-place-preview/spec.md) for the full decision rubric. In this repository:
+
+- **`MessageFile.ArtifactID` = Category B attached deliverable (MJ Doc / `MJ: Artifacts`)**: Versioned deliverables persisted via `ArtifactFileStore` (`MJ: Artifacts` + `MJ: Artifact Versions`) and rendered in-place inside message threads via `@memberjunction/ng-artifacts` (`<mj-artifact-viewer-panel>`) hosted by `<mj-secure-messaging-artifact-preview>`. Attachments with `ArtifactID = null` fall back cleanly to authenticated binary download.
+- **`SecureMessage.Content` and `FileRequest.Instructions` = Category C relational columns**: Transactional conversation bodies and file-request prompts MUST remain relational columns for low-latency querying, full-text indexing, and bounded thread hydration — never migrate them into `MJ: Artifacts`.
+- **`MJ: Comments` = Category A internal record discussions**: Lightweight threaded annotations anchored to internal MJ records — keep strictly separate from external portal conversation threads and Category B deliverables.
+
 ## Build, Test, and Guard Commands
 
 ```bash

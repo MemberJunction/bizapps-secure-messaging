@@ -72,6 +72,11 @@ Staff compose (or an insecure email/SMS thread is promoted)
 - **File Requests** with a real lifecycle: staff request documents, contacts fulfill (multiple
   files per request); requests can be cancelled by staff or expire at their due date, and only
   open ones are shown to the contact
+- **In-place MJ Doc preview**: attachments backed by `MessageFile.ArtifactID` (`MJ: Artifacts`)
+  open directly inside the thread via `@memberjunction/ng-artifacts` (`<mj-artifact-viewer-panel>`)
+  in a theme-native slide-over/modal host (`<mj-secure-messaging-artifact-preview>`) with
+  Escape-to-close dismissal, focus restoration, and automatic download fallback for non-artifact
+  binary files
 - **E-signature** through the core MJ eSignature engine (DocuSign, PandaDoc, Dropbox Sign) with
   visual signature-field placement — sent and tracked per thread
 - **Closed threads render read-only** for the contact; archive/trash for staff
@@ -81,12 +86,16 @@ Staff compose (or an insecure email/SMS thread is promoted)
 
 After installation, **Secure Messages** appears in the MJ Explorer app switcher.
 
-- **Executive Inbox** — a 3-pane inbox over the secure threads: categories
-  (Inbox/Starred/Archived/Trash), per-contact workspaces, search/sort, unread badges, starring,
-  attachment display, and an inline reply bar.
+- **Executive Inbox** — a 3-pane inbox over the secure threads wrapped in `<mj-page-layout>`
+  chrome (`SecureMessagingResource`): categories (Inbox/Starred/Archived/Trash), per-contact
+  workspaces, search/sort, unread badges, starring, attachment display with **in-place MJ Doc
+  preview** (`<mj-secure-messaging-artifact-preview>` / `<mj-artifact-viewer-panel>`) and
+  non-artifact download fallback, and an inline reply bar.
 - **Client Workspace** — a per-contact "client 360": that contact's threads, file requests,
-  signatures, documents, session/security controls (revoke, send new link), and audit trail, with
-  a basic/advanced progressive-disclosure toggle. Staff can cancel open file requests from here.
+  signatures, documents (with in-place MJ Doc preview for `ArtifactID`-backed files),
+  session/security controls (revoke, send new link), and audit trail, with a basic/advanced
+  progressive-disclosure toggle persisted via `UserInfoEngine.Instance`. Staff can cancel open
+  file requests from here.
 
 ![Secure Messages Executive Inbox](docs/images/executive-view.png)
 
@@ -260,24 +269,62 @@ Every thread-scoped route verifies the authenticated contact owns the thread.
 
 > The Secure Thread form uses MJ's **left-nav** layout: messages are first-class, message files and file requests sit under *More*, and portal magic links (`DeepLinkThreadID`) are deliberately not a form surface — they are auth tokens.
 
+### Content Storage Rubric: MJ Docs (`MJ: Artifacts`) vs. `MJ: Comments` vs. Quick Notes
+
+| Field / Surface | Classification | Storage & Rendering |
+|---|---|---|
+| `MessageFile.ArtifactID` | **Category B — MJ Doc (`MJ: Artifacts`)** | Versioned deliverable stored in `MJ: Artifacts` / `MJ: Artifact Versions` via `ArtifactFileStore` and previewed in-place via `@memberjunction/ng-artifacts` (`<mj-artifact-viewer-panel>`) inside `<mj-secure-messaging-artifact-preview>`. Non-artifact binary files (`ArtifactID = null`) use the authenticated download flow. |
+| `SecureMessage.Content`, `FileRequest.Instructions` | **Category C — Relational Column** | Stored directly in `__mj_BizAppsSecureMessaging` for low-latency transactional querying, filtering, indexing, and bounded per-thread window loading (`SecureMessagingEngineBase.Instance.LoadThreadWindow`). Never migrated into `MJ: Artifacts`. |
+| Internal record discussions | **Category A — `MJ: Comments`** | Lightweight internal annotations anchored to MJ entity records — kept strictly separate from external client portal threads. |
+
+See [`CLAUDE.md`](CLAUDE.md#mj-docs-mj-artifacts-vs-mj-comments-vs-quick-notes), [`AGENTS.md`](AGENTS.md#mj-docs-mj-artifacts-vs-mj-comments-vs-quick-notes), and [`.mj/specs/ng-artifacts-in-place-preview/spec.md`](.mj/specs/ng-artifacts-in-place-preview/spec.md) for the complete specification and decision rubric.
+
 ```
 mj-secure-messaging/
-├── mj-app.json                 # Open App manifest
-├── migrations/                 # Skyway SQL migrations (SecureThread, SecureMessage, …)
-├── metadata/                   # Application, actions, entity overrides (mj-sync)
+├── mj-app.json                                 # Open App manifest
+├── migrations/                                 # Skyway SQL migrations (SecureThread, SecureMessage, …)
+├── metadata/                                   # Application, actions, entity overrides (mj-sync)
+├── .mj/specs/ng-artifacts-in-place-preview/    # Living engineering spec & rubric traceability
 ├── packages/
-│   ├── Entities/               # Generated entity subclasses (CodeGen)
-│   ├── Actions/                # MJ Actions (generated + custom)
-│   ├── Core/                   # PortalAuthService, message/file stores, config
-│   ├── Server/                 # REST handlers, resolvers, notify hook, bootstrap
-│   ├── Angular/                # Staff UI (inbox, workspace) + shared conversation components
-│   └── Element/                # <mj-secure-messaging> widget bundle (Angular Element)
-└── docs/                       # PRD, INSTALL, build charter
+│   ├── Entities/                               # Generated entity subclasses + SecureMessagingEngineBase
+│   ├── Actions/                                # MJ Actions (generated + custom)
+│   ├── Core/                                   # PortalAuthService, message/file stores (ArtifactFileStore), config
+│   ├── Server/                                 # REST handlers, resolvers, notify hook, bootstrap
+│   ├── Angular/                                # Staff UI (inbox, workspace, in-place artifact preview) + conversation UI
+│   ├── Element/                                # <mj-secure-messaging> widget bundle (Angular Element)
+│   └── IntegrationTests/                       # 90-record 4-org SM-WORLD fixtures, RLS checks & Playwright visual tests
+├── test-harnesses/                             # CLI integration harness (messaging-world, messaging-artifacts-rls)
+└── docs/                                       # PRD, INSTALL, build charter
 ```
+
+## Development, Testing & Verification
+
+```bash
+# Build all workspace packages
+pnpm run build:packages
+
+# Run all deterministic Vitest unit, design-token, OpenApp parity, and cross-stack RLS integration tests
+pnpm test
+
+# Run headless Chromium Playwright visual verification (light & dark --mj-* themes, Escape-to-close, fallback)
+pnpm --filter @mj-biz-apps/secure-messaging-integration-tests run test:playwright
+
+# Run live-database SM-WORLD (90 records across 4 orgs) and batched ArtifactFileStore/RLS integration bundles
+pnpm run test:integration
+
+# Run repository static CI guards
+node .github/scripts/check-dependency-model.mjs
+node .github/scripts/check-caret-pins.mjs
+./.github/scripts/validate-package-repository.sh
+./.github/scripts/validate-package-files.sh
+./.github/scripts/check-script-references.sh
+```
+
+See [`packages/Angular/README.md`](packages/Angular/README.md) for `<mj-secure-messaging-artifact-preview>` API details and [`packages/IntegrationTests/README.md`](packages/IntegrationTests/README.md) for `SM-WORLD` seed fixtures, adversarial cross-tenant RLS scenarios, and Playwright light/dark verification.
 
 ## Requirements
 
-- MemberJunction >= 6.1.2 (see `mjVersionRange` in `mj-app.json`)
+- MemberJunction >= 6.3.0-edge.1 (see `mjVersionRange` in `mj-app.json`)
 - SQL Server (for the `__mj_BizAppsSecureMessaging` schema)
 - Node.js >= 20
 
