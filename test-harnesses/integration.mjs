@@ -3,15 +3,19 @@
  *
  *   node test-harnesses/integration.mjs
  *   node test-harnesses/integration.mjs messaging-world
+ *   node test-harnesses/integration.mjs messaging-artifacts-rls
  *
- * messaging-world COMMITS SM-WORLD so Explorer has rows. Exit 0 pass · 1 fail · 2 bootstrap.
+ * messaging-world COMMITS multi-org SM-WORLD (including versioned MJ Doc artifacts and
+ * MessageFile.ArtifactID attachments). messaging-artifacts-rls verifies batched
+ * ArtifactFileStore + MessageFile.ArtifactID resolution and adversarial cross-tenant RLS
+ * isolation. Exit 0 pass · 1 fail · 2 bootstrap.
  */
 import sql from 'mssql';
 import { loadEnvFrom } from './load-env.mjs';
 
 loadEnvFrom(import.meta.url);
 
-const ALL_BUNDLES = ['messaging-world'];
+const ALL_BUNDLES = ['messaging-world', 'messaging-artifacts-rls'];
 
 const args = process.argv.slice(2);
 const only = args.filter((a) => !a.startsWith('-'));

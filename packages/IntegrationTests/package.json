@@ -3,30 +3,37 @@
   "type": "module",
   "version": "6.3.0-edge.1",
   "private": true,
-  "description": "Integration check bundles for MJ Secure Messaging. SM-WORLD commits through BaseEntity so Explorer has threads to open.",
+  "description": "Integration check bundles, multi-entity world fixtures, adversarial cross-tenant RLS checks, and headless Playwright visual checks for MJ Secure Messaging.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsc && tsc-alias -f"
+    "build": "tsc && tsc-alias -f",
+    "test": "DB_HOST=localhost DB_DATABASE=test DB_USERNAME=test DB_PASSWORD=test vitest run src/__tests__/artifact-file-store-rls.integration.spec.ts",
+    "test:playwright": "vitest run src/__tests__/artifact-preview.playwright.spec.ts",
+    "test:all": "DB_HOST=localhost DB_DATABASE=test DB_USERNAME=test DB_PASSWORD=test vitest run"
   },
   "license": "MIT",
   "dependencies": {
     "@mj-biz-apps/common-entities": "^5.30.0",
+    "@mj-biz-apps/secure-messaging-core": "6.3.0-edge.1",
     "@mj-biz-apps/secure-messaging-entities": "6.3.0-edge.1",
     "@mj-biz-apps/secure-messaging-server": "6.3.0-edge.1"
   },
   "peerDependencies": {
     "@memberjunction/core": "^6.3.0-edge.1",
+    "@memberjunction/core-entities": "^6.3.0-edge.1",
     "@memberjunction/global": "^6.3.0-edge.1",
     "@memberjunction/testing-integration": "^6.3.0-edge.1"
   },
   "devDependencies": {
+    "@memberjunction/core-entities": "6.3.0-edge.1",
     "@types/node": "^22.10.2",
     "tsc-alias": "^1.8.16",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   },
   "repository": {
     "type": "git",
