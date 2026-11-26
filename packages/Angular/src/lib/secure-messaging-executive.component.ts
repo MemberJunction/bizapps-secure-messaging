@@ -1,11 +1,15 @@
 import { Component, OnInit, OnChanges, SimpleChanges, Input, Output, EventEmitter, Optional, ChangeDetectorRef } from '@angular/core';
-import { Metadata, RunView } from '@memberjunction/core';
+import { IMetadataProvider, Metadata, RunView } from '@memberjunction/core';
 import { MJUserEntity } from '@memberjunction/core-entities';
 import { MJAuthBase } from '@memberjunction/ng-auth-services';
 import { GraphQLDataProvider, GraphQLFileStorageClient, GraphQLActionClient } from '@memberjunction/graphql-dataprovider';
 import { ActionResult, ActionParam } from '@memberjunction/actions-base';
-import { mjBizAppsCommonPersonEntity } from '@mj-biz-apps/common-entities';
-import { mjBizAppsSecureMessagingSecureMessageEntity, mjBizAppsSecureMessagingSecureThreadEntity } from '@mj-biz-apps/secure-messaging-entities';
+import {
+  CachedSecureMessageRow,
+  mjBizAppsSecureMessagingSecureMessageEntity,
+  mjBizAppsSecureMessagingSecureThreadEntity,
+  SecureMessagingEngineBase,
+} from '@mj-biz-apps/secure-messaging-entities';
 import { ContactSelection } from './secure-messaging.contracts';
 
 /* ─── Interfaces ─── */
@@ -24,10 +28,61 @@ interface StatusBadge {
 
 interface MessageAttachment {
   id: string;
+  fileId?: string | null;
   filename: string;
   contentType: string;
   size: number;
 }
+
+interface ThreadStatusRow {
+  ID: string;
+  Status: mjBizAppsSecureMessagingSecureThreadEntity['Status'];
+  IsDeleted: boolean;
+}
+
+interface FileRequestThreadRow {
+  ThreadID: string;
+}
+
+interface FileRecordRow {
+  ID: string;
+  Name: string;
+  ProviderID: string;
+  ProviderKey: string | null;
+}
+
+interface MessageFileLookupRow {
+  ID: string;
+  FileID: string | null;
+}
+
+interface PersonNameRow {
+  ID: string;
+  DisplayName: string | null;
+  FirstName: string | null;
+  LastName: string | null;
+  Email: string | null;
+}
+
+const PERSON_IN_CLAUSE_CHUNK_SIZE = 200;
+
+const SECURE_MESSAGE_LIST_FIELDS: string[] = [
+  'ID',
+  'ThreadID',
+  'PortalSessionID',
+  'PersonID',
+  'Direction',
+  'Sender',
+  'Recipient',
+  'Subject',
+  'Content',
+  'IsSecure',
+  'Status',
+  'ReceivedAt',
+  'IsStarred',
+  'IsImported',
+  'SourceChannel',
+];
 
 interface SecureMessageItem {
   id: string;
@@ -277,6 +332,7 @@ interface WorkspaceNavItem {
           [mode]="actionPanel"
           [threadId]="selectedMessage.threadId"
           [contactEmail]="selectedMessage.senderEmail"
+          [Provider]="Provider"
           (done)="closeActionPanel()"
           (cancel)="closeActionPanel()">
         </mj-secure-messaging-action-panel>
@@ -1644,8 +1700,16 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
   /** When set, the inbox loads + selects this thread (used to focus a thread opened from the workspace). */
   @Input() focusThreadId: string | null = null;
 
+  /** Optional metadata provider override for multi-provider Angular hosts. */
+  @Input() Provider: IMetadataProvider | null = null;
+
   /** Base URL where the contact-facing widget is hosted; magic links are built as `${this}/?ml=<token>`. */
   @Input() PortalBaseUrl = '';
+
+  /** Active metadata provider (explicit `@Input() Provider` or default global provider). */
+  public get ProviderToUse(): IMetadataProvider {
+    return this.Provider ?? Metadata.Provider;
+  }
 
   /** Emitted when a contact is chosen to open their 360 workspace (consumed by the coordinator/host). */
   @Output() contactSelected = new EventEmitter<ContactSelection>();
@@ -1733,7 +1797,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
    * blocks the header, and re-renders explicitly when it arrives (mirrors the MJ shell).
    */
   private loadCurrentUser(): void {
-    const user = Metadata.Provider?.CurrentUser;
+    const user = this.ProviderToUse?.CurrentUser;
     if (!user) return;
     this.userName = user.FirstLast || user.Name || user.Email || '';
     this.userInitials = this.computeInitials(this.userName);
@@ -1744,8 +1808,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
   /** Background avatar resolution — DB-cached image/icon first, auth-provider photo as fallback. */
   private async loadAvatar(userId: string): Promise<void> {
     try {
-      const md = new Metadata();
-      const userEntity = await md.GetEntityObject<MJUserEntity>('MJ: Users');
+      const userEntity = await this.ProviderToUse.GetEntityObject<MJUserEntity>('MJ: Users');
       if (await userEntity.Load(userId)) {
         if (userEntity.UserImageURL) {
           this.avatarUrl = userEntity.UserImageURL;
@@ -1808,7 +1871,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
         this.composeError = 'The compose action is not available in this environment.';
         return;
       }
-      const client = new GraphQLActionClient(Metadata.Provider as unknown as GraphQLDataProvider);
+      const client = new GraphQLActionClient(this.ProviderToUse as GraphQLDataProvider);
       const result = await client.RunAction(actionId, [
         { Name: 'ContactEmail', Value: email, Type: 'Input' },
         { Name: 'ContactName', Value: this.composeName.trim(), Type: 'Input' },
@@ -1992,29 +2055,38 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
     }
     this.replyText = '';
     this.closeActionPanel();
-    // Seed the conversation view with the clicked message, then load the full thread.
+    // Seed the conversation view with the clicked message, then load the full thread + attachments
+    // in one batched/cached call via SecureMessagingEngineBase.LoadThreadWindow.
     this.threadMessages = message.threadId ? [message] : [];
-    void this.loadThread(message);
-    void this.loadAttachments(message);
+    void this.loadSelectedThreadWindow(message);
   }
 
-  /** Load every message in the selected message's thread (oldest-first) for the conversation view. */
-  private async loadThread(message: SecureMessageItem): Promise<void> {
+  /**
+   * Load the selected message's thread window (messages + attachments) via
+   * SecureMessagingEngineBase's bounded per-thread LRU cache (1 batched RunViews on cache miss,
+   * 0 round-trips on cache hit, auto-invalidated on entity save/delete).
+   */
+  private async loadSelectedThreadWindow(message: SecureMessageItem): Promise<void> {
     if (!message.threadId) { this.threadMessages = [message]; return; }
     try {
-      const rv = new RunView();
-      const result = await rv.RunView({
-        EntityName: 'MJ_BizApps_SecureMessaging: Secure Messages',
-        ExtraFilter: `ThreadID = '${message.threadId.replace(/'/g, "''")}'`,
-        OrderBy: 'ReceivedAt ASC',
-        ResultType: 'simple',
+      const windowData = await SecureMessagingEngineBase.Instance.LoadThreadWindow(message.threadId, {
+        includeFileRequests: false,
+        provider: this.ProviderToUse,
       });
-      if (result.Success && result.Results && this.selectedMessage?.id === message.id) {
-        this.threadMessages = result.Results.map(r => this.mapToMessageItem(r as Record<string, unknown>));
-        this.cdr.detectChanges();
-      }
+      if (this.selectedMessage?.id !== message.id) return;
+      this.threadMessages = windowData.messages.map(r => this.mapRowToMessageItem(r));
+      const atts: MessageAttachment[] = windowData.files.map(r => ({
+        id: r.ID,
+        fileId: r.FileID,
+        filename: r.Filename ?? 'file',
+        contentType: r.ContentType ?? '',
+        size: Number(r.Size ?? 0),
+      }));
+      message.attachments = atts;
+      message.attachmentCount = atts.length;
+      this.cdr.detectChanges();
     } catch (e) {
-      console.error('Failed to load thread', e);
+      console.error('Failed to load thread window', e);
     }
   }
 
@@ -2025,43 +2097,13 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
    */
   private async persistRead(message: SecureMessageItem): Promise<void> {
     try {
-      const md = new Metadata();
-      const rec = await md.GetEntityObject<mjBizAppsSecureMessagingSecureMessageEntity>('MJ_BizApps_SecureMessaging: Secure Messages');
+      const rec = await this.ProviderToUse.GetEntityObject<mjBizAppsSecureMessagingSecureMessageEntity>('MJ_BizApps_SecureMessaging: Secure Messages');
       if (!(await rec.Load(message.id))) return;
       if (rec.Status !== 'New') return;
       rec.Status = 'Read';
       await rec.Save();
     } catch (e) {
       console.error('Failed to persist read state', e);
-    }
-  }
-
-  /** Loads the files attached to a message's thread from the owned MessageFile entity. */
-  private async loadAttachments(message: SecureMessageItem): Promise<void> {
-    if (!message.threadId) return;
-    try {
-      const rv = new RunView();
-      const result = await rv.RunView({
-        EntityName: 'MJ_BizApps_SecureMessaging: Message Files',
-        ExtraFilter: `ThreadID = '${message.threadId.replace(/'/g, "''")}'`,
-        OrderBy: '__mj_CreatedAt ASC',
-        ResultType: 'simple',
-      });
-      if (result.Success && result.Results) {
-        const atts = (result.Results as Record<string, unknown>[]).map(r => ({
-          id: r['ID'] as string,
-          filename: (r['Filename'] as string) ?? 'file',
-          contentType: (r['ContentType'] as string) ?? '',
-          size: Number(r['Size'] ?? 0),
-        }));
-        // Only mutate if this message is still selected (avoid races on quick switches).
-        if (this.selectedMessage?.id === message.id) {
-          message.attachments = atts;
-          message.attachmentCount = atts.length;
-        }
-      }
-    } catch (e) {
-      console.error('Failed to load attachments', e);
     }
   }
 
@@ -2076,8 +2118,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
   /** Persist a message's star state to the owned SecureMessage record so it survives reload. */
   private async persistStar(message: SecureMessageItem): Promise<void> {
     try {
-      const md = new Metadata();
-      const rec = await md.GetEntityObject<mjBizAppsSecureMessagingSecureMessageEntity>('MJ_BizApps_SecureMessaging: Secure Messages');
+      const rec = await this.ProviderToUse.GetEntityObject<mjBizAppsSecureMessagingSecureMessageEntity>('MJ_BizApps_SecureMessaging: Secure Messages');
       if (!(await rec.Load(message.id))) return;
       if (rec.IsStarred === message.isStarred) return;
       rec.IsStarred = message.isStarred;
@@ -2110,7 +2151,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
     const deleting = !this.deletedThreadIds.has(threadId);
     if (deleting && !confirm('Move this conversation to Trash? It will be hidden but can be restored.')) return;
     try {
-      const rv = new RunView();
+      const rv = RunView.FromMetadataProvider(this.ProviderToUse);
       const res = await rv.RunView<mjBizAppsSecureMessagingSecureThreadEntity>({
         EntityName: 'MJ_BizApps_SecureMessaging: Secure Threads',
         ExtraFilter: `ID = '${threadId.replace(/'/g, "''")}'`,
@@ -2160,7 +2201,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
     if (!threadId) return;
     const archiving = !this.archivedThreadIds.has(threadId);
     try {
-      const rv = new RunView();
+      const rv = RunView.FromMetadataProvider(this.ProviderToUse);
       const res = await rv.RunView<mjBizAppsSecureMessagingSecureThreadEntity>({
         EntityName: 'MJ_BizApps_SecureMessaging: Secure Threads',
         ExtraFilter: `ID = '${threadId.replace(/'/g, "''")}'`,
@@ -2208,7 +2249,7 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
         console.error('Send Secure Message action is not available in this environment.');
         return;
       }
-      const client = new GraphQLActionClient(Metadata.Provider as unknown as GraphQLDataProvider);
+      const client = new GraphQLActionClient(this.ProviderToUse as GraphQLDataProvider);
       const result = await client.RunAction(actionId, [
         { Name: 'ThreadID', Value: threadId, Type: 'Input' },
         { Name: 'Content', Value: body, Type: 'Input' },
@@ -2218,8 +2259,11 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
         return;
       }
 
+      // Server-side Action wrote a new SecureMessage — invalidate this thread's cached window.
+      SecureMessagingEngineBase.Instance.InvalidateThread(threadId);
+
       // Optimistically append the sent message to the open conversation.
-      const me = Metadata.Provider?.CurrentUser;
+      const me = this.ProviderToUse?.CurrentUser;
       this.threadMessages = [...this.threadMessages, {
         id: (this.extractOutputParams(result).find(p => p.Name === 'MessageID')?.Value as string) || `tmp-${threadId}-${this.threadMessages.length}`,
         senderName: me?.FirstLast || me?.Name || 'You',
@@ -2246,17 +2290,9 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
     }
   }
 
-  /** Resolve an Action's ID by name. */
+  /** Resolve an Action's ID by name via SecureMessagingEngineBase's cached action lookup. */
   private async resolveActionId(name: string): Promise<string | null> {
-    const rv = new RunView();
-    const res = await rv.RunView({
-      EntityName: 'MJ: Actions',
-      ExtraFilter: `Name = '${name.replace(/'/g, "''")}'`,
-      MaxRows: 1,
-      ResultType: 'simple',
-    });
-    if (!res.Success || res.Results.length === 0) return null;
-    return String((res.Results as Record<string, unknown>[])[0].ID);
+    return SecureMessagingEngineBase.Instance.ResolveActionId(name, undefined, this.ProviderToUse);
   }
 
   /**
@@ -2288,57 +2324,56 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
 
   async downloadAttachment(att: MessageAttachment): Promise<void> {
     try {
-      const rv = new RunView();
+      const rv = RunView.FromMetadataProvider(this.ProviderToUse);
 
-      // 1. MessageFile (att.id) → underlying MJ: Files ID
-      const linkResult = await rv.RunView({
-        EntityName: 'MJ_BizApps_SecureMessaging: Message Files',
-        ExtraFilter: `ID = '${this.esc(att.id)}'`,
-        Fields: ['ID', 'FileID'],
-        MaxRows: 1,
-        ResultType: 'simple',
-      });
-      const fileId = linkResult.Success && linkResult.Results?.length
-        ? ((linkResult.Results[0] as Record<string, unknown>)['FileID'] as string)
-        : null;
+      // 1. Reuse att.fileId from LoadThreadWindow when available; fall back to Message Files only if missing.
+      let fileId = att.fileId ?? null;
+      if (!fileId) {
+        const linkResult = await rv.RunView<MessageFileLookupRow>({
+          EntityName: 'MJ_BizApps_SecureMessaging: Message Files',
+          ExtraFilter: `ID = '${this.esc(att.id)}'`,
+          Fields: ['ID', 'FileID'],
+          MaxRows: 1,
+          ResultType: 'simple',
+        });
+        fileId = linkResult.Success && linkResult.Results?.length
+          ? linkResult.Results[0].FileID
+          : null;
+      }
       if (!fileId) {
         console.error('No underlying file for attachment', att.id);
         return;
       }
 
-      // 2. MJ: Files → ProviderID + ProviderKey
-      const fileResult = await rv.RunView({
-        EntityName: 'MJ: Files',
-        ExtraFilter: `ID = '${this.esc(fileId)}'`,
-        Fields: ['ID', 'Name', 'ProviderID', 'ProviderKey'],
-        MaxRows: 1,
-        ResultType: 'simple',
-      });
+      // 2. MJ: Files → ProviderID + ProviderKey (in parallel with lazy engine config warmup)
+      const [fileResult] = await Promise.all([
+        rv.RunView<FileRecordRow>({
+          EntityName: 'MJ: Files',
+          ExtraFilter: `ID = '${this.esc(fileId)}'`,
+          Fields: ['ID', 'Name', 'ProviderID', 'ProviderKey'],
+          MaxRows: 1,
+          ResultType: 'simple',
+        }),
+        SecureMessagingEngineBase.Instance.Config(false, undefined, this.ProviderToUse),
+      ]);
       if (!fileResult.Success || !fileResult.Results?.length) {
         console.error('File record not found', fileId);
         return;
       }
-      const file = fileResult.Results[0] as Record<string, unknown>;
-      const providerId = file['ProviderID'] as string;
-      const objectName = (file['ProviderKey'] as string) || (file['Name'] as string);
+      const file = fileResult.Results[0];
+      const providerId = file.ProviderID;
+      const objectName = file.ProviderKey || file.Name;
 
-      // 3. Resolve a storage account on that provider (first active)
-      const acctResult = await rv.RunView({
-        EntityName: 'MJ: File Storage Accounts',
-        ExtraFilter: `ProviderID = '${this.esc(providerId)}'`,
-        Fields: ['ID', 'ProviderID'],
-        MaxRows: 1,
-        ResultType: 'simple',
-      });
-      if (!acctResult.Success || !acctResult.Results?.length) {
+      // 3. Resolve storage account from SecureMessagingEngineBase cache (CacheLocal: false)
+      const acct = SecureMessagingEngineBase.Instance.FindStorageAccountByProviderId(providerId);
+      if (!acct) {
         console.error('No storage account configured for provider', providerId);
         return;
       }
-      const accountId = (acctResult.Results[0] as Record<string, unknown>)['ID'] as string;
 
       // 4. Pre-auth download URL via the storage client, then open it
-      const client = new GraphQLFileStorageClient(Metadata.Provider as unknown as GraphQLDataProvider);
-      const url = await client.CreatePreAuthDownloadUrl(accountId, objectName);
+      const client = new GraphQLFileStorageClient(this.ProviderToUse as GraphQLDataProvider);
+      const url = await client.CreatePreAuthDownloadUrl(acct.ID, objectName);
       if (url) {
         window.open(url, '_blank', 'noopener');
       }
@@ -2415,21 +2450,55 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
 
   private async loadMessages(): Promise<void> {
     this.isLoading = true;
+    this.fileRequestThreadIds = new Set<string>();
+    this.archivedThreadIds = new Set<string>();
+    this.deletedThreadIds = new Set<string>();
     try {
-      const rv = new RunView();
-      const result = await rv.RunView({
-        EntityName: 'MJ_BizApps_SecureMessaging: Secure Messages',
-        ExtraFilter: `IsSecure=1`,
-        OrderBy: 'ReceivedAt DESC',
-        MaxRows: 100,
-        ResultType: 'simple'
-      });
-      if (result.Success && result.Results) {
-        this.messages = result.Results.map(r => this.mapToMessageItem(r as Record<string, unknown>));
+      const rv = RunView.FromMetadataProvider(this.ProviderToUse);
+      // Collapse 4 independent sequential queries (messages, file-request threads, archived threads,
+      // deleted threads) into ONE batched RunViews round-trip with explicit Fields projections.
+      const [msgResult, fileReqResult, threadStatusResult] = await rv.RunViews([
+        {
+          EntityName: 'MJ_BizApps_SecureMessaging: Secure Messages',
+          ExtraFilter: 'IsSecure=1',
+          Fields: SECURE_MESSAGE_LIST_FIELDS,
+          OrderBy: 'ReceivedAt DESC',
+          MaxRows: 100,
+          ResultType: 'simple',
+        },
+        {
+          EntityName: 'MJ_BizApps_SecureMessaging: File Requests',
+          Fields: ['ThreadID'],
+          OrderBy: '__mj_CreatedAt DESC',
+          MaxRows: 500,
+          ResultType: 'simple',
+        },
+        {
+          EntityName: 'MJ_BizApps_SecureMessaging: Secure Threads',
+          ExtraFilter: `Status = 'Archived' OR IsDeleted = 1`,
+          Fields: ['ID', 'Status', 'IsDeleted'],
+          MaxRows: 1000,
+          ResultType: 'simple',
+        },
+      ]);
+
+      if (fileReqResult?.Success && fileReqResult.Results) {
+        for (const r of fileReqResult.Results as FileRequestThreadRow[]) {
+          if (r.ThreadID) this.fileRequestThreadIds.add(r.ThreadID);
+        }
+      }
+
+      if (threadStatusResult?.Success && threadStatusResult.Results) {
+        for (const r of threadStatusResult.Results as ThreadStatusRow[]) {
+          if (!r.ID) continue;
+          if (r.Status === 'Archived') this.archivedThreadIds.add(r.ID);
+          if (r.IsDeleted) this.deletedThreadIds.add(r.ID);
+        }
+      }
+
+      if (msgResult?.Success && msgResult.Results) {
+        this.messages = (msgResult.Results as CachedSecureMessageRow[]).map(r => this.mapRowToMessageItem(r));
         await this.resolvePersonNames();
-        await this.loadFileRequestThreads();
-        await this.loadArchivedThreads();
-        await this.loadDeletedThreads();
         this.buildWorkspaces();
         this.updateInboxCount();
       }
@@ -2443,72 +2512,6 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
       this.cdr.detectChanges();
       // Honor a pending focus request (deep-link or workspace→inbox jump) once data is present.
       if (this.focusThreadId) void this.tryFocusThread(this.focusThreadId);
-    }
-  }
-
-  /** Load the set of thread IDs that have at least one file request (drives the Documents nav). */
-  private async loadFileRequestThreads(): Promise<void> {
-    this.fileRequestThreadIds = new Set<string>();
-    try {
-      const rv = new RunView();
-      const result = await rv.RunView({
-        EntityName: 'MJ_BizApps_SecureMessaging: File Requests',
-        OrderBy: '__mj_CreatedAt DESC',
-        MaxRows: 500,
-        ResultType: 'simple',
-      });
-      if (result.Success && result.Results) {
-        for (const r of result.Results) {
-          const tid = (r as Record<string, unknown>)['ThreadID'] as string;
-          if (tid) this.fileRequestThreadIds.add(tid);
-        }
-      }
-    } catch (e) {
-      console.error('Failed to load file requests for Documents nav', e);
-    }
-  }
-
-  /** Load the set of thread IDs whose conversation is archived (drives the Archived nav + filtering). */
-  private async loadArchivedThreads(): Promise<void> {
-    this.archivedThreadIds = new Set<string>();
-    try {
-      const rv = new RunView();
-      const result = await rv.RunView({
-        EntityName: 'MJ_BizApps_SecureMessaging: Secure Threads',
-        ExtraFilter: `Status = 'Archived'`,
-        MaxRows: 1000,
-        ResultType: 'simple',
-      });
-      if (result.Success && result.Results) {
-        for (const r of result.Results) {
-          const tid = (r as Record<string, unknown>)['ID'] as string;
-          if (tid) this.archivedThreadIds.add(tid);
-        }
-      }
-    } catch (e) {
-      console.error('Failed to load archived threads', e);
-    }
-  }
-
-  /** Load the set of thread IDs whose conversation is soft-deleted (drives the Trash nav + filtering). */
-  private async loadDeletedThreads(): Promise<void> {
-    this.deletedThreadIds = new Set<string>();
-    try {
-      const rv = new RunView();
-      const result = await rv.RunView({
-        EntityName: 'MJ_BizApps_SecureMessaging: Secure Threads',
-        ExtraFilter: 'IsDeleted = 1',
-        MaxRows: 1000,
-        ResultType: 'simple',
-      });
-      if (result.Success && result.Results) {
-        for (const r of result.Results) {
-          const tid = (r as Record<string, unknown>)['ID'] as string;
-          if (tid) this.deletedThreadIds.add(tid);
-        }
-      }
-    } catch (e) {
-      console.error('Failed to load deleted threads', e);
     }
   }
 
@@ -2539,16 +2542,17 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
   /** Load the newest message for a single thread (for threads not in the main IsSecure list). */
   private async loadSingleThreadMessage(threadId: string): Promise<SecureMessageItem | null> {
     try {
-      const rv = new RunView();
-      const result = await rv.RunView({
+      const rv = RunView.FromMetadataProvider(this.ProviderToUse);
+      const result = await rv.RunView<CachedSecureMessageRow>({
         EntityName: 'MJ_BizApps_SecureMessaging: Secure Messages',
         ExtraFilter: `ThreadID = '${threadId.replace(/'/g, "''")}'`,
+        Fields: SECURE_MESSAGE_LIST_FIELDS,
         OrderBy: 'ReceivedAt DESC',
         MaxRows: 1,
         ResultType: 'simple',
       });
       if (result.Success && result.Results && result.Results.length > 0) {
-        return this.mapToMessageItem(result.Results[0] as Record<string, unknown>);
+        return this.mapRowToMessageItem(result.Results[0]);
       }
     } catch (e) {
       console.error('Failed to load single thread message', e);
@@ -2558,31 +2562,40 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
 
   /**
    * Resolves friendly person names from the BizAppsCommon People entity for messages
-   * that carry a PersonID. Best-effort — falls back to the sender email on failure.
+   * that carry a PersonID (RLS-safe two-step entity read with chunked ID IN clauses).
+   * Best-effort — falls back to the sender email on failure.
    */
   private async resolvePersonNames(): Promise<void> {
     const personIds = [...new Set(this.messages.map(m => m.personId).filter((id): id is string => !!id))];
     if (personIds.length === 0) return;
 
     try {
-      const rv = new RunView();
-      const result = await rv.RunView<mjBizAppsCommonPersonEntity>({
-        EntityName: 'MJ_BizApps_Common: People',
-        ExtraFilter: `ID IN (${this.inList(personIds)})`,
-        ResultType: 'simple',
-      });
-      if (result.Success && result.Results) {
-        const nameById = new Map<string, string>();
-        for (const p of result.Results) {
+      const rv = RunView.FromMetadataProvider(this.ProviderToUse);
+      const chunks: string[][] = [];
+      for (let i = 0; i < personIds.length; i += PERSON_IN_CLAUSE_CHUNK_SIZE) {
+        chunks.push(personIds.slice(i, i + PERSON_IN_CLAUSE_CHUNK_SIZE));
+      }
+      const batchResults = await rv.RunViews(
+        chunks.map(chunk => ({
+          EntityName: 'MJ_BizApps_Common: People',
+          ExtraFilter: `ID IN (${this.inList(chunk)})`,
+          Fields: ['ID', 'DisplayName', 'FirstName', 'LastName', 'Email'],
+          ResultType: 'simple' as const,
+        }))
+      );
+      const nameById = new Map<string, string>();
+      for (const result of batchResults) {
+        if (!result.Success || !result.Results) continue;
+        for (const p of result.Results as PersonNameRow[]) {
           const display = p.DisplayName
             || [p.FirstName, p.LastName].filter(Boolean).join(' ').trim()
             || (p.Email ?? '');
           if (display) nameById.set(p.ID, display);
         }
-        for (const m of this.messages) {
-          if (m.personId && nameById.has(m.personId)) {
-            m.senderName = nameById.get(m.personId)!;
-          }
+      }
+      for (const m of this.messages) {
+        if (m.personId && nameById.has(m.personId)) {
+          m.senderName = nameById.get(m.personId)!;
         }
       }
     } catch (e) {
@@ -2610,27 +2623,27 @@ export class SecureMessagingExecutiveComponent implements OnInit, OnChanges {
     return m.personId || m.senderEmail || 'unknown';
   }
 
-  private mapToMessageItem(r: Record<string, unknown>): SecureMessageItem {
-    const content = (r['Content'] as string) ?? '';
-    const personId = (r['PersonID'] as string) || undefined;
-    const status = (r['Status'] as string) ?? '';
-    const direction = (r['Direction'] as string) ?? 'Inbound';
+  private mapRowToMessageItem(r: CachedSecureMessageRow): SecureMessageItem {
+    const content = r.Content ?? '';
+    const personId = r.PersonID || undefined;
+    const status = r.Status ?? '';
+    const direction = r.Direction ?? 'Inbound';
     return {
-      id: r['ID'] as string,
-      senderName: (r['Sender'] as string) ?? 'Unknown',
-      senderEmail: (r['Sender'] as string) ?? '',
+      id: r.ID,
+      senderName: r.Sender ?? 'Unknown',
+      senderEmail: r.Sender ?? '',
       personId,
-      subject: (r['Subject'] as string) ?? '(no subject)',
+      subject: r.Subject ?? '(no subject)',
       preview: content.replace(/<[^>]*>/g, '').substring(0, 120),
       bodyText: content,
-      receivedAt: new Date(r['ReceivedAt'] as string),
+      receivedAt: r.ReceivedAt instanceof Date ? r.ReceivedAt : new Date(r.ReceivedAt),
       isRead: status === 'Read' || status === 'Replied' || direction === 'Outbound',
-      isStarred: !!(r['IsStarred']),
-      isSecure: !!(r['IsSecure']),
+      isStarred: Boolean(r.IsStarred),
+      isSecure: Boolean(r.IsSecure),
       statusBadge: this.resolveStatusBadge(status, direction),
       attachmentCount: 0,
       attachments: [],
-      threadId: r['ThreadID'] as string,
+      threadId: r.ThreadID,
       direction: direction === 'Outbound' ? 'Outbound' : 'Inbound',
     };
   }

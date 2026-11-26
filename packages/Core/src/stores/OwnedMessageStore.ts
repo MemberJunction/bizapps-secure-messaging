@@ -15,6 +15,15 @@ import {
     notifyMessage,
 } from './MessageStore.js';
 
+interface SecureMessageListRow {
+    ID: string;
+    Sender: string;
+    Recipient: string;
+    Subject: string | null;
+    Content: string;
+    ReceivedAt: string;
+}
+
 /**
  * Default, self-contained message store. Reads and writes the __mj_BizAppsSecureMessaging.SecureMessage
  * table only — no dependency on any external app entity, so the app runs in any MJ instance.
@@ -26,23 +35,25 @@ export class OwnedMessageStore implements MessageStore {
         systemUser: UserInfo
     ): Promise<SecureMessageView[]> {
         const rv = new RunView();
-        const result = await rv.RunView({
+        const result = await rv.RunView<SecureMessageListRow>({
             EntityName: 'MJ_BizApps_SecureMessaging: Secure Messages',
             ExtraFilter: `ThreadID = '${threadId.replace(/'/g, "''")}'`,
+            Fields: ['ID', 'Sender', 'Recipient', 'Subject', 'Content', 'ReceivedAt'],
             OrderBy: 'ReceivedAt ASC',
+            ResultType: 'simple',
         }, systemUser);
 
         if (!result.Success) {
             throw new Error(result.ErrorMessage || 'Failed to load messages');
         }
 
-        return (result.Results as Record<string, unknown>[]).map(msg => ({
-            id: msg.ID as string,
-            sender: msg.Sender as string,
-            recipient: msg.Recipient as string,
-            subject: msg.Subject as string | undefined,
-            content: msg.Content as string,
-            receivedAt: msg.ReceivedAt as string,
+        return result.Results.map(msg => ({
+            id: msg.ID,
+            sender: msg.Sender,
+            recipient: msg.Recipient,
+            subject: msg.Subject ?? undefined,
+            content: msg.Content,
+            receivedAt: msg.ReceivedAt,
         }));
     }
 
@@ -97,12 +108,12 @@ export class OwnedMessageStore implements MessageStore {
         const md = new Metadata();
 
         // In v2 the thread is the unit of conversation and owns the contact. Resolve the thread to
-        // its contact, then the contact's (per-contact) portal session — the message records that
-        // session for audit and the contact's email as the recipient.
+        // its contact, then batch-resolve the contact's email and active portal session in one
+        // RunViews call — the message records that session for audit and the email as recipient.
         const thread = await this.loadThread(threadId, systemUser);
         const contactId = thread.ContactID;
-        const recipientEmail = await PortalAuthService.Instance.getContactEmail(contactId, systemUser);
-        const { sessionId } = await PortalAuthService.Instance.ensureSessionForContact(contactId, systemUser);
+        const { contactEmail: recipientEmail, sessionId } =
+            await PortalAuthService.Instance.resolveContactEmailAndSession(contactId, systemUser);
 
         const entity = await md.GetEntityObject<mjBizAppsSecureMessagingSecureMessageEntity>(
             'MJ_BizApps_SecureMessaging: Secure Messages',

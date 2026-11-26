@@ -5,15 +5,37 @@ import type {
     MJArtifactVersionEntity,
     MJFileEntity,
 } from '@memberjunction/core-entities';
+import {
+    mjBizAppsSecureMessagingMessageFileEntity,
+    SecureMessagingEngineBase,
+} from '@mj-biz-apps/secure-messaging-entities';
 
 /** Maximum upload size, mirroring the cap MJ's attachment pipeline uses. */
 export const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
-/** A generic Artifact Type name to fall back to when no MIME-specific type matches. */
-const FALLBACK_ARTIFACT_TYPE_NAME = 'Document';
-
 /** Canonical UUID shape (8-4-4-4-12 hex). */
 const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+interface MessageFileRow {
+    ID: string;
+    ArtifactID: string | null;
+    FileID: string | null;
+    Filename: string;
+    ContentType: string | null;
+    Size: number | null;
+}
+
+interface ArtifactVersionRow {
+    ID: string;
+    FileID: string | null;
+    FileName: string | null;
+    MimeType: string | null;
+}
+
+interface MessageFileLinkRow {
+    ID: string;
+    FileID: string | null;
+}
 
 /**
  * Asserts that a caller-supplied ID is a well-formed UUID before it is interpolated into a SQL
@@ -75,33 +97,14 @@ export interface StoredFile {
  * Requires a FileStorageAccount to be configured in the host instance.
  */
 export class ArtifactFileStore {
-    /** Resolves the Artifact Type ID best matching a MIME type, with a generic fallback. */
+    /** Resolves the Artifact Type ID best matching a MIME type via SecureMessagingEngineBase cache. */
     private async resolveArtifactTypeId(contentType: string, systemUser: UserInfo): Promise<string> {
-        const rv = new RunView();
-        const result = await rv.RunView<{ ID: string; ContentType: string; Priority: number }>({
-            EntityName: 'MJ: Artifact Types',
-            ExtraFilter: 'IsEnabled = 1',
-            OrderBy: 'Priority DESC',
-        }, systemUser);
-
-        if (!result.Success || result.Results.length === 0) {
+        await SecureMessagingEngineBase.Instance.Config(false, systemUser);
+        const typeId = SecureMessagingEngineBase.Instance.ResolveArtifactTypeId(contentType);
+        if (!typeId) {
             throw new Error('No enabled MJ Artifact Types are configured');
         }
-
-        const types = result.Results;
-        const ct = contentType.toLowerCase();
-        // Exact match first, then wildcard (e.g. 'image/*'), highest Priority wins (already ordered).
-        const exact = types.find(t => (t.ContentType || '').toLowerCase() === ct);
-        if (exact) return exact.ID;
-        const wildcard = types.find(t => {
-            const pat = (t.ContentType || '').toLowerCase();
-            return pat.endsWith('/*') && ct.startsWith(pat.slice(0, -1));
-        });
-        if (wildcard) return wildcard.ID;
-        const fallback = types.find(t => t.ContentType?.toLowerCase() === FALLBACK_ARTIFACT_TYPE_NAME.toLowerCase())
-            || types.find(t => (t as unknown as { Name: string }).Name === FALLBACK_ARTIFACT_TYPE_NAME);
-        // Last resort: the highest-priority enabled type.
-        return (fallback?.ID) || types[0].ID;
+        return typeId;
     }
 
     /** Stores a file and links it to a secure message. */
@@ -160,22 +163,25 @@ export class ArtifactFileStore {
         }
 
         // 3. __mj_BizAppsSecureMessaging.MessageFile link
-        const link = await md.GetEntityObject('MJ_BizApps_SecureMessaging: Message Files', systemUser);
+        const link = await md.GetEntityObject<mjBizAppsSecureMessagingMessageFileEntity>(
+            'MJ_BizApps_SecureMessaging: Message Files',
+            systemUser
+        );
         link.NewRecord();
-        if (ctx.secureMessageId) link.Set('SecureMessageID', ctx.secureMessageId);
-        if (ctx.externalMessageId) link.Set('ExternalMessageID', ctx.externalMessageId);
-        link.Set('ThreadID', ctx.threadId);
-        link.Set('ArtifactID', artifact.ID);
-        link.Set('FileID', upload.FileID);
-        link.Set('Filename', filename);
-        link.Set('ContentType', input.contentType);
-        link.Set('Size', input.bytes.length);
+        if (ctx.secureMessageId) link.SecureMessageID = ctx.secureMessageId;
+        if (ctx.externalMessageId) link.ExternalMessageID = ctx.externalMessageId;
+        link.ThreadID = ctx.threadId;
+        link.ArtifactID = artifact.ID;
+        link.FileID = upload.FileID;
+        link.Filename = filename;
+        link.ContentType = input.contentType;
+        link.Size = input.bytes.length;
         if (!(await link.Save())) {
             throw new Error(link.LatestResult?.CompleteMessage || 'Failed to link file to message');
         }
 
         return {
-            messageFileId: link.Get('ID') as string,
+            messageFileId: link.ID,
             artifactId: artifact.ID,
             fileId: upload.FileID,
             filename,
@@ -187,22 +193,24 @@ export class ArtifactFileStore {
     /** Lists files attached to a thread. */
     async listThreadFiles(threadId: string, systemUser: UserInfo): Promise<StoredFile[]> {
         const rv = new RunView();
-        const result = await rv.RunView({
+        const result = await rv.RunView<MessageFileRow>({
             EntityName: 'MJ_BizApps_SecureMessaging: Message Files',
             ExtraFilter: `ThreadID = '${threadId.replace(/'/g, "''")}'`,
+            Fields: ['ID', 'ArtifactID', 'FileID', 'Filename', 'ContentType', 'Size'],
             OrderBy: '__mj_CreatedAt ASC',
+            ResultType: 'simple',
         }, systemUser);
 
         if (!result.Success) {
             throw new Error(result.ErrorMessage || 'Failed to load files');
         }
 
-        return (result.Results as Record<string, unknown>[]).map(r => ({
-            messageFileId: r.ID as string,
-            artifactId: r.ArtifactID as string,
-            fileId: r.FileID as string,
-            filename: r.Filename as string,
-            contentType: r.ContentType as string,
+        return result.Results.map(r => ({
+            messageFileId: r.ID,
+            artifactId: r.ArtifactID ?? '',
+            fileId: r.FileID ?? '',
+            filename: r.Filename,
+            contentType: r.ContentType ?? '',
             size: Number(r.Size ?? 0),
         }));
     }
@@ -216,18 +224,20 @@ export class ArtifactFileStore {
         systemUser: UserInfo
     ): Promise<{ bytes: Buffer; filename: string; contentType: string }> {
         const rv = new RunView();
-        const versionResult = await rv.RunView({
+        const versionResult = await rv.RunView<ArtifactVersionRow>({
             EntityName: 'MJ: Artifact Versions',
             ExtraFilter: `ArtifactID = '${assertUuid(artifactId, 'artifactId')}'`,
+            Fields: ['ID', 'FileID', 'FileName', 'MimeType'],
             OrderBy: 'VersionNumber DESC',
             MaxRows: 1,
+            ResultType: 'simple',
         }, systemUser);
 
         if (!versionResult.Success || versionResult.Results.length === 0) {
             throw new Error('Artifact has no versions');
         }
-        const version = versionResult.Results[0] as Record<string, unknown>;
-        const fileId = version.FileID as string | null;
+        const version = versionResult.Results[0];
+        const fileId = version.FileID;
         if (!fileId) {
             throw new Error('Artifact version is not stored as a file (ContentMode is not File)');
         }
@@ -249,8 +259,8 @@ export class ArtifactFileStore {
 
         return {
             bytes,
-            filename: (version.FileName as string) || file.Name,
-            contentType: (version.MimeType as string) || file.ContentType || 'application/octet-stream',
+            filename: version.FileName || file.Name,
+            contentType: version.MimeType || file.ContentType || 'application/octet-stream',
         };
     }
 
@@ -260,15 +270,21 @@ export class ArtifactFileStore {
      */
     async getDownloadUrl(messageFileId: string, threadId: string, systemUser: UserInfo): Promise<string> {
         const rv = new RunView();
-        const linkResult = await rv.RunView({
+        const linkResult = await rv.RunView<MessageFileLinkRow>({
             EntityName: 'MJ_BizApps_SecureMessaging: Message Files',
             ExtraFilter: `ID = '${assertUuid(messageFileId, 'messageFileId')}' AND ThreadID = '${threadId.replace(/'/g, "''")}'`,
+            Fields: ['ID', 'FileID'],
+            MaxRows: 1,
+            ResultType: 'simple',
         }, systemUser);
 
         if (!linkResult.Success || linkResult.Results.length === 0) {
             throw new Error('File not found in this thread');
         }
-        const fileId = (linkResult.Results[0] as Record<string, unknown>).FileID as string;
+        const fileId = linkResult.Results[0].FileID;
+        if (!fileId) {
+            throw new Error('Underlying file record not found');
+        }
 
         const md = new Metadata();
         const file = await md.GetEntityObject<MJFileEntity>('MJ: Files', systemUser);

@@ -195,6 +195,62 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
             }
         }
 
+        return this.mintSessionForContact(contactId, systemUser);
+    }
+
+    /**
+     * Batch-resolves a contact's email AND ensures they have an Active portal session in a single
+     * `rv.RunViews([...])` round-trip (eliminating the sequential `getContactEmail` +
+     * `ensureSessionForContact` waterfall on outbound sends).
+     */
+    async resolveContactEmailAndSession(
+        contactId: string,
+        systemUser: UserInfo
+    ): Promise<{ contactEmail: string; sessionId: string; rawToken?: string }> {
+        const escapedContactId = contactId.replace(/'/g, "''");
+        const rv = new RunView();
+        const [contactRes, sessionRes] = await rv.RunViews([
+            {
+                EntityName: PortalAuthService.contactEntityName,
+                ExtraFilter: `ID = '${escapedContactId}'`,
+                Fields: ['ID', PortalAuthService.contactEmailField],
+                MaxRows: 1,
+                ResultType: 'simple',
+            },
+            {
+                EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
+                ExtraFilter: `ContactID = '${escapedContactId}' AND Status = 'Active'`,
+                OrderBy: 'LastAccessedAt DESC',
+                MaxRows: 1,
+                ResultType: 'entity_object',
+            },
+        ], systemUser);
+
+        let contactEmail = '';
+        if (contactRes?.Success && contactRes.Results.length > 0) {
+            const contact = contactRes.Results[0] as Record<string, string | null | undefined>;
+            contactEmail = contact[PortalAuthService.contactEmailField] || '';
+        }
+
+        if (sessionRes?.Success && sessionRes.Results.length > 0) {
+            const current = sessionRes.Results[0] as mjBizAppsSecureMessagingPortalSessionEntity;
+            if (new Date() > this.sessionAbsoluteCap(current)) {
+                current.Status = 'Expired';
+                await current.Save();
+            } else {
+                return { contactEmail, sessionId: current.ID };
+            }
+        }
+
+        const minted = await this.mintSessionForContact(contactId, systemUser);
+        return { contactEmail, ...minted };
+    }
+
+    /** Mints and persists a brand-new Active portal session for a contact. */
+    private async mintSessionForContact(
+        contactId: string,
+        systemUser: UserInfo
+    ): Promise<{ sessionId: string; rawToken: string }> {
         const rawToken = generateToken(SESSION_TOKEN_PREFIX);
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + DEFAULT_SESSION_TTL_DAYS);
@@ -260,6 +316,7 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
         const result = await rv.RunView<mjBizAppsSecureMessagingPortalSessionEntity>({
             EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
             ExtraFilter: `TokenHash = '${tokenHash}' AND Status = 'Active' AND ExpiresAt > SYSDATETIMEOFFSET()`,
+            MaxRows: 1,
             ResultType: 'entity_object',
         }, systemUser);
 
@@ -307,6 +364,7 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
         const sessionResult = await rv.RunView<mjBizAppsSecureMessagingPortalSessionEntity>({
             EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
             ExtraFilter: `ID = '${sessionId.replace(/'/g, "''")}' AND Status = 'Active' AND ExpiresAt > SYSDATETIMEOFFSET()`,
+            MaxRows: 1,
             ResultType: 'entity_object',
         }, systemUser);
 
@@ -394,13 +452,15 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
     private async findOrCreatePerson(email: string, name: string | undefined, systemUser: UserInfo): Promise<string> {
         const trimmed = email.trim();
         const rv = new RunView();
-        const found = await rv.RunView({
+        const found = await rv.RunView<{ ID: string }>({
             EntityName: PortalAuthService.contactEntityName,
             ExtraFilter: `${PortalAuthService.contactEmailField} = '${trimmed.replace(/'/g, "''")}'`,
+            Fields: ['ID'],
             MaxRows: 1,
+            ResultType: 'simple',
         }, systemUser);
         if (found.Success && found.Results.length > 0) {
-            return (found.Results[0] as Record<string, string>).ID;
+            return found.Results[0].ID;
         }
 
         // Create a minimal Person. Split a provided display name into first/last; fall back to
@@ -438,6 +498,7 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
         const result = await rv.RunView<mjBizAppsSecureMessagingPortalMagicLinkEntity>({
             EntityName: 'MJ_BizApps_SecureMessaging: Portal Magic Links',
             ExtraFilter: `TokenHash = '${tokenHash}' AND Status = 'Pending' AND ExpiresAt > SYSDATETIMEOFFSET()`,
+            MaxRows: 1,
             ResultType: 'entity_object',
         }, systemUser);
 
@@ -581,13 +642,16 @@ export class PortalAuthService extends BaseSingleton<PortalAuthService> {
     /** Resolve a contact's email from the configured People entity. Public — reused by stores. */
     public async getContactEmail(contactId: string, systemUser: UserInfo): Promise<string> {
         const rv = new RunView();
-        const result = await rv.RunView({
+        const result = await rv.RunView<Record<string, string | null | undefined>>({
             EntityName: PortalAuthService.contactEntityName,
             ExtraFilter: `ID = '${contactId.replace(/'/g, "''")}'`,
+            Fields: ['ID', PortalAuthService.contactEmailField],
+            MaxRows: 1,
+            ResultType: 'simple',
         }, systemUser);
 
         if (result.Success && result.Results.length > 0) {
-            const contact = result.Results[0] as Record<string, string>;
+            const contact = result.Results[0];
             return contact[PortalAuthService.contactEmailField] || '';
         }
         return '';

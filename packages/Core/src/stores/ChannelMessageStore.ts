@@ -11,6 +11,27 @@ import {
     notifyMessage,
 } from './MessageStore.js';
 
+interface ChannelMessageRow {
+    ID: string;
+    Sender: string;
+    Recipient: string;
+    Subject?: string | null;
+    MessageContent: string;
+    ReceivedAt: string;
+    ApprovedReplyContent?: string | null;
+    SentContent?: string | null;
+    SentAt?: string | null;
+    ParentID?: string | null;
+    MessageFormat?: string | null;
+}
+
+interface ChannelMessageContextRow {
+    ID: string;
+    ChannelID: string;
+    Sender: string;
+    PersonID: string | null;
+}
+
 /**
  * Optional adapter that bridges secure messages to the 'Channel Messages' entity (provided
  * by Izzy / the MJ communication platform). Enabling this backend makes secure web messages
@@ -26,30 +47,44 @@ export class ChannelMessageStore implements MessageStore {
         systemUser: UserInfo
     ): Promise<SecureMessageView[]> {
         const rv = new RunView();
-        const result = await rv.RunView({
+        const result = await rv.RunView<ChannelMessageRow>({
             EntityName: 'Channel Messages',
             ExtraFilter: `ThreadID = '${threadId.replace(/'/g, "''")}'`,
+            Fields: [
+                'ID',
+                'Sender',
+                'Recipient',
+                'Subject',
+                'MessageContent',
+                'ReceivedAt',
+                'ApprovedReplyContent',
+                'SentContent',
+                'SentAt',
+                'ParentID',
+                'MessageFormat',
+            ],
             OrderBy: 'ReceivedAt ASC',
+            ResultType: 'simple',
         }, systemUser);
 
         if (!result.Success) {
             throw new Error(result.ErrorMessage || 'Failed to load messages');
         }
 
-        return (result.Results as Record<string, unknown>[]).map(msg => ({
-            id: msg.ID as string,
-            sender: msg.Sender as string,
-            recipient: msg.Recipient as string,
-            subject: msg.Subject as string | undefined,
-            content: msg.MessageContent as string,
-            receivedAt: msg.ReceivedAt as string,
+        return result.Results.map(msg => ({
+            id: msg.ID,
+            sender: msg.Sender,
+            recipient: msg.Recipient,
+            subject: msg.Subject ?? undefined,
+            content: msg.MessageContent,
+            receivedAt: msg.ReceivedAt,
             // Contact-safe pipeline output only: the unapproved AI draft (GeneratedReplyContent)
             // and the Generation/Approval status columns are internal and never leave the server.
-            approvedReply: msg.ApprovedReplyContent as string | undefined,
-            sentContent: msg.SentContent as string | undefined,
-            sentAt: msg.SentAt as string | undefined,
-            parentId: msg.ParentID as string | undefined,
-            messageFormat: msg.MessageFormat as string | undefined,
+            approvedReply: msg.ApprovedReplyContent ?? undefined,
+            sentContent: msg.SentContent ?? undefined,
+            sentAt: msg.SentAt ?? undefined,
+            parentId: msg.ParentID ?? undefined,
+            messageFormat: msg.MessageFormat ?? undefined,
         }));
     }
 
@@ -96,13 +131,15 @@ export class ChannelMessageStore implements MessageStore {
     ): Promise<CreateMessageResult> {
         // Resolve the thread's channel + contact from its newest ChannelMessage.
         const rv = new RunView();
-        const ctx = await rv.RunView({
+        const ctx = await rv.RunView<ChannelMessageContextRow>({
             EntityName: 'Channel Messages',
             ExtraFilter: `ThreadID = '${threadId.replace(/'/g, "''")}'`,
+            Fields: ['ID', 'ChannelID', 'Sender', 'PersonID'],
             OrderBy: 'ReceivedAt DESC',
             MaxRows: 1,
+            ResultType: 'simple',
         }, systemUser);
-        const ref = ctx.Success ? (ctx.Results?.[0] as Record<string, unknown> | undefined) : undefined;
+        const ref = ctx.Success ? ctx.Results?.[0] : undefined;
         if (!ref) {
             throw new Error(`No channel message found for thread ${threadId}`);
         }

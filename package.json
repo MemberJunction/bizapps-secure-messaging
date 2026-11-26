@@ -12,6 +12,7 @@
     "build:stream": "turbo --log-order=stream build --filter=\"@mj-biz-apps/*\"",
     "build:generated": "turbo --log-order=stream build --filter=\"@mj-biz-apps/secure-messaging-entities\" --filter=\"@mj-biz-apps/secure-messaging-actions\"",
     "build:packages": "turbo --log-order=stream build --filter=\"@mj-biz-apps/secure-messaging-*\"",
+    "test": "turbo --log-order=stream test --filter=\"@mj-biz-apps/secure-messaging-*\"",
     "mj": "mj",
     "mj:migrate": "mj migrate",
     "mj:codegen": "mj codegen",

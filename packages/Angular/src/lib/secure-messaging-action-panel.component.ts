@@ -1,6 +1,10 @@
 import { Component, EventEmitter, Input, OnInit, Output, ChangeDetectorRef } from '@angular/core';
-import { Metadata, RunView } from '@memberjunction/core';
+import { IMetadataProvider, Metadata, RunView } from '@memberjunction/core';
 import { GraphQLDataProvider, GraphQLActionClient } from '@memberjunction/graphql-dataprovider';
+import {
+  mjBizAppsSecureMessagingFileRequestEntity,
+  SecureMessagingEngineBase,
+} from '@mj-biz-apps/secure-messaging-entities';
 import { PlacedField } from './secure-messaging-field-placer.component';
 
 /**
@@ -258,6 +262,13 @@ export class SecureMessagingActionPanelComponent implements OnInit {
   @Input() contactEmail = '';
   /** The contact's display name — shown as the signer's name in the signing ceremony/emails. */
   @Input() contactName = '';
+  /** Optional metadata provider override for multi-provider Angular hosts. */
+  @Input() Provider: IMetadataProvider | null = null;
+
+  /** Active metadata provider (explicit `@Input() Provider` or default global provider). */
+  public get ProviderToUse(): IMetadataProvider {
+    return this.Provider ?? Metadata.Provider;
+  }
 
   /** Emitted after a successful create/send. */
   @Output() done = new EventEmitter<void>();
@@ -311,14 +322,15 @@ export class SecureMessagingActionPanelComponent implements OnInit {
       }
 
       if (this.mode === 'request') {
-        const md = new Metadata();
-        const entity = await md.GetEntityObject('MJ_BizApps_SecureMessaging: File Requests');
+        const entity = await this.ProviderToUse.GetEntityObject<mjBizAppsSecureMessagingFileRequestEntity>(
+          'MJ_BizApps_SecureMessaging: File Requests'
+        );
         entity.NewRecord();
-        entity.Set('PortalSessionID', sessionId);
-        entity.Set('ThreadID', this.threadId);
-        entity.Set('Title', title);
-        entity.Set('Status', 'Pending');
-        if (this.instructions.trim()) entity.Set('Instructions', this.instructions.trim());
+        entity.PortalSessionID = sessionId;
+        entity.ThreadID = this.threadId;
+        entity.Title = title;
+        entity.Status = 'Pending';
+        if (this.instructions.trim()) entity.Instructions = this.instructions.trim();
         if (!(await entity.Save())) {
           this.error = entity.LatestResult?.Message || 'Failed to create file request.';
           return;
@@ -336,7 +348,7 @@ export class SecureMessagingActionPanelComponent implements OnInit {
           this.error = 'The signature action is not available in this environment.';
           return;
         }
-        const portalSessionsEntityId = new Metadata().Entities.find(
+        const portalSessionsEntityId = this.ProviderToUse.Entities.find(
           e => e.Name === 'MJ_BizApps_SecureMessaging: Portal Sessions'
         )?.ID;
 
@@ -358,7 +370,7 @@ export class SecureMessagingActionPanelComponent implements OnInit {
           }));
         }
 
-        const client = new GraphQLActionClient(Metadata.Provider as unknown as GraphQLDataProvider);
+        const client = new GraphQLActionClient(this.ProviderToUse as GraphQLDataProvider);
         const result = await client.RunAction(actionId, [
           { Name: 'SignatureAccountID', Value: this.selectedAccountId, Type: 'Input' },
           { Name: 'Title', Value: title, Type: 'Input' },
@@ -375,6 +387,7 @@ export class SecureMessagingActionPanelComponent implements OnInit {
           return;
         }
       }
+      SecureMessagingEngineBase.Instance.InvalidateThread(this.threadId);
       // Show a brief confirmation before the host closes the panel, so success is never ambiguous.
       this.success = this.mode === 'request' ? 'File request sent to the contact.' : 'Document sent for signature.';
       this.submitting = false;
@@ -390,21 +403,11 @@ export class SecureMessagingActionPanelComponent implements OnInit {
     }
   }
 
-  /** Load active signature accounts (provider + credentials) for the account picker. */
+  /** Load active signature accounts via SecureMessagingEngineBase (cached, CacheLocal: false). */
   private async loadSignatureAccounts(): Promise<void> {
     try {
-      const rv = new RunView();
-      const res = await rv.RunView({
-        EntityName: 'MJ: Signature Accounts',
-        ExtraFilter: 'IsActive = 1',
-        OrderBy: 'IsDefault DESC, Name ASC',
-        ResultType: 'simple',
-      });
-      if (!res.Success) return;
-      this.signatureAccounts = (res.Results as Record<string, unknown>[]).map(r => ({
-        id: String(r['ID']),
-        label: `${r['Name']}${r['SignatureProvider'] ? ' (' + r['SignatureProvider'] + ')' : ''}`,
-      }));
+      await SecureMessagingEngineBase.Instance.Config(false, undefined, this.ProviderToUse);
+      this.signatureAccounts = SecureMessagingEngineBase.Instance.GetActiveSignatureAccountOptions();
       this.selectedAccountId = this.signatureAccounts[0]?.id ?? '';
       this.cdr.detectChanges();
     } catch (e) {
@@ -459,17 +462,9 @@ export class SecureMessagingActionPanelComponent implements OnInit {
     this.cdr.detectChanges();
   }
 
-  /** Resolve an Action's ID by name (RunView on MJ: Actions). */
+  /** Resolve an Action's ID by name via SecureMessagingEngineBase's cached action lookup. */
   private async resolveActionId(name: string): Promise<string | null> {
-    const rv = new RunView();
-    const res = await rv.RunView({
-      EntityName: 'MJ: Actions',
-      ExtraFilter: `Name = '${name.replace(/'/g, "''")}'`,
-      MaxRows: 1,
-      ResultType: 'simple',
-    });
-    if (!res.Success || res.Results.length === 0) return null;
-    return String((res.Results as Record<string, unknown>[])[0].ID);
+    return SecureMessagingEngineBase.Instance.ResolveActionId(name, undefined, this.ProviderToUse);
   }
 
   /**
@@ -477,27 +472,27 @@ export class SecureMessagingActionPanelComponent implements OnInit {
    * so resolve the thread's contact first, then that contact's newest active session.
    */
   private async resolvePortalSessionId(threadId: string): Promise<string | null> {
-    const rv = new RunView();
-    const threadRes = await rv.RunView({
+    const rv = RunView.FromMetadataProvider(this.ProviderToUse);
+    const threadRes = await rv.RunView<{ ID: string; ContactID: string }>({
       EntityName: 'MJ_BizApps_SecureMessaging: Secure Threads',
       ExtraFilter: `ID = '${threadId.replace(/'/g, "''")}'`,
       Fields: ['ID', 'ContactID'],
       MaxRows: 1,
       ResultType: 'simple',
     });
-    const thread = threadRes.Success ? (threadRes.Results?.[0] as Record<string, unknown> | undefined) : undefined;
-    if (!thread) return null;
-    const contactId = String(thread['ContactID']);
+    const thread = threadRes.Success ? threadRes.Results?.[0] : undefined;
+    if (!thread?.ContactID) return null;
 
-    const sessRes = await rv.RunView({
+    const sessRes = await rv.RunView<{ ID: string }>({
       EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
-      ExtraFilter: `ContactID = '${contactId.replace(/'/g, "''")}' AND Status = 'Active'`,
+      ExtraFilter: `ContactID = '${thread.ContactID.replace(/'/g, "''")}' AND Status = 'Active'`,
+      Fields: ['ID'],
       OrderBy: 'LastAccessedAt DESC',
       MaxRows: 1,
       ResultType: 'simple',
     });
     if (sessRes.Success && sessRes.Results && sessRes.Results.length > 0) {
-      return (sessRes.Results[0] as Record<string, unknown>)['ID'] as string;
+      return sessRes.Results[0].ID;
     }
     return null;
   }
