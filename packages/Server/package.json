@@ -13,7 +13,8 @@
   ],
   "scripts": {
     "prebuild": "mj codegen manifest --exclude-packages @memberjunction --no-sync-deps --scan-dist --output ./src/generated/class-registrations-manifest.ts || echo 'Warning: mj codegen manifest not available, using existing manifest'",
-    "build": "tsc && tsc-alias -f"
+    "build": "tsc && tsc-alias -f",
+    "test": "DB_HOST=localhost DB_DATABASE=test DB_USERNAME=test DB_PASSWORD=test node --test src/__tests__/*.test.mjs"
   },
   "author": "MemberJunction.com",
   "license": "MIT",

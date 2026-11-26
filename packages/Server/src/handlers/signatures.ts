@@ -63,39 +63,6 @@ interface ContactNameFields {
     LastName?: string | null;
 }
 
-/**
- * Resolve a human display name for the contact behind a portal session, for use as the signer's
- * name (so the provider shows a real name in the signing ceremony + emails rather than the raw
- * email). Read via RunView (no cross-package entity dependency needed here); best-effort — returns
- * undefined if the person can't be loaded, in which case the provider falls back to the email.
- */
-async function resolveContactName(contactId: string, contextUser: UserInfo): Promise<string | undefined> {
-    if (!contactId) {
-        return undefined;
-    }
-    try {
-        const rv = new RunView();
-        const result = await rv.RunView<ContactNameFields>(
-            {
-                EntityName: 'MJ_BizApps_Common: People',
-                ExtraFilter: `ID = '${contactId.replace(/'/g, "''")}'`,
-                Fields: ['DisplayName', 'FirstName', 'LastName'],
-                MaxRows: 1,
-                ResultType: 'simple',
-            },
-            contextUser,
-        );
-        const p = result.Success ? result.Results[0] : undefined;
-        if (!p) {
-            return undefined;
-        }
-        const name = p.DisplayName || [p.FirstName, p.LastName].filter(Boolean).join(' ').trim();
-        return name || undefined;
-    } catch {
-        return undefined;
-    }
-}
-
 /** Map a normalized MJ envelope status onto the label the portal UI displays. */
 function toDisplayStatus(status: string | null | undefined): string {
     switch (status) {
@@ -116,6 +83,17 @@ function toDisplayStatus(status: string | null | undefined): string {
     }
 }
 
+/** Projected shape for `MJ: Signature Requests` list queries (`ResultType: 'simple'`). */
+interface SignatureRequestRow {
+    ID: string;
+    Name: string;
+    Status: string | null;
+    ExternalEnvelopeID: string | null;
+    SentAt: string | Date | null;
+    CompletedAt: string | Date | null;
+    __mj_CreatedAt: string | Date;
+}
+
 /**
  * GET /threads/:threadId/signature-requests
  *
@@ -129,10 +107,12 @@ export async function getSignatureRequests(req: Request, res: Response): Promise
     try {
         const entityId = getSecureThreadsEntityId();
         const rv = new RunView();
-        const result = await rv.RunView({
+        const result = await rv.RunView<SignatureRequestRow>({
             EntityName: 'MJ: Signature Requests',
             ExtraFilter: `EntityID = '${entityId}' AND RecordID = '${threadId.replace(/'/g, "''")}'`,
+            Fields: ['ID', 'Name', 'Status', 'ExternalEnvelopeID', 'SentAt', 'CompletedAt', '__mj_CreatedAt'],
             OrderBy: '__mj_CreatedAt DESC',
+            ResultType: 'simple',
         }, systemUser);
 
         if (!result.Success) {
@@ -140,10 +120,10 @@ export async function getSignatureRequests(req: Request, res: Response): Promise
             return;
         }
 
-        const signatureRequests = (result.Results as Record<string, unknown>[]).map(r => ({
+        const signatureRequests = result.Results.map(r => ({
             id: r.ID,
             title: r.Name,
-            status: toDisplayStatus(r.Status as string),
+            status: toDisplayStatus(r.Status),
             externalEnvelopeId: r.ExternalEnvelopeID,
             // SignatureAccountID is deliberately NOT returned: it identifies the org's
             // e-signature account (internal credential selector) and external contacts
@@ -203,18 +183,30 @@ export async function createSignatureRequest(req: Request, res: Response): Promi
     }
 
     try {
-        // Object-level authorization: the artifact must be a file attached to THIS thread
-        // (via a MessageFile link). Otherwise any authenticated contact could have an
-        // arbitrary artifact in the instance sent out for signature by guessing its ID.
+        // Batch object-level authorization (artifact belongs to THIS thread via MessageFile)
+        // and signer display-name lookup in one RunViews call instead of two sequential queries.
         const rv = new RunView();
-        const linkCheck = await rv.RunView<{ ID: string }>({
-            EntityName: 'MJ_BizApps_SecureMessaging: Message Files',
-            ExtraFilter: `ArtifactID = '${artifactId.replace(/'/g, "''")}' AND ThreadID = '${threadId.replace(/'/g, "''")}'`,
-            Fields: ['ID'],
-            MaxRows: 1,
-            ResultType: 'simple',
-        }, systemUser);
-        if (!linkCheck.Success || linkCheck.Results.length === 0) {
+        const batchParams = [
+            {
+                EntityName: 'MJ_BizApps_SecureMessaging: Message Files',
+                ExtraFilter: `ArtifactID = '${artifactId.replace(/'/g, "''")}' AND ThreadID = '${threadId.replace(/'/g, "''")}'`,
+                Fields: ['ID'],
+                MaxRows: 1,
+                ResultType: 'simple' as const,
+            },
+            ...(session.contactId
+                ? [{
+                    EntityName: 'MJ_BizApps_Common: People',
+                    ExtraFilter: `ID = '${session.contactId.replace(/'/g, "''")}'`,
+                    Fields: ['DisplayName', 'FirstName', 'LastName'],
+                    MaxRows: 1,
+                    ResultType: 'simple' as const,
+                }]
+                : []),
+        ];
+        const batchResults = await rv.RunViews(batchParams, systemUser);
+        const linkCheck = batchResults[0];
+        if (!linkCheck?.Success || linkCheck.Results.length === 0) {
             res.status(404).json({ error: 'Document not found in this thread' });
             return;
         }
@@ -229,7 +221,13 @@ export async function createSignatureRequest(req: Request, res: Response): Promi
             return;
         }
 
-        const contactName = await resolveContactName(session.contactId, systemUser);
+        let contactName: string | undefined;
+        const personResult = batchResults[1];
+        if (personResult?.Success && personResult.Results.length > 0) {
+            const p = personResult.Results[0] as ContactNameFields;
+            const resolved = p.DisplayName || [p.FirstName, p.LastName].filter(Boolean).join(' ').trim();
+            contactName = resolved || undefined;
+        }
 
         await SignatureEngine.Instance.Config(false, systemUser);
         const result = await SignatureEngine.Instance.SendForSignature({

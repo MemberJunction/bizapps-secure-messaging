@@ -12,7 +12,8 @@
     "/dist"
   ],
   "scripts": {
-    "build": "tsc && tsc-alias -f"
+    "build": "tsc && tsc-alias -f",
+    "test": "node --test src/__tests__/*.test.mjs"
   },
   "author": "MemberJunction.com",
   "license": "MIT",

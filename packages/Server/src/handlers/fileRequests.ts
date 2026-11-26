@@ -4,9 +4,21 @@ import { mjBizAppsSecureMessagingFileRequestEntity } from '@mj-biz-apps/secure-m
 import { PortalRequest, assertThreadAccess, assertThreadWritable } from './middleware.js';
 import { getFileStore } from '@mj-biz-apps/secure-messaging-core';
 
+interface FileRequestRow {
+    ID: string;
+    Title: string;
+    Instructions: string | null;
+    Status: mjBizAppsSecureMessagingFileRequestEntity['Status'];
+    DueAt: string | Date | null;
+    FulfilledAt: string | Date | null;
+    __mj_CreatedAt: string | Date;
+}
+
 /** A Pending request whose DueAt has passed is treated as Expired (PRD §7, enforced lazily). */
-function isOverdue(dueAt: Date | null): boolean {
-    return !!dueAt && dueAt.getTime() < Date.now();
+function isOverdue(dueAt: string | Date | null): boolean {
+    if (!dueAt) return false;
+    const ms = dueAt instanceof Date ? dueAt.getTime() : new Date(dueAt).getTime();
+    return !Number.isNaN(ms) && ms < Date.now();
 }
 
 /**
@@ -24,11 +36,12 @@ export async function getFileRequests(req: Request, res: Response): Promise<void
 
     try {
         const rv = new RunView();
-        const result = await rv.RunView<mjBizAppsSecureMessagingFileRequestEntity>({
+        const result = await rv.RunView<FileRequestRow>({
             EntityName: 'MJ_BizApps_SecureMessaging: File Requests',
             ExtraFilter: `ThreadID = '${threadId.replace(/'/g, "''")}'`,
+            Fields: ['ID', 'Title', 'Instructions', 'Status', 'DueAt', 'FulfilledAt', '__mj_CreatedAt'],
             OrderBy: '__mj_CreatedAt DESC',
-            ResultType: 'entity_object',
+            ResultType: 'simple',
         }, systemUser);
 
         if (!result.Success) {
@@ -37,10 +50,21 @@ export async function getFileRequests(req: Request, res: Response): Promise<void
         }
 
         // Lazily expire overdue Pending requests so they leave the contact's action strip.
-        for (const r of result.Results) {
-            if (r.Status === 'Pending' && isOverdue(r.DueAt)) {
-                r.Status = 'Expired';
-                await r.Save();
+        // Only hydrate BaseEntity instances for rows that actually need mutation.
+        const overdueRows = result.Results.filter(r => r.Status === 'Pending' && isOverdue(r.DueAt));
+        if (overdueRows.length > 0) {
+            const md = new Metadata();
+            for (const row of overdueRows) {
+                const entity = await md.GetEntityObject<mjBizAppsSecureMessagingFileRequestEntity>(
+                    'MJ_BizApps_SecureMessaging: File Requests',
+                    systemUser
+                );
+                if (await entity.InnerLoad(CompositeKey.FromID(row.ID))) {
+                    entity.Status = 'Expired';
+                    if (await entity.Save()) {
+                        row.Status = 'Expired';
+                    }
+                }
             }
         }
 

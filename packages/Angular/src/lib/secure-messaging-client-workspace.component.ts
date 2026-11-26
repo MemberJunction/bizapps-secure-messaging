@@ -1,13 +1,86 @@
 import { Component, OnInit, Input, Output, EventEmitter, ChangeDetectorRef } from '@angular/core';
-import { CompositeKey, Metadata, RunView } from '@memberjunction/core';
-import { MJFileEntity } from '@memberjunction/core-entities';
+import { CompositeKey, IMetadataProvider, Metadata, RunView, RunViewParams } from '@memberjunction/core';
 import { GraphQLDataProvider, GraphQLFileStorageClient, GraphQLActionClient } from '@memberjunction/graphql-dataprovider';
 import { ActionResult, ActionParam } from '@memberjunction/actions-base';
-import { mjBizAppsCommonPersonEntity } from '@mj-biz-apps/common-entities';
-import { mjBizAppsSecureMessagingPortalSessionEntity, mjBizAppsSecureMessagingFileRequestEntity } from '@mj-biz-apps/secure-messaging-entities';
+import {
+  mjBizAppsSecureMessagingPortalSessionEntity,
+  mjBizAppsSecureMessagingFileRequestEntity,
+  SecureMessagingEngineBase,
+} from '@mj-biz-apps/secure-messaging-entities';
 import { OpenThreadRequest, WorkspaceActionRequest } from './secure-messaging.contracts';
 
 /* ─────────────────────────── Interfaces ─────────────────────────── */
+
+interface PersonSummaryRow {
+  ID: string;
+  DisplayName: string | null;
+  FirstName: string | null;
+  LastName: string | null;
+  Email: string | null;
+  Title: string | null;
+  Phone: string | null;
+}
+
+interface PortalSessionRow {
+  ID: string;
+  Status: SessionInfo['status'];
+  TokenHash: string | null;
+  ExpiresAt: string | null;
+  LastAccessedAt: string | null;
+}
+
+interface SecureThreadIdRow {
+  ID: string;
+}
+
+interface WorkspaceMessageRow {
+  ID: string;
+  ThreadID: string;
+  Subject: string | null;
+  Status: string | null;
+  ReceivedAt: string | null;
+}
+
+interface WorkspaceFileRequestRow {
+  ID: string;
+  Title: string | null;
+  Status: string | null;
+  DueAt: string | null;
+  __mj_CreatedAt: string | null;
+}
+
+interface WorkspaceSignatureRequestRow {
+  ID: string;
+  Name: string | null;
+  Status: string | null;
+  ExternalEnvelopeID: string | null;
+  __mj_CreatedAt: string | null;
+}
+
+interface WorkspaceMessageFileRow {
+  ID: string;
+  Filename: string | null;
+  ContentType: string | null;
+  Size: number | null;
+  FileID: string | null;
+  __mj_CreatedAt: string | null;
+}
+
+interface WorkspaceAuditRow {
+  ID: string;
+  Type: string | null;
+  ChangesDescription: string | null;
+  Entity: string | null;
+  User: string | null;
+  ChangedAt: string | null;
+}
+
+interface WorkspaceFileLookupRow {
+  ID: string;
+  Name: string;
+  ProviderID: string;
+  ProviderKey: string | null;
+}
 
 interface ThreadRow {
   threadId: string;
@@ -114,6 +187,7 @@ const ADV_PREF_KEY = 'sm.workspace.advanced';
         [threadId]="activeThreadId"
         [contactEmail]="contactEmail"
         [contactName]="contactName"
+        [Provider]="Provider"
         (done)="onActionDone()"
         (cancel)="closeActionPanel()">
       </mj-secure-messaging-action-panel>
@@ -424,8 +498,16 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
   @Input() suppressToasts = false;                            // host owns user feedback
   @Input() persistModePreference = true;                      // disable localStorage when embedded multiple times
 
+  /** Optional metadata provider override for multi-provider Angular hosts. */
+  @Input() Provider: IMetadataProvider | null = null;
+
   /** Base URL where the contact-facing widget is hosted; magic links are built as `${this}/?ml=<token>`. */
   @Input() PortalBaseUrl = '';
+
+  /** Active metadata provider (explicit `@Input() Provider` or default global provider). */
+  public get ProviderToUse(): IMetadataProvider {
+    return this.Provider ?? Metadata.Provider;
+  }
 
   /** The most recently issued magic link (surfaced for staff to copy/send). Empty when none. */
   newLink = '';
@@ -462,6 +544,8 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
 
   /** Thread IDs belonging to this contact's portal sessions. */
   private threadIds: string[] = [];
+  /** Portal session IDs belonging to this contact (captured in Wave 1 to avoid redundant audit queries). */
+  private sessionIds: string[] = [];
 
   constructor(private cdr: ChangeDetectorRef) {}
 
@@ -518,42 +602,17 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
   private async loadAll(): Promise<void> {
     this.loading = true;
     try {
-      await Promise.all([
-        this.loadContact(),                // typed Person + linked Organization
-        this.loadSessions(),               // also populates threadIds + session info
-      ]);
-      await Promise.all([
-        this.loadThreads(),
-        this.loadRequestsAndSignatures(),
-        this.loadDocuments(),
-      ]);
-      await this.loadAudit();              // depends on the record IDs gathered above
+      // Wave 1: batch contact profile + portal sessions + contact threads in ONE RunViews round-trip.
+      await this.loadContactAndSessions();
+      // Wave 2: batch all dependent reads (messages, file requests, documents, signature requests,
+      // and session audit trail) in ONE RunViews round-trip using the IDs gathered in Wave 1.
+      await this.loadWorkspaceDetailsBatch();
       this.computeStats();
     } catch (e) {
       console.error('Client workspace load failed', e);
       this.toast('Some workspace data could not be loaded.');
     } finally {
       this.loading = false;
-    }
-  }
-
-  /**
-   * Resolve the contact as a typed BizAppsCommon Person, filling any contact display fields
-   * (name/email/title/phone) not supplied via @Input.
-   */
-  private async loadContact(): Promise<void> {
-    if (!this.contactId) return;
-    try {
-      const md = new Metadata();
-      const person = await md.GetEntityObject<mjBizAppsCommonPersonEntity>('MJ_BizApps_Common: People');
-      if (!(await person.Load(this.contactId))) return;
-
-      this.contactName = this.contactName || person.DisplayName || [person.FirstName, person.LastName].filter(Boolean).join(' ').trim();
-      this.contactEmail = this.contactEmail || (person.Email ?? '');
-      this.contactTitle = this.contactTitle || (person.Title ?? '');
-      this.contactPhone = this.contactPhone || (person.Phone ?? '');
-    } catch (e) {
-      console.error('loadContact failed', e);
     }
   }
 
@@ -564,62 +623,169 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
   }
 
   /**
-   * Load the contact's portal session (identity) and their threads. In v2 a session is per-contact
-   * (one session spans all threads), and threads are their own rows — so the thread list comes from
-   * SecureThread (by ContactID), not from session rows.
+   * Wave 1: loads the contact's Person profile, Portal Sessions, and Secure Threads in a single
+   * batched `rv.RunViews([...])` call with explicit `Fields` projections.
    */
-  private async loadSessions(): Promise<void> {
+  private async loadContactAndSessions(): Promise<void> {
     if (!this.contactId) return;
-    const rv = new RunView();
-    const [sessRes, threadRes] = await rv.RunViews([
+    const escapedContactId = this.esc(this.contactId);
+    const rv = RunView.FromMetadataProvider(this.ProviderToUse);
+    const [personRes, sessRes, threadRes] = await rv.RunViews([
+      {
+        EntityName: 'MJ_BizApps_Common: People',
+        ExtraFilter: `ID = '${escapedContactId}'`,
+        Fields: ['ID', 'DisplayName', 'FirstName', 'LastName', 'Email', 'Title', 'Phone'],
+        MaxRows: 1,
+        ResultType: 'simple',
+      },
       {
         EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
-        ExtraFilter: `ContactID = '${this.esc(this.contactId)}'`,
+        ExtraFilter: `ContactID = '${escapedContactId}'`,
+        Fields: ['ID', 'Status', 'TokenHash', 'ExpiresAt', 'LastAccessedAt'],
         OrderBy: 'LastAccessedAt DESC',
         ResultType: 'simple',
       },
       {
         EntityName: 'MJ_BizApps_SecureMessaging: Secure Threads',
-        ExtraFilter: `ContactID = '${this.esc(this.contactId)}' AND IsDeleted = 0`,
+        ExtraFilter: `ContactID = '${escapedContactId}' AND IsDeleted = 0`,
+        Fields: ['ID'],
         OrderBy: 'LastMessageAt DESC',
         ResultType: 'simple',
       },
     ]);
 
-    if (threadRes.Success && threadRes.Results) {
-      const trows = threadRes.Results as Record<string, unknown>[];
-      this.threadIds = [...new Set(trows.map(r => String(r.ID)).filter(Boolean))];
+    if (personRes?.Success && personRes.Results?.length) {
+      const person = (personRes.Results as PersonSummaryRow[])[0];
+      this.contactName = this.contactName || person.DisplayName || [person.FirstName, person.LastName].filter(Boolean).join(' ').trim();
+      this.contactEmail = this.contactEmail || (person.Email ?? '');
+      this.contactTitle = this.contactTitle || (person.Title ?? '');
+      this.contactPhone = this.contactPhone || (person.Phone ?? '');
     }
 
-    if (sessRes.Success && sessRes.Results) {
-      const newest = (sessRes.Results as Record<string, unknown>[])[0];
+    if (threadRes?.Success && threadRes.Results) {
+      const trows = threadRes.Results as SecureThreadIdRow[];
+      this.threadIds = [...new Set(trows.map(r => String(r.ID)).filter(Boolean))];
+    } else {
+      this.threadIds = [];
+    }
+
+    if (sessRes?.Success && sessRes.Results) {
+      const srows = sessRes.Results as PortalSessionRow[];
+      this.sessionIds = [...new Set(srows.map(r => String(r.ID)).filter(Boolean))];
+      const newest = srows[0];
       if (newest) {
-        const status = (newest.Status as SessionInfo['status']) || 'None';
+        const status = newest.Status || 'None';
         this.session = {
           id: String(newest.ID),
           status,
-          tokenMasked: this.maskToken(newest.TokenHash as string),
-          expiresLabel: this.relativeFuture(newest.ExpiresAt as string) + ' (sliding)',
-          lastAccessLabel: this.relativePast(newest.LastAccessedAt as string),
+          tokenMasked: this.maskToken(newest.TokenHash),
+          expiresLabel: this.relativeFuture(newest.ExpiresAt) + ' (sliding)',
+          lastAccessLabel: this.relativePast(newest.LastAccessedAt),
         };
       }
+    } else {
+      this.sessionIds = [];
     }
   }
 
-  private async loadThreads(): Promise<void> {
-    if (this.threadIds.length === 0) return;
-    const rv = new RunView();
-    const res = await rv.RunView({
-      EntityName: 'MJ_BizApps_SecureMessaging: Secure Messages',
-      ExtraFilter: `ThreadID IN (${this.inList(this.threadIds)})`,
-      OrderBy: 'ReceivedAt DESC',
-      ResultType: 'simple',
-    });
-    if (!res.Success) return;
-    const rows = res.Results as Record<string, unknown>[];
+  /**
+   * Wave 2: collapses messages, file requests, documents, signature requests, and session audit
+   * history into ONE batched `rv.RunViews([...])` call with explicit `Fields` projections.
+   */
+  private async loadWorkspaceDetailsBatch(): Promise<void> {
+    const views: RunViewParams[] = [];
+    let messagesIdx = -1;
+    let fileReqIdx = -1;
+    let docsIdx = -1;
+    let sigReqIdx = -1;
+    let auditIdx = -1;
 
-    // Group messages into threads; newest message drives the title/time/status.
-    const byThread = new Map<string, Record<string, unknown>[]>();
+    if (this.threadIds.length > 0) {
+      const inThreads = this.inList(this.threadIds);
+
+      messagesIdx = views.length;
+      views.push({
+        EntityName: 'MJ_BizApps_SecureMessaging: Secure Messages',
+        ExtraFilter: `ThreadID IN (${inThreads})`,
+        Fields: ['ID', 'ThreadID', 'Subject', 'Status', 'ReceivedAt'],
+        OrderBy: 'ReceivedAt DESC',
+        ResultType: 'simple',
+      });
+
+      fileReqIdx = views.length;
+      views.push({
+        EntityName: 'MJ_BizApps_SecureMessaging: File Requests',
+        ExtraFilter: `ThreadID IN (${inThreads})`,
+        Fields: ['ID', 'Title', 'Status', 'DueAt', '__mj_CreatedAt'],
+        OrderBy: '__mj_CreatedAt DESC',
+        ResultType: 'simple',
+      });
+
+      docsIdx = views.length;
+      views.push({
+        EntityName: 'MJ_BizApps_SecureMessaging: Message Files',
+        ExtraFilter: `ThreadID IN (${inThreads})`,
+        Fields: ['ID', 'Filename', 'ContentType', 'Size', 'FileID', '__mj_CreatedAt'],
+        OrderBy: '__mj_CreatedAt DESC',
+        ResultType: 'simple',
+      });
+
+      const threadsEntityId = this.entityIdOf('MJ_BizApps_SecureMessaging: Secure Threads');
+      if (threadsEntityId) {
+        sigReqIdx = views.length;
+        views.push({
+          EntityName: 'MJ: Signature Requests',
+          ExtraFilter: `EntityID = '${this.esc(threadsEntityId)}' AND RecordID IN (${inThreads})`,
+          Fields: ['ID', 'Name', 'Status', 'ExternalEnvelopeID', '__mj_CreatedAt'],
+          OrderBy: '__mj_CreatedAt DESC',
+          ResultType: 'simple',
+        });
+      }
+    }
+
+    const sessionEntityId = this.entityIdOf('MJ_BizApps_SecureMessaging: Portal Sessions');
+    if (sessionEntityId && this.sessionIds.length > 0) {
+      auditIdx = views.length;
+      views.push({
+        EntityName: 'MJ: Record Changes',
+        ExtraFilter: `EntityID = '${this.esc(sessionEntityId)}' AND RecordID IN (${this.inList(this.sessionIds)})`,
+        Fields: ['ID', 'Type', 'ChangesDescription', 'Entity', 'User', 'ChangedAt'],
+        OrderBy: 'ChangedAt DESC',
+        MaxRows: 50,
+        ResultType: 'simple',
+      });
+    }
+
+    if (views.length === 0) return;
+
+    const rv = RunView.FromMetadataProvider(this.ProviderToUse);
+    const results = await rv.RunViews(views);
+
+    if (messagesIdx >= 0 && results[messagesIdx]?.Success) {
+      this.applyThreadMessages(results[messagesIdx].Results as WorkspaceMessageRow[]);
+    }
+
+    const fileRows: RequestRow[] = fileReqIdx >= 0 && results[fileReqIdx]?.Success
+      ? this.mapFileRequestRows(results[fileReqIdx].Results as WorkspaceFileRequestRow[])
+      : [];
+    const sigRows: RequestRow[] = sigReqIdx >= 0 && results[sigReqIdx]?.Success
+      ? this.mapSignatureRequestRows(results[sigReqIdx].Results as WorkspaceSignatureRequestRow[])
+      : [];
+    if (fileReqIdx >= 0 || sigReqIdx >= 0) {
+      this.requests = [...fileRows, ...sigRows];
+    }
+
+    if (docsIdx >= 0 && results[docsIdx]?.Success) {
+      this.applyDocumentRows(results[docsIdx].Results as WorkspaceMessageFileRow[]);
+    }
+
+    if (auditIdx >= 0 && results[auditIdx]?.Success) {
+      this.applyAuditRows(results[auditIdx].Results as WorkspaceAuditRow[]);
+    }
+  }
+
+  private applyThreadMessages(rows: WorkspaceMessageRow[]): void {
+    const byThread = new Map<string, WorkspaceMessageRow[]>();
     for (const m of rows) {
       const tid = String(m.ThreadID);
       (byThread.get(tid) ?? byThread.set(tid, []).get(tid)!).push(m);
@@ -630,10 +796,61 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
       const status = String(latest.Status || 'New');
       return {
         threadId: tid,
-        title: (latest.Subject as string) || 'Conversation',
+        title: latest.Subject || 'Conversation',
         sub: `${count} message${count === 1 ? '' : 's'} · ${status.toLowerCase()}`,
-        time: this.shortDate(latest.ReceivedAt as string),
+        time: this.shortDate(latest.ReceivedAt),
         badge: this.threadBadge(status),
+      };
+    });
+  }
+
+  private mapFileRequestRows(rows: WorkspaceFileRequestRow[]): RequestRow[] {
+    return rows.map(r => ({
+      id: String(r.ID),
+      title: String(r.Title || 'File request'),
+      sub: 'File request' + (r.DueAt ? ` · due ${this.shortDate(r.DueAt)}` : ''),
+      time: this.shortDate(r.__mj_CreatedAt),
+      kind: 'file' as const,
+      status: String(r.Status || 'Pending'),
+      badge: this.fileRequestBadge(String(r.Status || 'Pending')),
+    }));
+  }
+
+  private mapSignatureRequestRows(rows: WorkspaceSignatureRequestRow[]): RequestRow[] {
+    return rows.map(r => ({
+      id: String(r.ID),
+      title: String(r.Name || 'Signature request'),
+      sub: 'Signature' + (r.ExternalEnvelopeID ? ' · envelope sent' : ''),
+      time: this.shortDate(r.__mj_CreatedAt),
+      kind: 'signature' as const,
+      status: String(r.Status || 'Draft'),
+      badge: this.signatureBadge(String(r.Status || 'Draft')),
+    }));
+  }
+
+  private applyDocumentRows(rows: WorkspaceMessageFileRow[]): void {
+    this.docs = rows.map(r => {
+      const filename = String(r.Filename || 'document');
+      const size = r.Size ? Number(r.Size) : 0;
+      return {
+        id: String(r.ID),
+        filename,
+        sub: `${this.formatSize(size)} · ${this.shortDate(r.__mj_CreatedAt)}`,
+        fileId: r.FileID ? String(r.FileID) : null,
+        iconClass: this.docIconClass(filename, String(r.ContentType || '')),
+      };
+    });
+  }
+
+  private applyAuditRows(rows: WorkspaceAuditRow[]): void {
+    this.audit = rows.map(r => {
+      const type = String(r.Type || 'Update');
+      return {
+        kind: type === 'Create' ? 'ok' : type === 'Delete' ? 'warn' : 'info',
+        icon: type === 'Create' ? 'fa-circle-plus' : type === 'Delete' ? 'fa-trash' : 'fa-pen',
+        title: r.ChangesDescription || `${type} · session`,
+        desc: `${r.Entity || 'Portal Session'} · by ${r.User || 'system'}`,
+        time: this.fullDateTime(r.ChangedAt),
       };
     });
   }
@@ -641,47 +858,36 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
   private async loadRequestsAndSignatures(): Promise<void> {
     if (this.threadIds.length === 0) return;
     const inThreads = this.inList(this.threadIds);
-
-    // File requests (owned entity).
-    const rvF = new RunView();
-    const fRes = await rvF.RunView({
-      EntityName: 'MJ_BizApps_SecureMessaging: File Requests',
-      ExtraFilter: `ThreadID IN (${inThreads})`,
-      OrderBy: '__mj_CreatedAt DESC',
-      ResultType: 'simple',
-    });
-    const fileRows: RequestRow[] = fRes.Success ? (fRes.Results as Record<string, unknown>[]).map(r => ({
-      id: String(r.ID),
-      title: String(r.Title || 'File request'),
-      sub: 'File request' + (r.DueAt ? ` · due ${this.shortDate(r.DueAt as string)}` : ''),
-      time: this.shortDate(r.__mj_CreatedAt as string),
-      kind: 'file' as const,
-      status: String(r.Status || 'Pending'),
-      badge: this.fileRequestBadge(String(r.Status || 'Pending')),
-    })) : [];
-
-    // Signature requests (core MJ engine entity), linked to the thread via EntityID/RecordID (v2:
-    // the SecureThread is the polymorphic owner — matches the server-side SendForSignature link).
-    let sigRows: RequestRow[] = [];
     const entityId = this.entityIdOf('MJ_BizApps_SecureMessaging: Secure Threads');
-    if (entityId && this.threadIds.length > 0) {
-      const rvS = new RunView();
-      const sRes = await rvS.RunView({
+
+    const views: RunViewParams[] = [
+      {
+        EntityName: 'MJ_BizApps_SecureMessaging: File Requests',
+        ExtraFilter: `ThreadID IN (${inThreads})`,
+        Fields: ['ID', 'Title', 'Status', 'DueAt', '__mj_CreatedAt'],
+        OrderBy: '__mj_CreatedAt DESC',
+        ResultType: 'simple',
+      },
+    ];
+    if (entityId) {
+      views.push({
         EntityName: 'MJ: Signature Requests',
-        ExtraFilter: `EntityID = '${this.esc(entityId)}' AND RecordID IN (${this.inList(this.threadIds)})`,
+        ExtraFilter: `EntityID = '${this.esc(entityId)}' AND RecordID IN (${inThreads})`,
+        Fields: ['ID', 'Name', 'Status', 'ExternalEnvelopeID', '__mj_CreatedAt'],
         OrderBy: '__mj_CreatedAt DESC',
         ResultType: 'simple',
       });
-      sigRows = sRes.Success ? (sRes.Results as Record<string, unknown>[]).map(r => ({
-        id: String(r.ID),
-        title: String(r.Name || 'Signature request'),
-        sub: 'Signature' + (r.ExternalEnvelopeID ? ' · envelope sent' : ''),
-        time: this.shortDate(r.__mj_CreatedAt as string),
-        kind: 'signature' as const,
-        status: String(r.Status || 'Draft'),
-        badge: this.signatureBadge(String(r.Status || 'Draft')),
-      })) : [];
     }
+
+    const rv = RunView.FromMetadataProvider(this.ProviderToUse);
+    const [fRes, sRes] = await rv.RunViews(views);
+
+    const fileRows: RequestRow[] = fRes?.Success
+      ? this.mapFileRequestRows(fRes.Results as WorkspaceFileRequestRow[])
+      : [];
+    const sigRows: RequestRow[] = sRes?.Success
+      ? this.mapSignatureRequestRows(sRes.Results as WorkspaceSignatureRequestRow[])
+      : [];
 
     this.requests = [...fileRows, ...sigRows];
   }
@@ -696,8 +902,7 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
     this.cancellingId = r.id;
     this.cdr.detectChanges();
     try {
-      const md = new Metadata();
-      const fr = await md.GetEntityObject<mjBizAppsSecureMessagingFileRequestEntity>('MJ_BizApps_SecureMessaging: File Requests');
+      const fr = await this.ProviderToUse.GetEntityObject<mjBizAppsSecureMessagingFileRequestEntity>('MJ_BizApps_SecureMessaging: File Requests');
       const loaded = await fr.InnerLoad(CompositeKey.FromID(r.id));
       if (!loaded) {
         this.toast('Could not load the request to cancel.');
@@ -720,54 +925,22 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
     }
   }
 
-  private async loadDocuments(): Promise<void> {
-    if (this.threadIds.length === 0) return;
-    const rv = new RunView();
-    const res = await rv.RunView({
-      EntityName: 'MJ_BizApps_SecureMessaging: Message Files',
-      ExtraFilter: `ThreadID IN (${this.inList(this.threadIds)})`,
-      OrderBy: '__mj_CreatedAt DESC',
-      ResultType: 'simple',
-    });
-    if (!res.Success) return;
-    this.docs = (res.Results as Record<string, unknown>[]).map(r => {
-      const filename = String(r.Filename || 'document');
-      const size = r.Size ? Number(r.Size) : 0;
-      return {
-        id: String(r.ID),
-        filename,
-        sub: `${this.formatSize(size)} · ${this.shortDate(r.__mj_CreatedAt as string)}`,
-        fileId: r.FileID ? String(r.FileID) : null,
-        iconClass: this.docIconClass(filename, String(r.ContentType || '')),
-      };
-    });
-  }
-
-  /** Build the audit timeline from MJ: Record Changes across this contact's records. */
+  /** Build the audit timeline from MJ: Record Changes across this contact's portal sessions. */
   private async loadAudit(): Promise<void> {
     const sessionEntityId = this.entityIdOf('MJ_BizApps_SecureMessaging: Portal Sessions');
-    const sessionIds = await this.sessionIdsForContact();
-    if (sessionIds.length === 0) return;
+    if (!sessionEntityId || this.sessionIds.length === 0) return;
 
-    const rv = new RunView();
-    const res = await rv.RunView({
+    const rv = RunView.FromMetadataProvider(this.ProviderToUse);
+    const res = await rv.RunView<WorkspaceAuditRow>({
       EntityName: 'MJ: Record Changes',
-      ExtraFilter: `EntityID = '${this.esc(sessionEntityId)}' AND RecordID IN (${this.inList(sessionIds)})`,
+      ExtraFilter: `EntityID = '${this.esc(sessionEntityId)}' AND RecordID IN (${this.inList(this.sessionIds)})`,
+      Fields: ['ID', 'Type', 'ChangesDescription', 'Entity', 'User', 'ChangedAt'],
       OrderBy: 'ChangedAt DESC',
       MaxRows: 50,
       ResultType: 'simple',
     });
     if (!res.Success) return;
-    this.audit = (res.Results as Record<string, unknown>[]).map(r => {
-      const type = String(r.Type || 'Update');
-      return {
-        kind: type === 'Create' ? 'ok' : type === 'Delete' ? 'warn' : 'info',
-        icon: type === 'Create' ? 'fa-circle-plus' : type === 'Delete' ? 'fa-trash' : 'fa-pen',
-        title: (r.ChangesDescription as string) || `${type} · session`,
-        desc: `${r.Entity || 'Portal Session'} · by ${r.User || 'system'}`,
-        time: this.fullDateTime(r.ChangedAt as string),
-      };
-    });
+    this.applyAuditRows(res.Results);
   }
 
   private computeStats(): void {
@@ -792,7 +965,7 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
       const actionId = await this.resolveActionId('Issue Portal Magic Link');
       if (!actionId) { this.toast('The magic-link action is not registered'); return; }
 
-      const client = new GraphQLActionClient(Metadata.Provider as unknown as GraphQLDataProvider);
+      const client = new GraphQLActionClient(this.ProviderToUse as GraphQLDataProvider);
       const result = await client.RunAction(actionId, [
         { Name: 'SessionID', Value: this.session.id, Type: 'Input' },
       ]);
@@ -815,17 +988,9 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
     }
   }
 
-  /** Resolve an Action's ID by name (RunView on MJ: Actions). */
+  /** Resolve an Action's ID by name via SecureMessagingEngineBase's cached action lookup. */
   private async resolveActionId(name: string): Promise<string | null> {
-    const rv = new RunView();
-    const res = await rv.RunView({
-      EntityName: 'MJ: Actions',
-      ExtraFilter: `Name = '${this.esc(name)}'`,
-      MaxRows: 1,
-      ResultType: 'simple',
-    });
-    if (!res.Success || res.Results.length === 0) return null;
-    return String((res.Results as Record<string, unknown>[])[0].ID);
+    return SecureMessagingEngineBase.Instance.ResolveActionId(name, undefined, this.ProviderToUse);
   }
 
   async revoke(): Promise<void> {
@@ -833,8 +998,7 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
     if (!confirm('Revoke this contact’s secure session? They will need a new magic link to return.')) return;
     this.sessionBusy = true;
     try {
-      const md = new Metadata();
-      const s = await md.GetEntityObject<mjBizAppsSecureMessagingPortalSessionEntity>('MJ_BizApps_SecureMessaging: Portal Sessions');
+      const s = await this.ProviderToUse.GetEntityObject<mjBizAppsSecureMessagingPortalSessionEntity>('MJ_BizApps_SecureMessaging: Portal Sessions');
       const loaded = await s.Load(this.session.id);
       if (!loaded) { this.toast('Session not found'); return; }
       s.Status = 'Revoked';
@@ -898,23 +1062,26 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
   async downloadDoc(d: DocRow): Promise<void> {
     if (!d.fileId) { this.toast('No stored file for this document'); return; }
     try {
-      const md = new Metadata();
-      const file = await md.GetEntityObject<MJFileEntity>('MJ: Files');
-      if (!(await file.Load(d.fileId))) { this.toast('File record not found'); return; }
+      const rv = RunView.FromMetadataProvider(this.ProviderToUse);
+      const [fileRes] = await Promise.all([
+        rv.RunView<WorkspaceFileLookupRow>({
+          EntityName: 'MJ: Files',
+          ExtraFilter: `ID = '${this.esc(d.fileId)}'`,
+          Fields: ['ID', 'Name', 'ProviderID', 'ProviderKey'],
+          MaxRows: 1,
+          ResultType: 'simple',
+        }),
+        SecureMessagingEngineBase.Instance.Config(false, undefined, this.ProviderToUse),
+      ]);
+      const file = fileRes.Success ? fileRes.Results?.[0] : undefined;
+      if (!file) { this.toast('File record not found'); return; }
       const providerKey = file.ProviderKey || file.Name;
 
-      // Resolve the storage account for this file's provider, then pre-auth a download URL.
-      const rv = new RunView();
-      const accRes = await rv.RunView({
-        EntityName: 'MJ: File Storage Accounts',
-        ExtraFilter: `ProviderID = '${this.esc(file.Get('ProviderID') as string)}'`,
-        MaxRows: 1,
-        ResultType: 'simple',
-      });
-      const account = accRes.Success ? (accRes.Results as Record<string, unknown>[])[0] : null;
+      // Resolve storage account from SecureMessagingEngineBase cache (CacheLocal: false).
+      const account = SecureMessagingEngineBase.Instance.FindStorageAccountByProviderId(file.ProviderID);
       if (!account) { this.toast('No storage account configured'); return; }
 
-      const client = new GraphQLFileStorageClient(Metadata.Provider as unknown as GraphQLDataProvider);
+      const client = new GraphQLFileStorageClient(this.ProviderToUse as GraphQLDataProvider);
       const url = await client.CreatePreAuthDownloadUrl(String(account.ID), providerKey);
       window.open(url, '_blank');
     } catch (e) {
@@ -1048,23 +1215,10 @@ export class SecureMessagingClientWorkspaceComponent implements OnInit {
   private esc(s: string): string { return (s || '').replace(/'/g, "''"); }
   private inList(ids: string[]): string { return ids.map(id => `'${this.esc(id)}'`).join(', ') || "''"; }
 
-  /** Resolve the MJ Entity ID for an entity name via the metadata provider. */
+  /** Resolve the MJ Entity ID for an entity name via the active metadata provider. */
   private entityIdOf(name: string): string {
-    const e = new Metadata().Entities.find(x => x.Name === name);
+    const e = this.ProviderToUse.Entities.find(x => x.Name === name);
     return e ? e.ID : '';
-  }
-
-  /** Portal session IDs for this contact (used for signature + audit lookups). */
-  private async sessionIdsForContact(): Promise<string[]> {
-    if (!this.contactId) return [];
-    const rv = new RunView();
-    const res = await rv.RunView({
-      EntityName: 'MJ_BizApps_SecureMessaging: Portal Sessions',
-      ExtraFilter: `ContactID = '${this.esc(this.contactId)}'`,
-      ResultType: 'simple',
-    });
-    if (!res.Success) return [];
-    return (res.Results as Record<string, unknown>[]).map(r => String(r.ID));
   }
 
   /* ───────── Date formatting ───────── */

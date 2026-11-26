@@ -8,6 +8,11 @@
       "dependsOn": ["^build"],
       "persistent": false
     },
+    "test": {
+      "cache": false,
+      "dependsOn": ["build"],
+      "persistent": false
+    },
     "start": {
       "cache": false,
       "persistent": true

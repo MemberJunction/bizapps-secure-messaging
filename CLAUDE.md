@@ -2021,3 +2021,35 @@ npx playwright-cli close
 - **Rows missing after a fresh install** usually mean a release shipped without its metadata migration. Hand that to the build engineer rather than changing the installer.
 
 The model, and the Open App steps that differ from core (`--schema`, the `${mjSchema}` substitution): [Release Metadata Migrations Guide](https://github.com/MemberJunction/MJ/blob/next/guides/RELEASE_METADATA_MIGRATIONS_GUIDE.md).
+
+---
+
+## ⚡ 5-Rule BizApps Performance & Caching Standard (`bizapps-secure-messaging`)
+
+Every server handler, store, action, and Angular component in this repository MUST follow these five performance and caching rules. The shared engine lives in `@mj-biz-apps/secure-messaging-entities` (`packages/Entities/src/engine/SecureMessagingEngineBase.ts`, `shared` tier in `mj-app.json`) so both Angular (`@mj-biz-apps/secure-messaging-ng`) and server packages (`core`/`server`/`actions`) share one `BaseSingleton`-backed engine without violating client/server package boundaries.
+
+### Rule 1: `BaseEngine` for Bounded Lookup / Config Metadata — Never Unbounded Transactional Tables
+- Cache small, bounded reference/config tables in `SecureMessagingEngineBase extends BaseEngine<SecureMessagingEngineBase>` (`@RegisterForStartup()`, lazy `await SecureMessagingEngineBase.Instance.Config(false, contextUser, provider)` at entry points; use `ObserveProperty` / `DataChange$` when reactive updates are needed).
+- **Cached in `SecureMessagingEngineBase`**: `MJ: Artifact Types` (`IsEnabled = 1`), `MJ: Actions` (bounded to the 5 Secure Messaging + eSignature actions), `MJ: File Storage Accounts`, and `MJ: Signature Accounts` (`IsActive = 1`).
+- **NEVER globally cache unbounded transactional or security-sensitive tables**: `Secure Threads`, `Secure Messages`, `Message Files`, `File Requests`, `Portal Sessions`, `Portal Magic Links`, or `MJ: Record Changes`.
+
+### Rule 2: Multi-Provider, Impersonation, `CanRead`, and RLS `CacheLocal` Safety
+- **Active `ProviderToUse` override**: track any explicit `provider` passed to `Config(forceRefresh, contextUser, provider)` (`public override get ProviderToUse(): IMetadataProvider { return this._activeProvider ?? super.ProviderToUse; }`), pass `provider` **unchanged** to `super.Load(configs, provider, effectiveForceRefresh, contextUser)` (never hardcode `Metadata.Provider`), and force-refresh + clear container caches whenever the provider switches.
+- **`CacheLocal` safety**: set `CacheLocal: true` **only** on global non-RLS reference/taxonomy tables (`MJ: Artifact Types`, `MJ: Actions`). Set **`CacheLocal: false`** on any RLS-protected, tenant-scoped, or permissioned org account config table (`MJ: File Storage Accounts`, `MJ: Signature Accounts`) so rows never leak across tenants/users through browser IndexedDB or shared local cache.
+- **`CanRead` gating**: verify both entity existence (`provider.EntityByName(name)`) and `entityInfo.GetUserPermisions(user).CanRead` before adding optional or permissioned entities to `BaseEngine.Load(...)`, clearing stale arrays when denied so restricted portal/external users never hit permission errors.
+- Angular components MUST accept `@Input() Provider: IMetadataProvider | null = null`, expose `ProviderToUse`, and thread it to `RunView.FromMetadataProvider(this.ProviderToUse)`, `this.ProviderToUse.GetEntityObject(...)`, and `SecureMessagingEngineBase.Instance.Config(false, undefined, this.ProviderToUse)`.
+
+### Rule 3: Collapse `RunView` Waterfalls into Batched `rv.RunViews([...])` + `ResultType: 'simple'` + `Fields`
+- **NEVER** issue sequential `await rv.RunView(...)` calls or `Promise.all([new RunView().RunView(...), ...])` for independent reads — collapse them into **one** `rv.RunViews([...])` call (`RunView.FromMetadataProvider(this.ProviderToUse)` where a provider is in scope) so GraphQL executes them in a single round-trip.
+- Always pass **`ResultType: 'simple'`** and an explicit **`Fields: [...]`** projection whenever the caller only reads data and does not call `.Save()` / `.Delete()`. Only hydrate `ResultType: 'entity_object'` for rows that actually mutate (e.g., lazy expiration of overdue `Pending` file requests).
+
+### Rule 4: `ConversationEngine`-Style Bounded Per-Container Cache — Never Cache Arbitrary Filtered Lists
+- For frequently revisited thread views (e.g. clicking between conversations in `SecureMessagingExecutiveComponent`), use **`SecureMessagingEngineBase.Instance.LoadThreadWindow(threadId, options)`**:
+  - Bounded LRU eviction (`MaxCachedThreads`, default 50) and bounded per-thread row windows (`MaxMessagesPerThread`, `MaxFilesPerThread`, `MaxFileRequestsPerThread`), fetched in one batched `rv.RunViews([...])` call on miss and served with 0 round-trips on hit.
+  - Scoped to `(NormalizeUUID(threadId), viewerScopeKey, activeProvider)` — automatically cleared on viewer `userId`/`viewerScopeKey` switch or provider switch so user A's threads can never leak to user B.
+  - Automatically invalidated on `BaseEntity` `save`, `delete`, and `remote-invalidate` events for `Secure Messages`, `Message Files`, `File Requests`, `Secure Threads`, and `Portal Sessions` (and explicitly via `InvalidateThread(threadId)` after server-side GraphQL Action writes).
+- **NEVER** cache arbitrary filtered/sorted inbox queries, search results, or global message tables.
+
+### Rule 5: RLS-Safe Two-Step Entity Reads — Zero Raw SQL Subqueries
+- When filtering across related or RLS-protected entities (e.g. resolving `MJ_BizApps_Common: People` names for `PersonID`s on loaded messages, or loading `Secure Messages`/`File Requests`/`Message Files`/`Signature Requests` for a contact's `threadIds`), execute a first-class `RunView` on the owning/junction entity first, then issue a chunked `ID IN (...)` (max ~200 IDs per chunk, batched via `rv.RunViews([...])`) on the target entity.
+- **NEVER** embed raw SQL `IN (SELECT ... FROM ...)` subqueries across tables — subqueries bypass MJ entity-level RLS and permission checks.
