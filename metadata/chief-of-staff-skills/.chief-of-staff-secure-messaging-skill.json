@@ -1,0 +1,77 @@
+[
+  {
+    "fields": {
+      "Name": "Secure Messaging",
+      "Description": "Inspect confidential client threads, messages, file requests, and portal sessions, start or promote secure threads, send outbound secure messages, and issue single-use portal magic links. Installed by the MJ Secure Messaging app.",
+      "Instructions": "@file:templates/secure-messaging-chief-of-staff.skill.md",
+      "Status": "Active",
+      "ActivationMode": "Auto",
+      "Category": "Communication",
+      "IconClass": "fa-solid fa-shield-halved",
+      "CreatedByUserID": "@lookup:MJ: Users.Name=System"
+    },
+    "relatedEntities": {
+      "MJ: AI Agent Skills": [
+        {
+          "fields": {
+            "AgentID": "@lookup:MJ: AI Agents.Name=Chief of Staff",
+            "SkillID": "@parent:ID",
+            "Status": "Active"
+          },
+          "primaryKey": {
+            "ID": "8AADB107-B049-454A-85AA-A57A88D77280"
+          }
+        }
+      ],
+      "MJ: AI Skill Actions": [
+        {
+          "fields": {
+            "SkillID": "@parent:ID",
+            "ActionID": "@lookup:MJ: Actions.Name=Start Secure Thread",
+            "Role": "Tool",
+            "ExposeToModel": true
+          },
+          "primaryKey": {
+            "ID": "EB971798-E76F-41C8-9A27-C05E1AA8A2D2"
+          }
+        },
+        {
+          "fields": {
+            "SkillID": "@parent:ID",
+            "ActionID": "@lookup:MJ: Actions.Name=Send Secure Message",
+            "Role": "Tool",
+            "ExposeToModel": true
+          },
+          "primaryKey": {
+            "ID": "990CDB89-04A8-433B-8B57-33875FC7C5FB"
+          }
+        },
+        {
+          "fields": {
+            "SkillID": "@parent:ID",
+            "ActionID": "@lookup:MJ: Actions.Name=Promote Thread",
+            "Role": "Tool",
+            "ExposeToModel": true
+          },
+          "primaryKey": {
+            "ID": "85AE3801-8E3E-483B-AE24-C2D35F5176EA"
+          }
+        },
+        {
+          "fields": {
+            "SkillID": "@parent:ID",
+            "ActionID": "@lookup:MJ: Actions.Name=Issue Portal Magic Link",
+            "Role": "Tool",
+            "ExposeToModel": true
+          },
+          "primaryKey": {
+            "ID": "60E7B5A9-D606-4A0E-849C-690342D3A17E"
+          }
+        }
+      ]
+    },
+    "primaryKey": {
+      "ID": "B3180276-F544-4707-A97E-00AA9B003588"
+    }
+  }
+]
